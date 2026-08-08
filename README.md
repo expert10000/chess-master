@@ -3,6 +3,10 @@
 A local desktop chess trainer built with Electron, React, TypeScript,
 `chess.js`, and a native Stockfish process.
 
+## Chess view
+
+![Chess Master chess view](docs/images/chess-master-screenshot.png)
+
 It already supports:
 
 - playing White or Black against selectable engine strength;
@@ -283,7 +287,3 @@ Training is an additional top-level mode; **Play & Coach is preserved unchanged*
 - Returning to **Play & Coach** restores the existing live position immediately.
 
 See `docs/TRAINING_MODE.md` for the scoring and state-isolation design.
-
-## Screenshot
-
-![Chess Master gameplay screen](docs/images/chess-master-screenshot.png)
