@@ -8,7 +8,16 @@ import { TrainingPanel } from './components/TrainingPanel';
 import { ImportGameDialog } from './components/ImportGameDialog';
 import { GameReviewSummary } from './components/GameReviewSummary';
 import { EvaluationTimeline } from './components/EvaluationTimeline';
-import { buildAnalysisBoardIdeas, buildReviewBoardIdeas, explainBoardIdea, type BoardIdeaExplanation, type BoardIdeaTarget } from './lib/boardIdeas';
+import {
+  buildAnalysisBoardIdeas,
+  buildReviewBoardIdeas,
+  buildSquareControlOverlay,
+  explainBoardIdea,
+  explainBoardSquare,
+  type BoardIdeaExplanation,
+  type BoardIdeaTarget,
+  type InspectionOverlayMode,
+} from './lib/boardIdeas';
 import {
   answerCoachQuestion,
   answerComparedMove,
@@ -34,6 +43,16 @@ import {
   type TrainingExercise,
   type TrainingSource,
 } from './lib/training';
+import {
+  PV_SPEEDS,
+  clampPvIndex,
+  pvAnimationDuration,
+  pvStepGap,
+  replayPvPosition,
+  sanitizePvLine,
+  type PvSpeed,
+} from './lib/pvStudy';
+import type { MoveComparisonFocus } from './lib/moveComparison';
 import type { AnalyseResult, EngineStatus, EngineStrength } from './types/engine';
 import type { OllamaStatus } from './types/ollama';
 
@@ -79,9 +98,12 @@ interface EngineMoveAnimation {
 
 interface PrincipalVariationPreview {
   label: string;
+  startFen: string;
+  line: string[];
   index: number;
   total: number;
   playing: boolean;
+  speed: PvSpeed;
 }
 
 interface LineMeta {
@@ -148,6 +170,8 @@ export default function App() {
   const [showBoardIdeas, setShowBoardIdeas] = useState(true);
   const [ideaInspection, setIdeaInspection] = useState(false);
   const [boardIdeaExplanation, setBoardIdeaExplanation] = useState<BoardIdeaExplanation | null>(null);
+  const [inspectedSquare, setInspectedSquare] = useState<Square | null>(null);
+  const [inspectionOverlayMode, setInspectionOverlayMode] = useState<InspectionOverlayMode>('all');
   const [appMode, setAppMode] = useState<AppMode>('play');
   const [trainingSource, setTrainingSource] = useState<TrainingSource>('mistakes');
   const [trainingIndex, setTrainingIndex] = useState(0);
@@ -176,6 +200,7 @@ export default function App() {
   const [statusText, setStatusText] = useState('Ready');
   const [review, setReview] = useState<MoveReview | null>(null);
   const [activeReviewId, setActiveReviewId] = useState<number | null>(null);
+  const [moveComparisonFocus, setMoveComparisonFocus] = useState<MoveComparisonFocus>('both');
   const [coachLoading, setCoachLoading] = useState(false);
   const [batchReviewing, setBatchReviewing] = useState(false);
   const [coachError, setCoachError] = useState<string | null>(null);
@@ -232,6 +257,29 @@ export default function App() {
     if (review) return buildReviewBoardIdeas(review);
     return buildAnalysisBoardIdeas(currentAnalysis, currentAnalysisFen ?? game.fen());
   }, [showBoardIdeas, pvPreview, review, currentAnalysis, currentAnalysisFen, game, revision, pvRevision]);
+  const inspectionOverlay = useMemo(() => {
+    if (!ideaInspection || !inspectedSquare || pvPreview) return null;
+    return buildSquareControlOverlay(game.fen(), inspectedSquare, inspectionOverlayMode);
+  }, [ideaInspection, inspectedSquare, inspectionOverlayMode, pvPreview, game, revision, historyCursor, records]);
+  const comparisonBoardArrows = useMemo(() => {
+    if (!review || moveComparisonFocus === 'both') return boardIdeas.arrows;
+    if (moveComparisonFocus === 'best') {
+      return boardIdeas.arrows.filter((arrow) => arrow.id === 'review-best');
+    }
+    return boardIdeas.arrows.filter((arrow) => arrow.id === 'review-played');
+  }, [boardIdeas.arrows, review, moveComparisonFocus]);
+  const displayBoardArrows = useMemo(
+    () => [...comparisonBoardArrows, ...(inspectionOverlay?.arrows ?? [])],
+    [comparisonBoardArrows, inspectionOverlay],
+  );
+  const displayBoardHighlights = useMemo(
+    () => review && moveComparisonFocus !== 'both' ? [] : boardIdeas.highlights,
+    [review, moveComparisonFocus, boardIdeas.highlights],
+  );
+
+  useEffect(() => {
+    setMoveComparisonFocus('both');
+  }, [activeReviewId]);
 
   function inspectBoardIdea(target: BoardIdeaTarget): void {
     const explanation = explainBoardIdea(target);
@@ -239,12 +287,24 @@ export default function App() {
     setStatusText(`Board idea · ${explanation.title}`);
   }
 
+  function inspectBoardSquare(square: Square): void {
+    const explanation = explainBoardSquare(game.fen(), square);
+    setInspectedSquare(square);
+    setInspectionOverlayMode('all');
+    setBoardIdeaExplanation(explanation);
+    setStatusText(`Board inspection · ${explanation.title}`);
+  }
+
   function toggleIdeaInspection(): void {
     setIdeaInspection((current) => {
       const next = !current;
-      if (!next) setBoardIdeaExplanation(null);
+      if (!next) {
+        setBoardIdeaExplanation(null);
+        setInspectedSquare(null);
+        setInspectionOverlayMode('all');
+      }
       setSelected(null);
-      setStatusText(next ? 'Idea inspection · click a highlighted square or arrow' : gameMessage(gameRef.current));
+      setStatusText(next ? 'Board inspection · click any square, piece, highlight, or arrow' : gameMessage(gameRef.current));
       return next;
     });
   }
@@ -388,6 +448,22 @@ export default function App() {
     }
   }
 
+  function applyPrincipalVariationPosition(preview: PrincipalVariationPreview, requestedIndex: number): number {
+    const target = clampPvIndex(requestedIndex, preview.total);
+    const replayed = replayPvPosition(preview.startFen, preview.line, target);
+
+    try {
+      pvGameRef.current = new Chess(replayed.fen);
+    } catch {
+      return preview.index;
+    }
+
+    setPvLastMove(replayed.lastMove);
+    setEngineMoveAnimation(null);
+    setPvRevision((value) => value + 1);
+    return replayed.index;
+  }
+
   function stopPrincipalVariationPreview(): void {
     pvPlaybackRef.current += 1;
     setPvPreview(null);
@@ -396,12 +472,57 @@ export default function App() {
     setPvRevision((value) => value + 1);
   }
 
+  function setPrincipalVariationIndex(requestedIndex: number): void {
+    if (!pvPreview) return;
+    const index = applyPrincipalVariationPosition(pvPreview, requestedIndex);
+    setPvPreview({ ...pvPreview, index, playing: false });
+  }
+
+  function stepPrincipalVariation(delta: number): void {
+    if (!pvPreview) return;
+    setPrincipalVariationIndex(pvPreview.index + delta);
+  }
+
+  function jumpPrincipalVariation(position: 'start' | 'end'): void {
+    if (!pvPreview) return;
+    setPrincipalVariationIndex(position === 'start' ? 0 : pvPreview.total);
+  }
+
+  function restartPrincipalVariation(): void {
+    if (!pvPreview) return;
+    setPrincipalVariationIndex(0);
+  }
+
+  function togglePrincipalVariationPlayback(): void {
+    if (!pvPreview) return;
+
+    if (pvPreview.playing) {
+      setEngineMoveAnimation(null);
+      setPvPreview({ ...pvPreview, playing: false });
+      return;
+    }
+
+    if (pvPreview.index >= pvPreview.total) {
+      const index = applyPrincipalVariationPosition(pvPreview, 0);
+      setPvPreview({ ...pvPreview, index, playing: true });
+      return;
+    }
+
+    setPvPreview({ ...pvPreview, playing: true });
+  }
+
+  function setPrincipalVariationSpeed(speed: PvSpeed): void {
+    if (!PV_SPEEDS.includes(speed)) return;
+    setPvPreview((current) => current ? { ...current, speed } : current);
+  }
+
   async function playPrincipalVariation(fen: string, line: string[], label: string): Promise<void> {
-    const legalLine = line.filter((move) => /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move)).slice(0, 12);
+    const legalLine = sanitizePvLine(line, 24);
     if (!legalLine.length) return;
 
     setIdeaInspection(false);
     setBoardIdeaExplanation(null);
+    setInspectedSquare(null);
     const playback = pvPlaybackRef.current + 1;
     pvPlaybackRef.current = playback;
     await cancelEngineWork();
@@ -417,45 +538,66 @@ export default function App() {
     setSelected(null);
     setPvLastMove(null);
     setEngineMoveAnimation(null);
-    setPvPreview({ label, index: 0, total: legalLine.length, playing: true });
+    setPvPreview({
+      label,
+      startFen: fen,
+      line: legalLine,
+      index: 0,
+      total: legalLine.length,
+      playing: true,
+      speed: 1,
+    });
     setPvRevision((value) => value + 1);
-    await wait(160);
-
-    let completed = 0;
-    for (let index = 0; index < legalLine.length; index += 1) {
-      if (playback !== pvPlaybackRef.current) return;
-      const uci = legalLine[index];
-      const from = uci.slice(0, 2) as Square;
-      const to = uci.slice(2, 4) as Square;
-      const piece = pvGameRef.current.get(from);
-      if (!piece) break;
-
-      const durationMs = 330;
-      setEngineMoveAnimation({ from, to, durationMs });
-      setPvPreview({ label, index, total: legalLine.length, playing: true });
-      setPvRevision((value) => value + 1);
-      await wait(durationMs + 35);
-      if (playback !== pvPlaybackRef.current) return;
-
-      try {
-        pvGameRef.current.move({ from, to, promotion: uci[4] ?? 'q' });
-      } catch {
-        break;
-      }
-      completed = index + 1;
-      setEngineMoveAnimation(null);
-      setPvLastMove({ from, to });
-      setPvPreview({ label, index: completed, total: legalLine.length, playing: completed < legalLine.length });
-      setPvRevision((value) => value + 1);
-      await wait(190);
-    }
-
-    if (playback === pvPlaybackRef.current) {
-      setEngineMoveAnimation(null);
-      setPvPreview({ label, index: completed, total: legalLine.length, playing: false });
-      setPvRevision((value) => value + 1);
-    }
   }
+
+
+  useEffect(() => {
+    if (!pvPreview?.playing) return;
+
+    if (pvPreview.index >= pvPreview.total) {
+      setPvPreview((current) => current ? { ...current, playing: false } : current);
+      setEngineMoveAnimation(null);
+      return;
+    }
+
+    const uci = pvPreview.line[pvPreview.index];
+    if (!uci) {
+      setPvPreview((current) => current ? { ...current, playing: false } : current);
+      return;
+    }
+
+    const from = uci.slice(0, 2) as Square;
+    const to = uci.slice(2, 4) as Square;
+    const durationMs = pvAnimationDuration(pvPreview.speed);
+    const gapMs = pvStepGap(pvPreview.speed);
+
+    setEngineMoveAnimation({ from, to, durationMs });
+
+    const timer = window.setTimeout(() => {
+      setEngineMoveAnimation(null);
+      const nextIndex = applyPrincipalVariationPosition(pvPreview, pvPreview.index + 1);
+      setPvPreview((current) => {
+        if (!current?.playing) return current;
+        if (
+          current.startFen !== pvPreview.startFen
+          || current.label !== pvPreview.label
+          || current.index !== pvPreview.index
+        ) {
+          return current;
+        }
+
+        return {
+          ...current,
+          index: nextIndex,
+          playing: nextIndex < current.total,
+        };
+      });
+    }, durationMs + gapMs);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [pvPreview]);
 
   function syncPhaseFromBoard(session: number, playerColor: 'w' | 'b' = humanColor): void {
     if (!isCurrentSession(session)) return;
@@ -1695,7 +1837,7 @@ export default function App() {
       : `${currentLine.name} · Live · ${records.length}/${records.length}`;
 
   const boardStatusText = pvPreview
-    ? `${pvPreview.playing ? 'Playing' : 'PV complete'} · ${pvPreview.label} · ${pvPreview.index}/${pvPreview.total}`
+    ? `${pvPreview.index >= pvPreview.total ? 'PV complete' : pvPreview.playing ? 'Playing' : 'PV paused'} · ${pvPreview.label} · ${pvPreview.index}/${pvPreview.total}`
     : batchReviewing
       ? 'Reviewing all moves…'
       : isHistoryView
@@ -1733,6 +1875,30 @@ export default function App() {
       const target = event.target as HTMLElement | null;
       if (target?.matches('input, textarea, select, [contenteditable="true"]')) return;
       if (appMode !== 'play') return;
+
+      if (pvPreview) {
+        if (event.key === ' ') {
+          event.preventDefault();
+          togglePrincipalVariationPlayback();
+        } else if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          stepPrincipalVariation(-1);
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          stepPrincipalVariation(1);
+        } else if (event.key === 'Home') {
+          event.preventDefault();
+          jumpPrincipalVariation('start');
+        } else if (event.key === 'End') {
+          event.preventDefault();
+          jumpPrincipalVariation('end');
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          stopPrincipalVariationPreview();
+        }
+        return;
+      }
+
       if (records.length === 0 || batchReviewing || phase === 'engine-thinking' || phase === 'promotion') return;
 
       if (event.key === 'ArrowLeft') {
@@ -1760,7 +1926,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [records, historyCursor, phase, batchReviewing, engineStatus?.configured, appMode]);
+  }, [records, historyCursor, phase, batchReviewing, engineStatus?.configured, appMode, pvPreview]);
 
   return (
     <main className="app-shell">
@@ -1872,44 +2038,82 @@ export default function App() {
 
             {pvPreview && (
               <div className="pv-preview-banner">
-                <div>
+                <div className="pv-preview-summary">
                   <span>Principal variation</span>
-                  <strong>{pvPreview.label} · {pvPreview.index}/{pvPreview.total}{pvPreview.playing ? ' · playing…' : ' · complete'}</strong>
+                  <strong>
+                    {pvPreview.label} · {pvPreview.index}/{pvPreview.total}
+                    {pvPreview.index >= pvPreview.total ? ' · complete' : pvPreview.playing ? ' · playing…' : ' · paused'}
+                  </strong>
+                  <small>Space play/pause · ←/→ step · Home/End jump · Esc exit</small>
                 </div>
-                <button type="button" onClick={stopPrincipalVariationPreview}>Return to position</button>
+                <div className="pv-study-controls" aria-label="Principal variation study controls">
+                  <div className="pv-transport-controls">
+                    <button type="button" onClick={() => jumpPrincipalVariation('start')} disabled={pvPreview.index === 0} title="Go to start" aria-label="Go to start">|◀</button>
+                    <button type="button" onClick={() => stepPrincipalVariation(-1)} disabled={pvPreview.index === 0} title="Previous move" aria-label="Previous move">◀</button>
+                    <button type="button" className="pv-play-pause" onClick={togglePrincipalVariationPlayback} title={pvPreview.playing ? 'Pause' : 'Play'} aria-label={pvPreview.playing ? 'Pause principal variation' : 'Play principal variation'}>
+                      {pvPreview.playing ? '⏸' : '▶'}
+                    </button>
+                    <button type="button" onClick={() => stepPrincipalVariation(1)} disabled={pvPreview.index >= pvPreview.total} title="Next move" aria-label="Next move">▶</button>
+                    <button type="button" onClick={() => jumpPrincipalVariation('end')} disabled={pvPreview.index >= pvPreview.total} title="Go to end" aria-label="Go to end">▶|</button>
+                  </div>
+                  <div className="pv-secondary-controls">
+                    <button type="button" onClick={restartPrincipalVariation} disabled={pvPreview.index === 0 && !pvPreview.playing}>Restart</button>
+                    <div className="pv-speed-controls" aria-label="Playback speed">
+                      {PV_SPEEDS.map((speed) => (
+                        <button
+                          key={speed}
+                          type="button"
+                          className={pvPreview.speed === speed ? 'active' : ''}
+                          onClick={() => setPrincipalVariationSpeed(speed)}
+                          aria-pressed={pvPreview.speed === speed}
+                        >
+                          {speed}×
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" className="pv-exit-button" onClick={stopPrincipalVariationPreview}>Return</button>
+                  </div>
+                </div>
               </div>
             )}
 
-            {!pvPreview && (review || currentAnalysis) && (
+            {!pvPreview && (
               <div className="board-ideas-toolbar">
                 <div>
-                  <strong>Board ideas</strong>
-                  <span className="board-idea-legend"><i className="board-idea-swatch best" /> best</span>
-                  <span className="board-idea-legend"><i className="board-idea-swatch played" /> played issue</span>
-                  <span className="board-idea-legend"><i className="board-idea-swatch tactical" /> tactical</span>
+                  <strong>Board inspector</strong>
+                  {(review || currentAnalysis) && showBoardIdeas && (
+                    <>
+                      <span className="board-idea-legend"><i className="board-idea-swatch best" /> best</span>
+                      <span className="board-idea-legend"><i className="board-idea-swatch played" /> played issue</span>
+                      <span className="board-idea-legend"><i className="board-idea-swatch tactical" /> tactical</span>
+                    </>
+                  )}
+                  {ideaInspection && (
+                    <span className="board-inspect-help">
+                      {inspectionOverlay ? `${inspectionOverlay.target} · W${inspectionOverlay.whiteAttackers.length}/B${inspectionOverlay.blackAttackers.length}` : 'click any square or piece'}
+                    </span>
+                  )}
                 </div>
                 <div className="board-ideas-actions">
-                  {showBoardIdeas && (
-                    <button
-                      type="button"
-                      className={ideaInspection ? 'active' : ''}
-                      onClick={toggleIdeaInspection}
-                    >
-                      {ideaInspection ? 'Exit inspect' : 'Inspect ideas'}
+                  <button
+                    type="button"
+                    className={ideaInspection ? 'active' : ''}
+                    onClick={toggleIdeaInspection}
+                    disabled={phase === 'engine-thinking' || phase === 'promotion' || batchReviewing}
+                  >
+                    {ideaInspection ? 'Exit inspect' : 'Inspect board'}
+                  </button>
+                  {(review || currentAnalysis) && (
+                    <button type="button" onClick={() => {
+                      setShowBoardIdeas((value) => {
+                        const next = !value;
+                        if (!next) setBoardIdeaExplanation((current) => current?.id.startsWith('square:') ? current : null);
+                        return next;
+                      });
+                    }}>
+                      {showBoardIdeas ? 'Hide ideas' : 'Show ideas'}
                     </button>
                   )}
-                  <button type="button" onClick={() => {
-                    setShowBoardIdeas((value) => {
-                      const next = !value;
-                      if (!next) {
-                        setIdeaInspection(false);
-                        setBoardIdeaExplanation(null);
-                      }
-                      return next;
-                    });
-                  }}>
-                    {showBoardIdeas ? 'Hide ideas' : 'Show ideas'}
-                  </button>
                 </div>
               </div>
             )}
@@ -1923,11 +2127,12 @@ export default function App() {
               disabled={boardDisabled || ideaInspection}
               engineThinking={engineThinking || Boolean(pvPreview?.playing)}
               engineMoveAnimation={engineMoveAnimation}
-              arrows={boardIdeas.arrows}
-              highlights={boardIdeas.highlights}
+              arrows={displayBoardArrows}
+              highlights={displayBoardHighlights}
               ideaInspection={ideaInspection}
               selectedIdeaId={boardIdeaExplanation?.id ?? null}
               onIdeaClick={inspectBoardIdea}
+              onSquareInspect={inspectBoardSquare}
               onSquareClick={onSquareClick}
               onPieceDragStart={onPieceDragStart}
               onPieceDragCancel={onPieceDragCancel}
@@ -2076,8 +2281,17 @@ export default function App() {
             onOllamaModelChange={setOllamaModel}
             onRefreshOllama={() => void refreshOllamaStatus()}
             onPlayLine={(fen, line, label) => void playPrincipalVariation(fen, line, label)}
+            moveComparisonFocus={moveComparisonFocus}
+            onMoveComparisonFocusChange={setMoveComparisonFocus}
             boardIdeaExplanation={boardIdeaExplanation}
-            onClearBoardIdea={() => setBoardIdeaExplanation(null)}
+            inspectionOverlay={inspectionOverlay}
+            inspectionOverlayMode={inspectionOverlayMode}
+            onInspectionOverlayModeChange={setInspectionOverlayMode}
+            onClearBoardIdea={() => {
+              setBoardIdeaExplanation(null);
+              setInspectedSquare(null);
+              setInspectionOverlayMode('all');
+            }}
             onAskBoardIdea={(question) => void askConversationalCoach(question)}
           />
         </aside>

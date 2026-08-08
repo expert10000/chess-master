@@ -41,6 +41,7 @@ interface ChessBoardProps {
   ideaInspection?: boolean;
   selectedIdeaId?: string | null;
   onIdeaClick?(target: BoardIdeaTarget): void;
+  onSquareInspect?(square: Square): void;
   onSquareClick(square: Square): void;
   onPieceDragStart(square: Square): void;
   onPieceDragCancel(): void;
@@ -103,6 +104,7 @@ export function ChessBoard({
   ideaInspection = false,
   selectedIdeaId = null,
   onIdeaClick,
+  onSquareInspect,
   onSquareClick,
   onPieceDragStart,
   onPieceDragCancel,
@@ -229,6 +231,7 @@ export function ChessBoard({
           const showRank = columnIndex === 0;
           const canDrag = !disabled && Boolean(piece && piece.color === game.turn());
           const squareHighlights = highlightsBySquare.get(square) ?? [];
+          const isInspectedSquare = selectedIdeaId === `square:${square}`;
 
           return (
             <button
@@ -245,14 +248,15 @@ export function ChessBoard({
                 isDragOver ? 'drag-over-square' : '',
                 isEngineAnimationSource ? 'engine-animation-source' : '',
                 isCheckedKing ? (checkmate ? 'checkmate-square' : 'check-square') : '',
+                isInspectedSquare ? 'inspected-square' : '',
               ].filter(Boolean).join(' ')}
               key={square}
               onClick={() => {
-                if (ideaInspection && squareHighlights[0] && onIdeaClick) {
-                  onIdeaClick({ type: 'highlight', item: squareHighlights[0] });
+                if (ideaInspection) {
+                  onSquareInspect?.(square);
                   return;
                 }
-                if (!ideaInspection) onSquareClick(square);
+                onSquareClick(square);
               }}
               onDragOver={(event) => dragOverSquare(event, square)}
               onDragLeave={(event) => leaveSquare(event, square)}
@@ -300,7 +304,7 @@ export function ChessBoard({
           aria-label={ideaInspection ? 'Interactive board idea arrows' : undefined}
         >
           <defs>
-            {(['best', 'played', 'candidate', 'tactical'] as const).map((kind) => (
+            {(['best', 'played', 'candidate', 'tactical', 'white-control', 'black-control', 'legal'] as const).map((kind) => (
               <marker
                 id={`arrow-head-${kind}`}
                 key={kind}

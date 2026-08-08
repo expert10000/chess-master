@@ -32,7 +32,7 @@ It already supports:
 
 The project is configured for Electron 43, React 19.2, Vite 8, and Stockfish 18.
 
-## v0.8.4 — Interactive board explanations
+## v0.8.8 — Interactive board explanations
 
 - Enter **Inspect ideas** mode without changing the game.
 - Click a highlighted tactical/positional square to get a dedicated coach explanation.
@@ -356,3 +356,33 @@ Board ideas can now be inspected instead of only viewed. Turn on **Inspect ideas
 The explanation card also offers **Ask conversational coach about this**, which sends a position-specific follow-up into the existing Stockfish-grounded conversational coach. Ollama remains optional and only improves wording.
 
 Inspection mode deliberately locks normal piece movement while active so a teaching click can never be mistaken for a chess move. Exit inspection to resume normal play.
+
+
+## v0.8.5 — Inspect any square or piece
+
+Board inspection is no longer limited to Stockfish-generated arrows and highlights. Turn on **Inspect board** and click any occupied or empty square. The coach reports the piece, direct attackers and defenders, side to move, legal moves when applicable, and any detected tactical/positional concepts attached to that square.
+
+The board explanation card also offers contextual one-click questions, including:
+
+- why is this piece good or bad here?
+- who attacks and defends this square?
+- where should this knight/bishop/rook/queen go?
+- is this pawn weak?
+- can this empty square be occupied safely?
+
+Those deeper questions use the existing Stockfish-grounded conversational coach and can optionally be reworded by local Ollama. Specific idea rings/arrows from v0.8.4 remain clickable inside the same inspection mode.
+
+
+## v0.8.6 — Visual attack / defense overlay
+
+Inspecting any square now draws its direct control geometry on the board. For occupied squares you can isolate attackers and defenders; for empty squares you can isolate White and Black control. A legal-move overlay shows all current destinations for the inspected side-to-move piece. The overlay is read-only and coexists with Stockfish/tactical board ideas.
+
+
+## v0.8.7 — Full principal-variation study controls
+
+Every Stockfish line can now be paused and studied ply by ply. The PV banner provides start, previous, play/pause, next, end, restart, and 0.5×/1×/2× speed controls. Keyboard shortcuts mirror the transport controls. PV playback remains a read-only sandbox and never changes the live game, PGN, history, or stored variations.
+
+
+## v0.8.8 — Compare two moves visually
+
+Reviewed positions now show a dedicated two-column comparison between the played move and Stockfish's best move. Each side has its own evaluation, continuation, detected concepts, and **Study this line** action. The main board can isolate both arrows, the played move, or the best move, making the difference visible before opening either PV.

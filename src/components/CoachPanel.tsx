@@ -4,7 +4,9 @@ import type { AnalyseResult } from '../types/engine';
 import type { OllamaStatus } from '../types/ollama';
 import { formatEvaluation, uciLineToSan } from '../lib/chessCoach';
 import { analyzePositionConcepts, type ChessConcept } from '../lib/chessConcepts';
-import type { BoardIdeaExplanation } from '../lib/boardIdeas';
+import type { BoardIdeaExplanation, InspectionOverlayMode, SquareControlOverlay } from '../lib/boardIdeas';
+import { MoveComparisonPanel } from './MoveComparisonPanel';
+import type { MoveComparisonFocus } from '../lib/moveComparison';
 
 interface CoachPanelProps {
   review: MoveReview | null;
@@ -29,7 +31,12 @@ interface CoachPanelProps {
   onOllamaModelChange?(model: string): void;
   onRefreshOllama?(): void;
   onPlayLine?(fen: string, uciLine: string[], label: string): void;
+  moveComparisonFocus?: MoveComparisonFocus;
+  onMoveComparisonFocusChange?(focus: MoveComparisonFocus): void;
   boardIdeaExplanation?: BoardIdeaExplanation | null;
+  inspectionOverlay?: SquareControlOverlay | null;
+  inspectionOverlayMode?: InspectionOverlayMode;
+  onInspectionOverlayModeChange?(mode: InspectionOverlayMode): void;
   onClearBoardIdea?(): void;
   onAskBoardIdea?(question: string): void;
 }
@@ -74,7 +81,12 @@ export function CoachPanel({
   onOllamaModelChange,
   onRefreshOllama,
   onPlayLine,
+  moveComparisonFocus = 'both',
+  onMoveComparisonFocusChange,
   boardIdeaExplanation = null,
+  inspectionOverlay = null,
+  inspectionOverlayMode = 'all',
+  onInspectionOverlayModeChange,
   onClearBoardIdea,
   onAskBoardIdea,
 }: CoachPanelProps) {
@@ -94,6 +106,68 @@ export function CoachPanel({
       <p>{boardIdeaExplanation.text}</p>
       {boardIdeaExplanation.bullets.length > 0 && (
         <ul>{boardIdeaExplanation.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul>
+      )}
+      {inspectionOverlay && boardIdeaExplanation.id.startsWith('square:') && (
+        <div className="inspection-overlay-controls" aria-label="Visual attack and defense overlay">
+          <div className="inspection-control-summary">
+            <span>Visual control</span>
+            <strong>{inspectionOverlay.summary}</strong>
+            <small>
+              White {inspectionOverlay.whiteAttackers.length} · Black {inspectionOverlay.blackAttackers.length}
+              {inspectionOverlay.legalDestinations.length > 0 ? ` · ${inspectionOverlay.legalDestinations.length} legal` : ''}
+            </small>
+          </div>
+          <div className="inspection-control-buttons">
+            <button
+              type="button"
+              className={inspectionOverlayMode === 'all' ? 'active' : ''}
+              onClick={() => onInspectionOverlayModeChange?.('all')}
+            >
+              All control
+            </button>
+            <button
+              type="button"
+              className={inspectionOverlayMode === 'enemy' ? 'active' : ''}
+              onClick={() => onInspectionOverlayModeChange?.('enemy')}
+            >
+              {inspectionOverlay.pieceColor ? 'Attackers' : 'Black control'}
+            </button>
+            <button
+              type="button"
+              className={inspectionOverlayMode === 'friendly' ? 'active' : ''}
+              onClick={() => onInspectionOverlayModeChange?.('friendly')}
+            >
+              {inspectionOverlay.pieceColor ? 'Defenders' : 'White control'}
+            </button>
+            <button
+              type="button"
+              className={inspectionOverlayMode === 'legal' ? 'active' : ''}
+              onClick={() => onInspectionOverlayModeChange?.('legal')}
+              disabled={inspectionOverlay.legalDestinations.length === 0}
+            >
+              Legal moves
+            </button>
+          </div>
+          <div className="inspection-control-legend">
+            <span><i className="inspection-dot white-control" /> White control</span>
+            <span><i className="inspection-dot black-control" /> Black control</span>
+            <span><i className="inspection-dot legal-control" /> Legal move</span>
+          </div>
+        </div>
+      )}
+      {(boardIdeaExplanation.suggestedQuestions?.length ?? 0) > 0 && (
+        <div className="board-explanation-prompts" aria-label="Questions about the selected board object">
+          {boardIdeaExplanation.suggestedQuestions!.slice(0, 4).map((question) => (
+            <button
+              type="button"
+              key={question}
+              onClick={() => onAskBoardIdea?.(question)}
+              disabled={chatLoading}
+            >
+              {question}
+            </button>
+          ))}
+        </div>
       )}
       <button
         type="button"
@@ -264,6 +338,13 @@ export function CoachPanel({
           </div>
         </div>
 
+        <MoveComparisonPanel
+          review={review}
+          focus={moveComparisonFocus}
+          onFocusChange={onMoveComparisonFocusChange}
+          onPlayLine={onPlayLine}
+        />
+
         <ul className="reason-list">
           {review.reasons.map((reason) => <li key={reason}>{reason}</li>)}
         </ul>
@@ -413,7 +494,7 @@ export function CoachPanel({
   return (
     <section className="panel coach-panel">
       <span className="eyebrow">Local coach</span>
-      <h2>Play a move or select one from history</h2>
+      <h2>Play a move, select history, or inspect the board</h2>
       {boardExplanationCard}
       <p className="coach-summary">
         The app compares the move with Stockfish’s best continuation, measures the evaluation loss,

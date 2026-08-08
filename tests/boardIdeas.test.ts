@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MoveReview } from '../src/lib/chessCoach';
-import { buildAnalysisBoardIdeas, buildReviewBoardIdeas, explainBoardIdea } from '../src/lib/boardIdeas';
+import { buildAnalysisBoardIdeas, buildReviewBoardIdeas, buildSquareControlOverlay, explainBoardIdea, explainBoardSquare } from '../src/lib/boardIdeas';
 
 function review(overrides: Partial<MoveReview> = {}): MoveReview {
   return {
@@ -94,4 +94,58 @@ describe('board ideas', () => {
     expect(explanation.text).toContain('no defender');
   });
 
+
+  it('inspects an ordinary piece square with attackers and contextual questions', () => {
+    const explanation = explainBoardSquare('4k3/8/8/3n4/2B5/8/8/4K3 w - - 0 1', 'd5');
+    expect(explanation.title).toContain('Black knight');
+    expect(explanation.text).toContain('bishop c4');
+    expect(explanation.bullets.some((bullet) => bullet.includes('White attacks d5'))).toBe(true);
+    expect(explanation.suggestedQuestions?.some((question) => question.includes('Where should the knight'))).toBe(true);
+  });
+
+  it('inspects an empty square and reports both sides direct control', () => {
+    const explanation = explainBoardSquare('4k3/8/8/8/2B5/8/5n2/4K3 w - - 0 1', 'd3');
+    expect(explanation.title).toBe('Square d3');
+    expect(explanation.text).toContain('empty');
+    expect(explanation.bullets.some((bullet) => bullet.startsWith('White attackers:'))).toBe(true);
+    expect(explanation.bullets.some((bullet) => bullet.startsWith('Black attackers:'))).toBe(true);
+    expect(explanation.suggestedQuestions?.some((question) => question.includes('safely occupy d3'))).toBe(true);
+  });
+
+});
+
+
+describe('v0.8.6 square control overlay', () => {
+  it('draws attackers and defenders into an occupied inspected square', () => {
+    const fen = '4k3/8/5n2/3n4/2B5/8/8/4K3 w - - 0 1';
+    const overlay = buildSquareControlOverlay(fen, 'd5', 'all');
+    expect(overlay.pieceColor).toBe('b');
+    expect(overlay.whiteAttackers).toContain('c4');
+    expect(overlay.blackAttackers).toContain('f6');
+    expect(overlay.arrows.some((arrow) => arrow.from === 'c4' && arrow.to === 'd5' && arrow.kind === 'white-control')).toBe(true);
+    expect(overlay.arrows.some((arrow) => arrow.from === 'f6' && arrow.to === 'd5' && arrow.kind === 'black-control')).toBe(true);
+  });
+
+  it('can isolate attackers from defenders for an occupied square', () => {
+    const fen = '4k3/8/5n2/3n4/2B5/8/8/4K3 w - - 0 1';
+    const attackers = buildSquareControlOverlay(fen, 'd5', 'enemy');
+    const defenders = buildSquareControlOverlay(fen, 'd5', 'friendly');
+    expect(attackers.arrows.map((arrow) => arrow.from)).toEqual(['c4']);
+    expect(defenders.arrows.map((arrow) => arrow.from)).toEqual(['f6']);
+  });
+
+  it('draws all legal destinations for the inspected side-to-move piece', () => {
+    const start = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const overlay = buildSquareControlOverlay(start, 'g1', 'legal');
+    expect(overlay.legalDestinations.sort()).toEqual(['f3', 'h3']);
+    expect(overlay.arrows.every((arrow) => arrow.kind === 'legal' && arrow.from === 'g1')).toBe(true);
+  });
+
+  it('shows White direct control for an empty square', () => {
+    const start = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const overlay = buildSquareControlOverlay(start, 'e3', 'all');
+    expect(overlay.pieceColor).toBeNull();
+    expect(overlay.whiteAttackers.sort()).toEqual(['d2', 'f2']);
+    expect(overlay.blackAttackers).toHaveLength(0);
+  });
 });

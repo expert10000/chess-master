@@ -83,3 +83,42 @@ Implemented:
 - Preview never mutates the live game, history, imported PGN, or variation tree.
 
 - v0.8.4 — clickable board ideas and contextual board explanations.
+
+- **v0.8.5 — Inspect any square/piece:** complete. Ordinary squares now expose direct board facts and contextual Stockfish-grounded questions.
+
+
+## v0.8.6 — Visual attack / defense overlay ✅
+
+- direct attacker and defender arrows for any inspected square/piece
+- White/Black direct-control counts
+- isolate attackers, defenders, or all direct control
+- legal-move overlay for the inspected side-to-move piece
+- clickable control arrows reuse the board-explanation system
+
+Next: v0.8.7 — full principal-variation study controls (pause, previous, next, restart, speed).
+
+
+## v0.8.7 — Full PV study controls ✅
+
+- play / pause
+- previous / next ply
+- jump to start / end
+- restart
+- 0.5× / 1× / 2× playback speed
+- keyboard study shortcuts
+- deterministic rebuilding of the temporary PV board
+- no mutation of live game/history/variations
+
+Next candidate: v0.8.8 — compare two moves visually, with side-by-side evaluation and independent PV playback.
+
+
+## v0.8.8 — Compare two moves visually ✅
+
+- side-by-side played move vs Stockfish best move
+- separate evaluations and exact centipawn loss
+- visual 0-to-3+ pawn loss scale
+- unique concept comparison
+- board focus: both arrows / your move / best move
+- independent PV study launch for each continuation
+
+Next candidate: v0.9.0 — opening recognition and local opening explorer.

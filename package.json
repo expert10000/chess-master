@@ -1,8 +1,8 @@
 {
   "name": "stockfish-coach",
-  "version": "0.8.4",
+  "version": "0.8.8",
   "private": true,
-  "description": "Local Electron chess trainer powered by Stockfish with clickable board explanations, tactical highlights, PV playback, PGN/FEN review, training, conversational coaching, and optional Ollama explanations",
+  "description": "Local Electron chess trainer powered by Stockfish with visual two-move comparison, full principal-variation study controls, attack/defense overlays, inspect-any-square coaching, PGN/FEN review, training, conversational coaching, and optional Ollama explanations",
   "main": "dist-electron/main.js",
   "engines": {
     "node": ">=22.12.0"
