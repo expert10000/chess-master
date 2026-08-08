@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-electron/
+coverage/
+*.log
+.DS_Store
+Thumbs.db
+resources/stockfish/stockfish
+resources/stockfish/stockfish.exe
+resources/stockfish/stockfish-*

@@ -1,0 +1,41 @@
+{
+  "name": "stockfish-coach",
+  "version": "0.7.0",
+  "private": true,
+  "description": "Local Electron chess trainer powered by Stockfish with Play & Coach, mistake training mode, deterministic chess concepts, and optional Ollama explanations",
+  "main": "dist-electron/main.js",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "dev": "concurrently -k -n renderer,electron-ts,electron \"npm:dev:renderer\" \"npm:dev:electron:compile\" \"npm:dev:electron\"",
+    "dev:renderer": "vite --host 127.0.0.1",
+    "dev:electron:compile": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
+    "dev:electron": "node scripts/start-electron.mjs",
+    "build": "npm run clean && npm run build:renderer && npm run build:electron",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
+    "test": "vitest run",
+    "stockfish:add": "node scripts/add-stockfish.mjs",
+    "stockfish:check": "node scripts/check-stockfish.mjs",
+    "ollama:check": "node scripts/check-ollama.mjs"
+  },
+  "dependencies": {
+    "chess.js": "1.4.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "concurrently": "9.2.4",
+    "electron": "43.2.0",
+    "typescript": "^5.9.2",
+    "vite": "8.1.5",
+    "vitest": "4.1.10"
+  }
+}
