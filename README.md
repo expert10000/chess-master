@@ -283,3 +283,7 @@ Training is an additional top-level mode; **Play & Coach is preserved unchanged*
 - Returning to **Play & Coach** restores the existing live position immediately.
 
 See `docs/TRAINING_MODE.md` for the scoring and state-isolation design.
+
+## Screenshot
+
+![Chess Master gameplay screen](docs/images/chess-master-screenshot.png)
