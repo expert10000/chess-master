@@ -3,22 +3,23 @@
 A local desktop chess trainer built with Electron, React, TypeScript,
 `chess.js`, and a native Stockfish process.
 
-## Chess view
-
-![Chess Master chess view](docs/images/chess-master-screenshot.png)
-
 It already supports:
 
 - playing White or Black against selectable engine strength;
 - Beginner, Club, Expert, Master and unrestricted modes;
 - click-to-move and drag-and-drop board input with legal targets, capture rings, drag hover feedback, and promotion selection;
 - native Stockfish through the UCI protocol;
-- MultiPV position analysis;
+- MultiPV position analysis with board arrows for best moves and candidate moves;
+- highlighted tactical/positional concept squares and line motifs directly on the board;
+- interactive board-idea inspection: click highlighted squares or arrows for contextual explanations;
+- animated principal-variation playback for best, played, alternative, and candidate engine lines;
 - move classification from Best through Blunder;
 - “why was this move good/bad?” explanations;
 - deterministic tactical and positional concept detection: hanging pieces, forks, pins, skewers, overloaded defenders, discovered line attacks, pawn weaknesses, passed pawns, outposts, open files, bishop pair, development, central influence, and king-zone pressure;
 - best-line and played-line comparison;
 - full move-history browser with start/previous/next/latest navigation, clickable plies, undo, board flip, and PGN copy;
+- PGN/FEN import with local `.pgn` file loading, student-color selection, optional immediate full-game review, and FEN copy;
+- full-game review summary with verdict counts, average centipawn loss, and first-issue navigation;
 - separate Training mode that turns reviewed moves and personal mistakes into scored best-move exercises without changing the live game;
 - local-only operation with a restricted Electron preload bridge.
 
@@ -30,6 +31,55 @@ It already supports:
 - optional: Ollama for richer local natural-language wording. A GPU is not required.
 
 The project is configured for Electron 43, React 19.2, Vite 8, and Stockfish 18.
+
+## v0.8.4 — Interactive board explanations
+
+- Enter **Inspect ideas** mode without changing the game.
+- Click a highlighted tactical/positional square to get a dedicated coach explanation.
+- Click best-move, played-issue, candidate, and tactical arrows to explain what the arrow means.
+- Keep the selected board idea visually emphasized while reading its explanation.
+- Send the selected idea directly into the Stockfish-grounded conversational coach for a deeper follow-up.
+- Normal piece movement is locked while inspection is active so teaching clicks cannot alter the game.
+
+See `docs/INTERACTIVE_BOARD_EXPLANATIONS.md` for details.
+
+## v0.8.3 — Board ideas + principal-variation player
+
+- Draw the current best move directly on the board.
+- Show an orange arrow for a played issue and blue dashed arrows for MultiPV alternatives.
+- Highlight squares involved in forks, pins, skewers, hanging pieces, king safety, pawn structure, outposts, material gains, and other detected concepts.
+- Draw tactical line arrows for pins, skewers, discovered attacks, and forks.
+- Toggle board ideas without changing the underlying position.
+- Play Stockfish principal variations as a read-only animated board preview, then return to the exact position you were reviewing.
+- Play the best line, played-move line, alternative best line, or any candidate line from position analysis.
+
+See `docs/BOARD_IDEAS_AND_PV.md` for details.
+
+## v0.8.2 — Evaluation timeline
+
+- Plot White/Black Stockfish evaluation across reviewed plies.
+- Mark inaccuracies, mistakes and blunders on the timeline.
+- Click a graph point to navigate directly to that historical position.
+
+See `docs/EVALUATION_TIMELINE.md` for details.
+
+## v0.8.1 — Multi-game PGN collections
+
+- Detect player/tournament PGN files containing many games.
+- Choose one game from the collection before importing and reviewing it.
+
+See `docs/PGN_COLLECTIONS.md` for details.
+
+## v0.8.0 — PGN/FEN import + full game review
+
+- Import a complete Chess.com/Lichess `.pgn` file or paste PGN text.
+- Choose whether you are reviewing the game as White or Black.
+- Optionally run a complete Stockfish review immediately after import.
+- Import a standalone FEN position and continue playing or analyze it locally.
+- Full-game summary counts Best, Excellent, Good, Inaccuracy, Mistake and Blunder moves, plus average centipawn loss and issue navigation.
+- Imported games feed directly into history navigation, variations, conversational coaching and Training mode.
+
+See `docs/GAME_IMPORT_REVIEW.md` for details.
 
 ## Quick start on Windows
 
@@ -287,3 +337,22 @@ Training is an additional top-level mode; **Play & Coach is preserved unchanged*
 - Returning to **Play & Coach** restores the existing live position immediately.
 
 See `docs/TRAINING_MODE.md` for the scoring and state-isolation design.
+
+
+## v0.8.1 — Multi-game PGN collections
+
+Large downloadable PGN files often contain hundreds or thousands of games. The import dialog now detects these collections, shows the number of games, and lets you choose one game before importing/reviewing it. This fixes the chess.js parse error that previously appeared at the `[` starting game 2.
+
+
+## v0.8.2 — Evaluation timeline
+
+Reviewed games now include a clickable Stockfish evaluation graph. The line is always shown from White's point of view, player inaccuracies/mistakes/blunders are marked directly on the timeline, and clicking any reviewed point opens that exact historical position. The v0.8.1 multi-game PGN selector remains included.
+
+
+## v0.8.4 — interactive board explanations
+
+Board ideas can now be inspected instead of only viewed. Turn on **Inspect ideas** in the board toolbar, then click a highlighted square or an arrow. The coach opens a grounded explanation describing what the marker means, why the square or move matters, and how it was derived. The selected marker is emphasized on the board.
+
+The explanation card also offers **Ask conversational coach about this**, which sends a position-specific follow-up into the existing Stockfish-grounded conversational coach. Ollama remains optional and only improves wording.
+
+Inspection mode deliberately locks normal piece movement while active so a teaching click can never be mistaken for a chess move. Exit inspection to resume normal play.

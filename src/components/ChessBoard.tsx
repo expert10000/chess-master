@@ -1,5 +1,6 @@
-import { useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { useRef, useState, type CSSProperties, type DragEvent, type MouseEvent } from 'react';
 import { type Chess, type Square } from 'chess.js';
+import type { BoardArrow, BoardHighlight, BoardIdeaTarget } from '../lib/boardIdeas';
 
 const glyphs: Record<string, string> = {
   wp: '♙',
@@ -35,6 +36,11 @@ interface ChessBoardProps {
   disabled: boolean;
   engineThinking: boolean;
   engineMoveAnimation: EngineMoveAnimation | null;
+  arrows?: BoardArrow[];
+  highlights?: BoardHighlight[];
+  ideaInspection?: boolean;
+  selectedIdeaId?: string | null;
+  onIdeaClick?(target: BoardIdeaTarget): void;
   onSquareClick(square: Square): void;
   onPieceDragStart(square: Square): void;
   onPieceDragCancel(): void;
@@ -63,6 +69,26 @@ function visualPosition(square: Square, orientation: 'white' | 'black'): { row: 
   return { row: rank - 1, column: 7 - fileIndex };
 }
 
+function arrowGeometry(arrow: BoardArrow, orientation: 'white' | 'black') {
+  const from = visualPosition(arrow.from, orientation);
+  const to = visualPosition(arrow.to, orientation);
+  const x1 = (from.column + 0.5) * 12.5;
+  const y1 = (from.row + 0.5) * 12.5;
+  const x2 = (to.column + 0.5) * 12.5;
+  const y2 = (to.row + 0.5) * 12.5;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const length = Math.max(0.001, Math.hypot(dx, dy));
+  const trimStart = 2.2;
+  const trimEnd = 4.2;
+  return {
+    x1: x1 + dx / length * trimStart,
+    y1: y1 + dy / length * trimStart,
+    x2: x2 - dx / length * trimEnd,
+    y2: y2 - dy / length * trimEnd,
+  };
+}
+
 export function ChessBoard({
   game,
   orientation,
@@ -72,6 +98,11 @@ export function ChessBoard({
   disabled,
   engineThinking,
   engineMoveAnimation,
+  arrows = [],
+  highlights = [],
+  ideaInspection = false,
+  selectedIdeaId = null,
+  onIdeaClick,
   onSquareClick,
   onPieceDragStart,
   onPieceDragCancel,
@@ -103,6 +134,13 @@ export function ChessBoard({
         '--move-duration': `${engineMoveAnimation.durationMs}ms`,
       } as CSSProperties)
     : undefined;
+
+  const highlightsBySquare = new Map<Square, BoardHighlight[]>();
+  for (const highlight of highlights) {
+    const bucket = highlightsBySquare.get(highlight.square) ?? [];
+    bucket.push(highlight);
+    highlightsBySquare.set(highlight.square, bucket);
+  }
 
   function startDrag(event: DragEvent<HTMLSpanElement>, square: Square): void {
     if (disabled) {
@@ -168,6 +206,7 @@ export function ChessBoard({
         dragFrom ? 'board-dragging' : '',
         engineThinking ? 'engine-thinking' : '',
         game.isGameOver() ? 'board-game-over' : '',
+        ideaInspection ? 'board-idea-inspection' : '',
       ].filter(Boolean).join(' ')}
       role="grid"
       aria-label="Chessboard"
@@ -189,6 +228,7 @@ export function ChessBoard({
           const showFile = rowIndex === 7;
           const showRank = columnIndex === 0;
           const canDrag = !disabled && Boolean(piece && piece.color === game.turn());
+          const squareHighlights = highlightsBySquare.get(square) ?? [];
 
           return (
             <button
@@ -207,11 +247,18 @@ export function ChessBoard({
                 isCheckedKing ? (checkmate ? 'checkmate-square' : 'check-square') : '',
               ].filter(Boolean).join(' ')}
               key={square}
-              onClick={() => onSquareClick(square)}
+              onClick={() => {
+                if (ideaInspection && squareHighlights[0] && onIdeaClick) {
+                  onIdeaClick({ type: 'highlight', item: squareHighlights[0] });
+                  return;
+                }
+                if (!ideaInspection) onSquareClick(square);
+              }}
               onDragOver={(event) => dragOverSquare(event, square)}
               onDragLeave={(event) => leaveSquare(event, square)}
               onDrop={(event) => dropOnSquare(event, square)}
-              disabled={disabled}
+              disabled={disabled && !ideaInspection}
+              aria-disabled={disabled || ideaInspection}
             >
               {showRank && <span className="rank-label">{rank}</span>}
               {showFile && <span className="file-label">{file}</span>}
@@ -227,9 +274,78 @@ export function ChessBoard({
                 </span>
               )}
               {isTarget && <span className={piece ? 'capture-ring' : 'move-dot'} />}
+              {squareHighlights.slice(0, 2).map((highlight, index) => (
+                <span
+                  className={`idea-highlight-ring idea-${highlight.kind} idea-ring-${index} ${selectedIdeaId === `highlight:${highlight.id}` ? 'idea-selected' : ''}`}
+                  title={`${highlight.label}${highlight.detail ? ` — ${highlight.detail}` : ''}`}
+                  aria-hidden="true"
+                  key={highlight.id}
+                  onClick={ideaInspection && onIdeaClick ? (event) => {
+                    event.stopPropagation();
+                    onIdeaClick({ type: 'highlight', item: highlight });
+                  } : undefined}
+                />
+              ))}
             </button>
           );
         }),
+      )}
+
+      {arrows.length > 0 && (
+        <svg
+          className={`board-arrow-layer ${ideaInspection ? 'interactive' : ''}`}
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden={ideaInspection ? undefined : true}
+          aria-label={ideaInspection ? 'Interactive board idea arrows' : undefined}
+        >
+          <defs>
+            {(['best', 'played', 'candidate', 'tactical'] as const).map((kind) => (
+              <marker
+                id={`arrow-head-${kind}`}
+                key={kind}
+                viewBox="0 0 10 10"
+                refX="8"
+                refY="5"
+                markerWidth="5.2"
+                markerHeight="5.2"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" className={`arrow-head arrow-${kind}`} />
+              </marker>
+            ))}
+          </defs>
+          {arrows.map((arrow) => {
+            const geometry = arrowGeometry(arrow, orientation);
+            const handleArrowClick = ideaInspection && onIdeaClick ? (event: MouseEvent<SVGLineElement>) => {
+              event.stopPropagation();
+              onIdeaClick({ type: 'arrow', item: arrow });
+            } : undefined;
+            return (
+              <g key={arrow.id}>
+                {ideaInspection && (
+                  <line
+                    className="board-idea-arrow-hit"
+                    x1={geometry.x1}
+                    y1={geometry.y1}
+                    x2={geometry.x2}
+                    y2={geometry.y2}
+                    onClick={handleArrowClick}
+                  />
+                )}
+                <line
+                  className={`board-idea-arrow arrow-${arrow.kind} ${selectedIdeaId === `arrow:${arrow.id}` ? 'idea-selected' : ''}`}
+                  x1={geometry.x1}
+                  y1={geometry.y1}
+                  x2={geometry.x2}
+                  y2={geometry.y2}
+                  markerEnd={`url(#arrow-head-${arrow.kind})`}
+                  onClick={handleArrowClick}
+                />
+              </g>
+            );
+          })}
+        </svg>
       )}
 
       {engineMoveAnimation && animationPiece && animationStyle && (

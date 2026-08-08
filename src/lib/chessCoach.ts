@@ -17,8 +17,16 @@ export interface MoveReview {
   bestMoveSan: string | null;
   playedLineSan: string[];
   bestLineSan: string[];
+  /** Raw UCI principal variations used by the board line player. */
+  playedLineUci?: string[];
+  bestLineUci?: string[];
   bestEvaluation: string;
   playedEvaluation: string;
+  /** Stockfish score normalized to White's point of view. Added in v0.8.2 for timelines. */
+  bestScoreCpWhite?: number | null;
+  playedScoreCpWhite?: number | null;
+  bestMateWhite?: number | null;
+  playedMateWhite?: number | null;
 }
 
 const pieceNames: Record<string, string> = {
@@ -216,8 +224,14 @@ export function createMoveReview(input: {
     bestMoveSan,
     playedLineSan,
     bestLineSan,
+    playedLineUci: playedLine?.pv ? [...playedLine.pv] : [],
+    bestLineUci: bestLine?.pv ? [...bestLine.pv] : [],
     bestEvaluation: formatEvaluation(bestLine),
     playedEvaluation: formatEvaluation(playedLine),
+    bestScoreCpWhite: bestLine?.scoreCp ?? null,
+    playedScoreCpWhite: playedLine?.scoreCp ?? null,
+    bestMateWhite: bestLine?.mate ?? null,
+    playedMateWhite: playedLine?.mate ?? null,
   };
 }
 

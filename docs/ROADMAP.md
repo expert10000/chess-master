@@ -59,3 +59,27 @@
 - Show move classifications directly in history.
 - Add next-mistake / previous-mistake navigation.
 - Make coaching available immediately after every player move without rerunning unchanged analysis.
+
+## v0.8.0 — PGN/FEN import + full game review
+
+Implemented:
+
+- load `.pgn` files or paste PGN text;
+- paste custom FEN positions;
+- select student color for imported games;
+- optional immediate full-game Stockfish review;
+- review summary with verdict counts, average CPL, and issue navigation;
+- imported games integrate with history, variations, conversational coach, Ollama, and Training mode;
+- custom FEN is preserved as the replay base for history/Undo/variations.
+
+## Completed in v0.8.3 — Board ideas + PV player
+
+- Best-move, played-issue, and MultiPV candidate arrows on the chessboard.
+- Deterministic tactical/positional concept highlights mapped to concrete squares.
+- Fork rays plus pin/skewer/discovered-line arrows.
+- One-click board-idea visibility toggle.
+- Read-only animated principal-variation preview using UCI lines already calculated by Stockfish.
+- Play buttons for best line, played line, compared alternative, and MultiPV candidates.
+- Preview never mutates the live game, history, imported PGN, or variation tree.
+
+- v0.8.4 — clickable board ideas and contextual board explanations.

@@ -5,6 +5,10 @@ import { CoachPanel } from './components/CoachPanel';
 import { MoveList, type PlyRecord } from './components/MoveList';
 import { PromotionDialog } from './components/PromotionDialog';
 import { TrainingPanel } from './components/TrainingPanel';
+import { ImportGameDialog } from './components/ImportGameDialog';
+import { GameReviewSummary } from './components/GameReviewSummary';
+import { EvaluationTimeline } from './components/EvaluationTimeline';
+import { buildAnalysisBoardIdeas, buildReviewBoardIdeas, explainBoardIdea, type BoardIdeaExplanation, type BoardIdeaTarget } from './lib/boardIdeas';
 import {
   answerCoachQuestion,
   answerComparedMove,
@@ -19,6 +23,7 @@ import {
   type MoveReview,
 } from './lib/chessCoach';
 import { engineApi } from './lib/engineApi';
+import { parseFen, parsePgn } from './lib/gameImport';
 import { ollamaApi } from './lib/ollamaApi';
 import { buildOllamaCoachPrompt, OLLAMA_COACH_SYSTEM_PROMPT } from './lib/ollamaPrompt';
 import {
@@ -72,6 +77,13 @@ interface EngineMoveAnimation {
   durationMs: number;
 }
 
+interface PrincipalVariationPreview {
+  label: string;
+  index: number;
+  total: number;
+  playing: boolean;
+}
+
 interface LineMeta {
   id: number;
   name: string;
@@ -80,6 +92,7 @@ interface LineMeta {
 
 interface LineSnapshot extends LineMeta {
   records: PlyRecord[];
+  startFen: string;
 }
 
 interface ChatTurn {
@@ -88,6 +101,8 @@ interface ChatTurn {
   answer: ConversationAnswer | null;
   error: string | null;
 }
+
+const DEFAULT_START_FEN = new Chess().fen();
 
 function gameMessage(game: Chess): string {
   if (game.isCheckmate()) return `${game.turn() === 'w' ? 'Black' : 'White'} wins by checkmate`;
@@ -98,8 +113,8 @@ function gameMessage(game: Chess): string {
   return `${game.turn() === 'w' ? 'White' : 'Black'} to move${game.isCheck() ? ' — check' : ''}`;
 }
 
-function replayRecords(records: PlyRecord[]): Chess {
-  const rebuilt = new Chess();
+function replayRecords(records: PlyRecord[], startFen: string = DEFAULT_START_FEN): Chess {
+  const rebuilt = new Chess(startFen);
   for (const record of records) {
     rebuilt.move({
       from: record.uci.slice(0, 2),
@@ -117,6 +132,8 @@ function isMistakeReview(review: MoveReview | undefined): boolean {
 export default function App() {
   const gameRef = useRef(new Chess());
   const trainingGameRef = useRef(new Chess());
+  const pvGameRef = useRef(new Chess());
+  const pvPlaybackRef = useRef(0);
   const nextRecordId = useRef(1);
   const sessionRef = useRef(1);
   const analysisRequestRef = useRef(0);
@@ -125,6 +142,12 @@ export default function App() {
   const nextChatId = useRef(1);
   const [revision, setRevision] = useState(0);
   const [trainingRevision, setTrainingRevision] = useState(0);
+  const [pvRevision, setPvRevision] = useState(0);
+  const [pvPreview, setPvPreview] = useState<PrincipalVariationPreview | null>(null);
+  const [pvLastMove, setPvLastMove] = useState<{ from: Square; to: Square } | null>(null);
+  const [showBoardIdeas, setShowBoardIdeas] = useState(true);
+  const [ideaInspection, setIdeaInspection] = useState(false);
+  const [boardIdeaExplanation, setBoardIdeaExplanation] = useState<BoardIdeaExplanation | null>(null);
   const [appMode, setAppMode] = useState<AppMode>('play');
   const [trainingSource, setTrainingSource] = useState<TrainingSource>('mistakes');
   const [trainingIndex, setTrainingIndex] = useState(0);
@@ -137,6 +160,9 @@ export default function App() {
   const [trainingSolvedKeys, setTrainingSolvedKeys] = useState<string[]>([]);
   const [trainingBestScores, setTrainingBestScores] = useState<Record<string, number>>({});
   const [records, setRecords] = useState<PlyRecord[]>([]);
+  const [currentStartFen, setCurrentStartFen] = useState(DEFAULT_START_FEN);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
   const [currentLine, setCurrentLine] = useState<LineMeta>({ id: 1, name: 'Main line', originPly: null });
   const [inactiveLines, setInactiveLines] = useState<LineSnapshot[]>([]);
   const [historyCursor, setHistoryCursor] = useState<number | null>(null);
@@ -169,7 +195,7 @@ export default function App() {
 
   const difficulty = difficulties.find((item) => item.id === difficultyId) ?? difficulties[2];
   const engineThinking = phase === 'engine-thinking';
-  const analysisBusy = phase === 'engine-thinking' || phase === 'reviewing' || batchReviewing || trainerLoading || chatLoading || trainingLoading;
+  const analysisBusy = phase === 'engine-thinking' || phase === 'reviewing' || batchReviewing || trainerLoading || chatLoading || trainingLoading || Boolean(pvPreview);
   const trainingExercises = useMemo<TrainingExercise[]>(() => {
     return records.flatMap((record) => {
       const moveReview = record.review;
@@ -197,9 +223,31 @@ export default function App() {
   const isHistoryView = historyCursor !== null;
   const visiblePly = historyCursor ?? records.length;
   const game = useMemo(
-    () => historyCursor === null ? gameRef.current : replayRecords(records.slice(0, historyCursor)),
-    [historyCursor, records, revision],
+    () => historyCursor === null ? gameRef.current : replayRecords(records.slice(0, historyCursor), currentStartFen),
+    [historyCursor, records, revision, currentStartFen],
   );
+  const displayGame = pvPreview ? pvGameRef.current : game;
+  const boardIdeas = useMemo(() => {
+    if (!showBoardIdeas || pvPreview) return { arrows: [], highlights: [] };
+    if (review) return buildReviewBoardIdeas(review);
+    return buildAnalysisBoardIdeas(currentAnalysis, currentAnalysisFen ?? game.fen());
+  }, [showBoardIdeas, pvPreview, review, currentAnalysis, currentAnalysisFen, game, revision, pvRevision]);
+
+  function inspectBoardIdea(target: BoardIdeaTarget): void {
+    const explanation = explainBoardIdea(target);
+    setBoardIdeaExplanation(explanation);
+    setStatusText(`Board idea · ${explanation.title}`);
+  }
+
+  function toggleIdeaInspection(): void {
+    setIdeaInspection((current) => {
+      const next = !current;
+      if (!next) setBoardIdeaExplanation(null);
+      setSelected(null);
+      setStatusText(next ? 'Idea inspection · click a highlighted square or arrow' : gameMessage(gameRef.current));
+      return next;
+    });
+  }
 
   useEffect(() => {
     engineApi.status()
@@ -299,10 +347,11 @@ export default function App() {
         to: visibleRecord.uci.slice(2, 4) as Square,
       }
     : null;
+  const displayLastMove = pvPreview ? pvLastMove : lastMove;
 
   const liveGame = gameRef.current;
   const humanTurn = liveGame.turn() === humanColor;
-  const boardDisabled = isHistoryView || batchReviewing || phase !== 'player-turn' || !humanTurn || liveGame.isGameOver() || !engineStatus?.configured;
+  const boardDisabled = Boolean(pvPreview) || isHistoryView || batchReviewing || phase !== 'player-turn' || !humanTurn || liveGame.isGameOver() || !engineStatus?.configured;
   const trainingBoardDisabled = !trainingExercise || trainingLoading || Boolean(trainingAttempt) || Boolean(trainingPromotion) || !engineStatus?.configured;
   const trainingLastMove = trainingAttempt
     ? { from: trainingAttempt.uci.slice(0, 2) as Square, to: trainingAttempt.uci.slice(2, 4) as Square }
@@ -336,6 +385,75 @@ export default function App() {
       await engineApi.cancel();
     } catch {
       // Cancellation is best-effort. Session/request guards still prevent stale results from mutating the board.
+    }
+  }
+
+  function stopPrincipalVariationPreview(): void {
+    pvPlaybackRef.current += 1;
+    setPvPreview(null);
+    setPvLastMove(null);
+    setEngineMoveAnimation(null);
+    setPvRevision((value) => value + 1);
+  }
+
+  async function playPrincipalVariation(fen: string, line: string[], label: string): Promise<void> {
+    const legalLine = line.filter((move) => /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move)).slice(0, 12);
+    if (!legalLine.length) return;
+
+    setIdeaInspection(false);
+    setBoardIdeaExplanation(null);
+    const playback = pvPlaybackRef.current + 1;
+    pvPlaybackRef.current = playback;
+    await cancelEngineWork();
+    if (playback !== pvPlaybackRef.current) return;
+
+    try {
+      pvGameRef.current = new Chess(fen);
+    } catch {
+      setCoachError('Could not open the principal-variation starting position.');
+      return;
+    }
+
+    setSelected(null);
+    setPvLastMove(null);
+    setEngineMoveAnimation(null);
+    setPvPreview({ label, index: 0, total: legalLine.length, playing: true });
+    setPvRevision((value) => value + 1);
+    await wait(160);
+
+    let completed = 0;
+    for (let index = 0; index < legalLine.length; index += 1) {
+      if (playback !== pvPlaybackRef.current) return;
+      const uci = legalLine[index];
+      const from = uci.slice(0, 2) as Square;
+      const to = uci.slice(2, 4) as Square;
+      const piece = pvGameRef.current.get(from);
+      if (!piece) break;
+
+      const durationMs = 330;
+      setEngineMoveAnimation({ from, to, durationMs });
+      setPvPreview({ label, index, total: legalLine.length, playing: true });
+      setPvRevision((value) => value + 1);
+      await wait(durationMs + 35);
+      if (playback !== pvPlaybackRef.current) return;
+
+      try {
+        pvGameRef.current.move({ from, to, promotion: uci[4] ?? 'q' });
+      } catch {
+        break;
+      }
+      completed = index + 1;
+      setEngineMoveAnimation(null);
+      setPvLastMove({ from, to });
+      setPvPreview({ label, index: completed, total: legalLine.length, playing: completed < legalLine.length });
+      setPvRevision((value) => value + 1);
+      await wait(190);
+    }
+
+    if (playback === pvPlaybackRef.current) {
+      setEngineMoveAnimation(null);
+      setPvPreview({ label, index: completed, total: legalLine.length, playing: false });
+      setPvRevision((value) => value + 1);
     }
   }
 
@@ -1022,6 +1140,8 @@ export default function App() {
     setSelected(null);
     setTrainingSelected(null);
     setTrainingPromotion(null);
+    setIdeaInspection(false);
+    setBoardIdeaExplanation(null);
     setAppMode(mode);
     if (mode === 'training') {
       setHistoryCursor(null);
@@ -1035,12 +1155,14 @@ export default function App() {
   }
 
   async function startNewGame(color: 'w' | 'b' = humanColor): Promise<void> {
+    stopPrincipalVariationPreview();
     const session = beginNewSession();
     nextAnalysisRequest();
     await cancelEngineWork();
     if (!isCurrentSession(session)) return;
 
     gameRef.current = new Chess();
+    setCurrentStartFen(DEFAULT_START_FEN);
     nextRecordId.current = 1;
     nextLineId.current = 2;
     nextVariationNumber.current = 1;
@@ -1055,6 +1177,8 @@ export default function App() {
     setInactiveLines([]);
     setHistoryCursor(null);
     setSelected(null);
+    setIdeaInspection(false);
+    setBoardIdeaExplanation(null);
     setEngineMoveAnimation(null);
     setReview(null);
     setActiveReviewId(null);
@@ -1093,6 +1217,7 @@ export default function App() {
   }
 
   function undoTurn(): void {
+    stopPrincipalVariationPreview();
     let lastHumanIndex = -1;
     for (let index = records.length - 1; index >= 0; index -= 1) {
       if (records[index].color === humanColor) {
@@ -1107,7 +1232,7 @@ export default function App() {
     void cancelEngineWork();
 
     const remaining = records.slice(0, lastHumanIndex);
-    gameRef.current = replayRecords(remaining);
+    gameRef.current = replayRecords(remaining, currentStartFen);
     setRecords(remaining);
     setHistoryCursor(null);
     nextRecordId.current = (remaining[remaining.length - 1]?.id ?? 0) + 1;
@@ -1136,6 +1261,7 @@ export default function App() {
 
     setHistoryCursor(normalized);
     setSelected(null);
+    setBoardIdeaExplanation(null);
     setPromotion(null);
     setEngineMoveAnimation(null);
     setReview(null);
@@ -1210,33 +1336,153 @@ export default function App() {
     if (ply !== null) void navigateHistory(ply);
   }
 
-  async function reviewAllUnreviewedMoves(): Promise<void> {
-    if (!engineStatus?.configured || analysisBusy || phase === 'promotion' || records.length === 0) return;
+  function goToFirstMistake(): void {
+    const ply = mistakePlies()[0] ?? null;
+    if (ply !== null) void navigateHistory(ply);
+  }
 
-    const pending = records.filter((record) => !record.review);
-    if (pending.length === 0) {
-      setStatusText('All moves already reviewed');
-      return;
-    }
-
+  async function reviewRecordBatch(list: PlyRecord[], label = 'Review complete'): Promise<void> {
+    if (!engineStatus?.configured || phase === 'promotion' || list.length === 0) return;
     const session = sessionRef.current;
     setBatchReviewing(true);
     setHistoryCursor(null);
     setSelected(null);
     setPromotion(null);
-
     try {
-      for (let index = 0; index < pending.length; index += 1) {
+      for (let index = 0; index < list.length; index += 1) {
         if (!isCurrentSession(session)) return;
-        const record = pending[index];
-        setStatusText(`Reviewing ${index + 1}/${pending.length}: ${record.san}`);
+        const record = list[index];
+        setStatusText(`Reviewing ${index + 1}/${list.length}: ${record.san}`);
         const request = nextAnalysisRequest();
-        await runMoveReview(record, session, humanColor, request);
+        await runMoveReview(record, session, humanColor, request, Boolean(record.review));
       }
-      if (isCurrentSession(session)) setStatusText(`Review complete · ${pending.length} moves analyzed`);
+      if (isCurrentSession(session)) setStatusText(`${label} · ${list.length} moves analyzed`);
     } finally {
       setBatchReviewing(false);
-      if (isCurrentSession(session)) syncPhaseFromBoard(session, humanColor);
+      if (isCurrentSession(session)) setPhase(gameRef.current.isGameOver() ? 'game-over' : (engineStatus?.configured ? 'player-turn' : 'engine-missing'));
+    }
+  }
+
+  async function reviewAllUnreviewedMoves(forceAll = false): Promise<void> {
+    if (!engineStatus?.configured || analysisBusy || phase === 'promotion' || records.length === 0) return;
+
+    const pending = forceAll ? records : records.filter((record) => !record.review);
+    if (pending.length === 0) {
+      setStatusText('All moves already reviewed');
+      return;
+    }
+
+    await reviewRecordBatch(pending, 'Review complete');
+  }
+
+  async function importPgnGame(pgn: string, reviewAs: 'w' | 'b', analyze: boolean): Promise<void> {
+    if (analysisBusy || phase === 'promotion') return;
+    setImportBusy(true);
+    try {
+      const imported = parsePgn(pgn);
+      if (imported.records.length === 0) throw new Error('The PGN contains no moves. Use FEN import for a standalone position.');
+
+      const session = beginNewSession();
+      nextAnalysisRequest();
+      await cancelEngineWork();
+      if (!isCurrentSession(session)) return;
+
+      gameRef.current = imported.game;
+      setCurrentStartFen(imported.startFen);
+      nextRecordId.current = imported.records.length + 1;
+      nextLineId.current = 2;
+      nextVariationNumber.current = 1;
+      setRecords(imported.records);
+      setCurrentLine({ id: 1, name: 'Imported game', originPly: null });
+      setInactiveLines([]);
+      setHistoryCursor(null);
+      setHumanColor(reviewAs);
+      setOrientation(reviewAs === 'w' ? 'white' : 'black');
+      setSelected(null);
+      setEngineMoveAnimation(null);
+      setReview(null);
+      setActiveReviewId(null);
+      setCurrentAnalysis(null);
+      setCurrentAnalysisFen(null);
+      setCoachLoading(false);
+      setBatchReviewing(false);
+      setCoachError(null);
+      clearInteractiveCoachState();
+      setChatTurns([]);
+      setChatLoading(false);
+      nextChatId.current = 1;
+      setPromotion(null);
+      setTrainingIndex(0);
+      setTrainingAttempt(null);
+      setTrainingHintLevel(0);
+      setTrainingAttempts(0);
+      setTrainingSolvedKeys([]);
+      setTrainingBestScores({});
+      setAppMode('play');
+      refresh();
+
+      const white = imported.headers.White || 'White';
+      const black = imported.headers.Black || 'Black';
+      setStatusText(`Imported ${white} – ${black} · ${imported.records.length} plies`);
+      setPhase(engineStatus?.configured ? (gameRef.current.isGameOver() ? 'game-over' : 'player-turn') : 'engine-missing');
+      setImportDialogOpen(false);
+
+      if (analyze && engineStatus?.configured) {
+        await wait(20);
+        await reviewRecordBatch(imported.records, 'Imported game review complete');
+      }
+    } finally {
+      setImportBusy(false);
+    }
+  }
+
+  async function importFenPosition(fen: string): Promise<void> {
+    if (analysisBusy || phase === 'promotion') return;
+    setImportBusy(true);
+    try {
+      const imported = parseFen(fen);
+      const session = beginNewSession();
+      nextAnalysisRequest();
+      await cancelEngineWork();
+      if (!isCurrentSession(session)) return;
+
+      const startFen = imported.fen();
+      gameRef.current = imported;
+      setCurrentStartFen(startFen);
+      nextRecordId.current = 1;
+      nextLineId.current = 2;
+      nextVariationNumber.current = 1;
+      setRecords([]);
+      setCurrentLine({ id: 1, name: 'Imported FEN', originPly: null });
+      setInactiveLines([]);
+      setHistoryCursor(null);
+      setHumanColor(imported.turn());
+      setOrientation(imported.turn() === 'w' ? 'white' : 'black');
+      setSelected(null);
+      setEngineMoveAnimation(null);
+      setReview(null);
+      setActiveReviewId(null);
+      setCurrentAnalysis(null);
+      setCurrentAnalysisFen(null);
+      setCoachLoading(false);
+      setBatchReviewing(false);
+      setCoachError(null);
+      clearInteractiveCoachState();
+      setChatTurns([]);
+      setPromotion(null);
+      setTrainingIndex(0);
+      setTrainingAttempt(null);
+      setTrainingHintLevel(0);
+      setTrainingAttempts(0);
+      setTrainingSolvedKeys([]);
+      setTrainingBestScores({});
+      setAppMode('play');
+      refresh();
+      setStatusText('FEN imported · ready to analyze or continue');
+      setPhase(engineStatus?.configured ? (imported.isGameOver() ? 'game-over' : 'player-turn') : 'engine-missing');
+      setImportDialogOpen(false);
+    } finally {
+      setImportBusy(false);
     }
   }
 
@@ -1278,6 +1524,11 @@ export default function App() {
     setStatusText('PGN copied to clipboard');
   }
 
+  async function copyFen(): Promise<void> {
+    await navigator.clipboard.writeText(game.fen());
+    setStatusText(isHistoryView ? 'Historical FEN copied to clipboard' : 'FEN copied to clipboard');
+  }
+
   async function resumePlayableLine(session: number, label: string): Promise<void> {
     if (!isCurrentSession(session)) return;
 
@@ -1312,6 +1563,8 @@ export default function App() {
   function resetTransientReviewState(): void {
     setHistoryCursor(null);
     setSelected(null);
+    setIdeaInspection(false);
+    setBoardIdeaExplanation(null);
     setEngineMoveAnimation(null);
     setReview(null);
     setActiveReviewId(null);
@@ -1333,7 +1586,7 @@ export default function App() {
 
     const branchPly = Math.max(0, Math.min(historyCursor, records.length));
     const remaining = records.slice(0, branchPly);
-    gameRef.current = replayRecords(remaining);
+    gameRef.current = replayRecords(remaining, currentStartFen);
     setRecords(remaining);
     nextRecordId.current = (remaining[remaining.length - 1]?.id ?? 0) + 1;
     resetTransientReviewState();
@@ -1359,6 +1612,7 @@ export default function App() {
     const sourceSnapshot: LineSnapshot = {
       ...currentLine,
       records: [...records],
+      startFen: currentStartFen,
     };
     const variationNumber = nextVariationNumber.current++;
     const newLine: LineMeta = {
@@ -1373,7 +1627,7 @@ export default function App() {
       sourceSnapshot,
     ]);
     setCurrentLine(newLine);
-    gameRef.current = replayRecords(remaining);
+    gameRef.current = replayRecords(remaining, currentStartFen);
     setRecords(remaining);
     nextRecordId.current = (remaining[remaining.length - 1]?.id ?? 0) + 1;
     resetTransientReviewState();
@@ -1399,6 +1653,7 @@ export default function App() {
     const currentSnapshot: LineSnapshot = {
       ...currentLine,
       records: [...records],
+      startFen: currentStartFen,
     };
 
     setInactiveLines((previous) => [
@@ -1406,8 +1661,9 @@ export default function App() {
       currentSnapshot,
     ]);
     setCurrentLine({ id: target.id, name: target.name, originPly: target.originPly });
-    gameRef.current = replayRecords(target.records);
+    gameRef.current = replayRecords(target.records, target.startFen);
     setRecords(target.records);
+    setCurrentStartFen(target.startFen);
     nextRecordId.current = (target.records[target.records.length - 1]?.id ?? 0) + 1;
     resetTransientReviewState();
     refresh();
@@ -1438,35 +1694,39 @@ export default function App() {
       ? `${currentLine.name} · ${historyCursor}/${records.length}${visibleRecord ? ` · ${visibleRecord.san}` : ''}`
       : `${currentLine.name} · Live · ${records.length}/${records.length}`;
 
-  const boardStatusText = batchReviewing
-    ? 'Reviewing all moves…'
-    : isHistoryView
-    ? phase === 'reviewing'
-      ? `Analyzing history · ${historyLabel}`
-      : `History · ${historyLabel}`
-    : phase === 'engine-thinking'
-      ? `${difficulty.label} Stockfish thinking…`
-      : phase === 'reviewing'
-        ? 'Reviewing your move…'
-        : phase === 'promotion'
-          ? 'Choose a promotion piece'
-          : gameMessage(game);
+  const boardStatusText = pvPreview
+    ? `${pvPreview.playing ? 'Playing' : 'PV complete'} · ${pvPreview.label} · ${pvPreview.index}/${pvPreview.total}`
+    : batchReviewing
+      ? 'Reviewing all moves…'
+      : isHistoryView
+        ? phase === 'reviewing'
+          ? `Analyzing history · ${historyLabel}`
+          : `History · ${historyLabel}`
+        : phase === 'engine-thinking'
+          ? `${difficulty.label} Stockfish thinking…`
+          : phase === 'reviewing'
+            ? 'Reviewing your move…'
+            : phase === 'promotion'
+              ? 'Choose a promotion piece'
+              : gameMessage(game);
 
-  const boardStatusClass = batchReviewing
-    ? 'thinking'
-    : isHistoryView
-    ? 'history'
-    : phase === 'engine-thinking' || phase === 'reviewing'
+  const boardStatusClass = pvPreview
+    ? pvPreview.playing ? 'thinking' : 'history'
+    : batchReviewing
       ? 'thinking'
-      : game.isCheckmate()
-        ? 'checkmate'
-        : game.isCheck()
-          ? 'check'
-          : game.isGameOver()
-            ? 'game-over'
-            : humanTurn
-              ? 'your-turn'
-              : '';
+      : isHistoryView
+        ? 'history'
+        : phase === 'engine-thinking' || phase === 'reviewing'
+          ? 'thinking'
+          : game.isCheckmate()
+            ? 'checkmate'
+            : game.isCheck()
+              ? 'check'
+              : game.isGameOver()
+                ? 'game-over'
+                : humanTurn
+                  ? 'your-turn'
+                  : '';
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1596,7 +1856,7 @@ export default function App() {
               <div><strong>Stockfish</strong><span>{difficulty.label} · {difficulty.description}</span></div>
             </div>
 
-            {isHistoryView && (
+            {isHistoryView && !pvPreview && (
               <div className="history-mode-banner">
                 <div>
                   <span>History mode</span>
@@ -1610,15 +1870,64 @@ export default function App() {
               </div>
             )}
 
+            {pvPreview && (
+              <div className="pv-preview-banner">
+                <div>
+                  <span>Principal variation</span>
+                  <strong>{pvPreview.label} · {pvPreview.index}/{pvPreview.total}{pvPreview.playing ? ' · playing…' : ' · complete'}</strong>
+                </div>
+                <button type="button" onClick={stopPrincipalVariationPreview}>Return to position</button>
+              </div>
+            )}
+
+            {!pvPreview && (review || currentAnalysis) && (
+              <div className="board-ideas-toolbar">
+                <div>
+                  <strong>Board ideas</strong>
+                  <span className="board-idea-legend"><i className="board-idea-swatch best" /> best</span>
+                  <span className="board-idea-legend"><i className="board-idea-swatch played" /> played issue</span>
+                  <span className="board-idea-legend"><i className="board-idea-swatch tactical" /> tactical</span>
+                </div>
+                <div className="board-ideas-actions">
+                  {showBoardIdeas && (
+                    <button
+                      type="button"
+                      className={ideaInspection ? 'active' : ''}
+                      onClick={toggleIdeaInspection}
+                    >
+                      {ideaInspection ? 'Exit inspect' : 'Inspect ideas'}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => {
+                    setShowBoardIdeas((value) => {
+                      const next = !value;
+                      if (!next) {
+                        setIdeaInspection(false);
+                        setBoardIdeaExplanation(null);
+                      }
+                      return next;
+                    });
+                  }}>
+                    {showBoardIdeas ? 'Hide ideas' : 'Show ideas'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <ChessBoard
-              game={game}
+              game={displayGame}
               orientation={orientation}
-              selected={selected}
-              legalTargets={legalTargets}
-              lastMove={lastMove}
-              disabled={boardDisabled}
-              engineThinking={engineThinking}
+              selected={pvPreview ? null : selected}
+              legalTargets={pvPreview ? new Set<Square>() : legalTargets}
+              lastMove={displayLastMove}
+              disabled={boardDisabled || ideaInspection}
+              engineThinking={engineThinking || Boolean(pvPreview?.playing)}
               engineMoveAnimation={engineMoveAnimation}
+              arrows={boardIdeas.arrows}
+              highlights={boardIdeas.highlights}
+              ideaInspection={ideaInspection}
+              selectedIdeaId={boardIdeaExplanation?.id ?? null}
+              onIdeaClick={inspectBoardIdea}
               onSquareClick={onSquareClick}
               onPieceDragStart={onPieceDragStart}
               onPieceDragCancel={onPieceDragCancel}
@@ -1629,7 +1938,7 @@ export default function App() {
               <div className="avatar human">You</div>
               <div><strong>Student</strong><span>Playing {humanColor === 'w' ? 'White' : 'Black'}</span></div>
               <span className={`game-state ${boardStatusClass}`}>
-                {(batchReviewing || phase === 'engine-thinking' || phase === 'reviewing') && <span className="mini-spinner" aria-hidden="true" />}
+                {(pvPreview?.playing || batchReviewing || phase === 'engine-thinking' || phase === 'reviewing') && <span className="mini-spinner" aria-hidden="true" />}
                 {boardStatusText}
               </span>
             </div>
@@ -1661,10 +1970,32 @@ export default function App() {
               >
                 {batchReviewing ? 'Reviewing…' : 'Review all moves'}
               </button>
+              <button type="button" onClick={() => setImportDialogOpen(true)} disabled={analysisBusy || phase === 'promotion'}>Import PGN / FEN</button>
               <button type="button" onClick={() => void copyPgn()} disabled={records.length === 0}>Copy PGN</button>
+              <button type="button" onClick={() => void copyFen()}>Copy FEN</button>
               <button type="button" onClick={() => void chooseEngine()} disabled={analysisBusy || phase === 'promotion'}>Change engine</button>
             </div>
           </section>
+
+          {records.length > 0 && (
+            <>
+              <GameReviewSummary
+                records={records}
+                humanColor={humanColor}
+                reviewing={batchReviewing}
+                onReviewAll={() => void reviewAllUnreviewedMoves(records.every((record) => Boolean(record.review)))}
+                onGoToFirstIssue={goToFirstMistake}
+              />
+              <EvaluationTimeline
+                records={records}
+                humanColor={humanColor}
+                viewedPly={historyCursor}
+                disabled={analysisBusy || phase === 'promotion'}
+                onNavigate={(ply) => void navigateHistory(ply)}
+                onReviewAll={() => void reviewAllUnreviewedMoves()}
+              />
+            </>
+          )}
 
           <section className="panel history-panel">
             <div className="panel-heading compact">
@@ -1744,6 +2075,10 @@ export default function App() {
             onOllamaToggle={(enabled) => setOllamaEnabled(enabled && Boolean(ollamaStatus?.available && ollamaModel))}
             onOllamaModelChange={setOllamaModel}
             onRefreshOllama={() => void refreshOllamaStatus()}
+            onPlayLine={(fen, line, label) => void playPrincipalVariation(fen, line, label)}
+            boardIdeaExplanation={boardIdeaExplanation}
+            onClearBoardIdea={() => setBoardIdeaExplanation(null)}
+            onAskBoardIdea={(question) => void askConversationalCoach(question)}
           />
         </aside>
           </>
@@ -1844,6 +2179,15 @@ export default function App() {
           </>
         )}
       </div>
+
+      {importDialogOpen && (
+        <ImportGameDialog
+          busy={importBusy}
+          onClose={() => { if (!importBusy) setImportDialogOpen(false); }}
+          onImportPgn={importPgnGame}
+          onImportFen={importFenPosition}
+        />
+      )}
 
       {promotion && appMode === 'play' && (
         <PromotionDialog

@@ -4,6 +4,7 @@ import type { AnalyseResult } from '../types/engine';
 import type { OllamaStatus } from '../types/ollama';
 import { formatEvaluation, uciLineToSan } from '../lib/chessCoach';
 import { analyzePositionConcepts, type ChessConcept } from '../lib/chessConcepts';
+import type { BoardIdeaExplanation } from '../lib/boardIdeas';
 
 interface CoachPanelProps {
   review: MoveReview | null;
@@ -27,6 +28,10 @@ interface CoachPanelProps {
   onOllamaToggle?(enabled: boolean): void;
   onOllamaModelChange?(model: string): void;
   onRefreshOllama?(): void;
+  onPlayLine?(fen: string, uciLine: string[], label: string): void;
+  boardIdeaExplanation?: BoardIdeaExplanation | null;
+  onClearBoardIdea?(): void;
+  onAskBoardIdea?(question: string): void;
 }
 
 function ConceptStrip({ concepts }: { concepts: ChessConcept[] }) {
@@ -68,10 +73,38 @@ export function CoachPanel({
   onOllamaToggle,
   onOllamaModelChange,
   onRefreshOllama,
+  onPlayLine,
+  boardIdeaExplanation = null,
+  onClearBoardIdea,
+  onAskBoardIdea,
 }: CoachPanelProps) {
   const [alternativeMove, setAlternativeMove] = useState('');
   const [chatQuestion, setChatQuestion] = useState('');
   const positionConcepts = currentFen ? analyzePositionConcepts(currentFen) : [];
+
+  const boardExplanationCard = boardIdeaExplanation ? (
+    <div className={`board-explanation-card explanation-${boardIdeaExplanation.category}`} aria-live="polite">
+      <div className="board-explanation-heading">
+        <div>
+          <span>Board explanation</span>
+          <strong>{boardIdeaExplanation.title}</strong>
+        </div>
+        <button type="button" onClick={() => onClearBoardIdea?.()} aria-label="Close board explanation">×</button>
+      </div>
+      <p>{boardIdeaExplanation.text}</p>
+      {boardIdeaExplanation.bullets.length > 0 && (
+        <ul>{boardIdeaExplanation.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul>
+      )}
+      <button
+        type="button"
+        className="board-explanation-ask"
+        onClick={() => onAskBoardIdea?.(boardIdeaExplanation.suggestedQuestion)}
+        disabled={chatLoading}
+      >
+        {chatLoading ? 'Coach is busy…' : 'Ask conversational coach about this'}
+      </button>
+    </div>
+  ) : null;
 
   const conversationCoach = (
     <div className="conversation-coach">
@@ -211,6 +244,8 @@ export function CoachPanel({
           <span className={`verdict verdict-${review.verdict.toLowerCase()}`}>{review.verdict}</span>
         </div>
 
+        {boardExplanationCard}
+
         <p className="coach-summary">{review.summary}</p>
         <ConceptStrip concepts={review.concepts} />
 
@@ -296,20 +331,47 @@ export function CoachPanel({
               {alternativeReview.bestMoveSan && <span>Best <strong>{alternativeReview.bestMoveSan}</strong></span>}
             </div>
             {alternativeReview.bestLineSan.length > 0 && (
-              <code>{alternativeReview.bestLineSan.join(' ')}</code>
+              <div className="variation-heading-row">
+                <code>{alternativeReview.bestLineSan.join(' ')}</code>
+                {alternativeReview.bestLineUci?.length ? (
+                  <button
+                    type="button"
+                    className="play-line-button"
+                    onClick={() => onPlayLine?.(alternativeReview.beforeFen, alternativeReview.bestLineUci ?? [], 'Alternative best line')}
+                  >▶ Play</button>
+                ) : null}
+              </div>
             )}
           </div>
         )}
 
         {review.bestLineSan.length > 0 && (
           <div className="variation-box">
-            <span>Best line</span>
+            <div className="variation-heading-row">
+              <span>Best line</span>
+              {review.bestLineUci?.length ? (
+                <button
+                  type="button"
+                  className="play-line-button"
+                  onClick={() => onPlayLine?.(review.beforeFen, review.bestLineUci ?? [], 'Best line')}
+                >▶ Play line</button>
+              ) : null}
+            </div>
             <code>{review.bestLineSan.join(' ')}</code>
           </div>
         )}
         {review.playedLineSan.length > 0 && (
           <div className="variation-box muted">
-            <span>After the played move</span>
+            <div className="variation-heading-row">
+              <span>After the played move</span>
+              {review.playedLineUci?.length ? (
+                <button
+                  type="button"
+                  className="play-line-button"
+                  onClick={() => onPlayLine?.(review.beforeFen, review.playedLineUci ?? [], 'Played-move line')}
+                >▶ Play line</button>
+              ) : null}
+            </div>
             <code>{review.playedLineSan.join(' ')}</code>
           </div>
         )}
@@ -324,13 +386,19 @@ export function CoachPanel({
       <section className="panel coach-panel">
         <span className="eyebrow">Position analysis</span>
         <h2>Candidate moves</h2>
+        {boardExplanationCard}
         <ConceptStrip concepts={positionConcepts} />
         <div className="candidate-list">
           {currentAnalysis.lines.map((line) => {
             const san = uciLineToSan(currentFen, line.pv, 7);
             return (
               <div className="candidate" key={line.multipv}>
-                <strong>{line.pv[0] ? san[0] ?? line.pv[0] : '—'}</strong>
+                <div className="candidate-heading-row">
+                  <strong>{line.pv[0] ? san[0] ?? line.pv[0] : '—'}</strong>
+                  {line.pv.length > 0 && (
+                    <button type="button" onClick={() => onPlayLine?.(currentFen, line.pv, `Candidate ${line.multipv}`)}>▶ Play</button>
+                  )}
+                </div>
                 <span>{formatEvaluation(line)}</span>
                 <code>{san.join(' ')}</code>
               </div>
@@ -346,6 +414,7 @@ export function CoachPanel({
     <section className="panel coach-panel">
       <span className="eyebrow">Local coach</span>
       <h2>Play a move or select one from history</h2>
+      {boardExplanationCard}
       <p className="coach-summary">
         The app compares the move with Stockfish’s best continuation, measures the evaluation loss,
         and lets you ask why the move worked, why the best move is stronger, what the concrete idea is,
