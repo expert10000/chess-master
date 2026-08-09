@@ -122,3 +122,196 @@ Next candidate: v0.8.8 — compare two moves visually, with side-by-side evaluat
 - independent PV study launch for each continuation
 
 Next candidate: v0.9.0 — opening recognition and local opening explorer.
+
+
+## v0.9.0 — Opening recognition + local explorer ✅
+
+- offline curated ECO book
+- opening and variation recognition
+- exact local-book deviation detection (“Theory ended here”)
+- up to six common local continuations with relative local share
+- one-click local-line study using the PV player
+- direct Training-mode exercise from an opening deviation
+- book alternatives accepted as opening-training solutions, with Stockfish still grading the move
+
+Next candidate: v0.9.1 — opening mistake coach and repertoire memory.
+
+
+## v0.9.1 — Opening mistake coach + repertoire memory ✅
+
+- persistent local repertoire choices per exact opening position
+- save/replace/forget a preferred move
+- personal out-of-book repertoire moves
+- distinguish repertoire miss from Stockfish mistake
+- repeated opening-deviation memory across games
+- White/Black repertoire counts and repeated-miss summary
+- one-click recall training for a saved repertoire move
+- one-click training for repeated remembered deviations
+- repertoire recall success/attempt counters
+
+Next candidate: v0.9.2 — before/after positional comparison and opening-plan explanations.
+
+
+## v0.9.2 — Positional before / after comparison ✅
+
+- six transparent 0–10 teaching dimensions
+- development before/after
+- king safety before/after
+- central control before/after
+- pawn structure before/after
+- piece activity before/after
+- tactical pressure before/after
+- switch between played move and Stockfish best move
+- expandable concrete “Why?” evidence for every metric
+- improvement/decline summary
+- direct bridge into conversational coaching
+- explicit separation between heuristic profile and Stockfish evaluation
+
+Next candidate: v0.9.3 — personal weakness profile and targeted training.
+
+
+## v0.9.2.1 — Opening taxonomy + arrow-source clarity ✅
+
+- opening Type / Family / Branch / Variation shown explicitly
+- French/Sicilian/Caro-Kann etc. labeled as semi-open games
+- Ruy/Italian/Scotch etc. labeled as open games
+- Queen's Pawn systems labeled as closed games
+- major Indian systems labeled separately
+- English/Réti labeled as flank openings
+- solid green arrow explicitly means Stockfish best
+- dashed blue arrow means local opening-book continuation
+- dashed gold arrow means saved repertoire move
+- overlapping book/repertoire arrows receive small opposite offsets
+- book arrows are only drawn on the exact local-book position
+
+
+## v0.9.3 — Personal weakness profile + targeted training ✅
+
+- persistent cross-game weakness memory
+- hanging-piece aggregation
+- missed-tactics aggregation
+- king-safety aggregation
+- pawn-structure aggregation
+- poor-development aggregation
+- opening-deviation aggregation
+- priority score blending frequency, verdict severity, and centipawn loss
+- local profile panel with weakest-area summary
+- Train my weakest area
+- per-category Train actions
+- up to 12 recent stored positions per targeted session
+- training still rechecks every answer with Stockfish
+
+Next candidate: v0.9.4 — spaced repetition scheduler for repertoire and weakness exercises.
+
+
+## v0.9.4 — Spaced repetition ✅
+
+- persistent scheduler for repertoire cards and weakness examples
+- new cards due immediately
+- correct recall: 1 day → 3 days → adaptive longer intervals
+- hint-sensitive shorter intervals
+- incorrect answer: streak reset + 10-minute relearning delay
+- per-card ease, streak, lapses, review count, accuracy, due timestamp
+- changing a repertoire move resets that card
+- forgetting a repertoire move removes its card
+- Spaced Repetition dashboard
+- Train due now
+- Due review source in Training mode
+- due-session snapshot prevents completed results from disappearing mid-session
+- every answer remains Stockfish-checked
+
+Next candidate: v0.9.5 — training analytics, calendar/heatmap, and retention forecast.
+
+
+## v0.9.5 — Training analytics + heatmap + retention forecast ✅
+
+- persistent log of every evaluated Training attempt
+- 8-week daily practice heatmap
+- 7-day and 30-day attempts / accuracy summaries
+- accuracy by weakness category
+- accuracy by opening/repertoire line
+- next-7-day and next-30-day scheduled review load
+- 14-day review-load bar chart
+- retention estimate from interval, streak, ease, age, and result
+- New / Fragile / Growing / Stable knowledge states
+- “Knowledge becoming stable” list
+- explicit distinction between current due-date forecast and future rescheduling
+- detailed analytics starts with v0.9.5; no fabricated historical attempts
+
+Next candidate: v0.9.6 — adaptive training planner / daily study session.
+
+
+## v0.9.5.1 — Review workspace UX ✅
+
+- review results moved directly below Position Tools
+- Review All auto-reveals the Full Game Review dashboard
+- selected historical move shown directly in the review dashboard
+- compact selected-move status also shown above the move list
+- one-click jump to full selected-move explanation
+- two-column board/review layout retained down to 1000 px
+- viewport-aware board sizing
+- sticky board on normal desktop-height windows
+- opening/repertoire/weakness/analytics dashboards moved below the core game-review workflow
+
+
+## v0.9.6 — Adaptive Daily Study Planner ✅
+
+- 15 / 20 / 30 minute study targets
+- automatic daily session preview
+- due reviewed repertoire prioritized first
+- top weakness categories sampled round-robin
+- recent reviewed mistakes added newest-first
+- small capped amount of new material
+- duplicate position/answer elimination across buckets
+- spare time filled from due/weakness/recent material, never extra novelty
+- mixed source interleaving
+- Start today’s study
+- Daily study Training source
+- per-exercise “why selected” banner
+- spaced-repetition schedule updates preserved
+- Training Analytics logs Daily study attempts
+- shorter honest plan when insufficient material exists
+
+Next candidate: v0.9.7 — post-session report + automatic tomorrow recommendation.
+
+
+## v0.9.7 — Post-session report + tomorrow recommendation ✅
+
+- active Daily Study session tracking
+- unique positions attempted / planned progress
+- explicit Finish & view report
+- clean first-try / recovered / hint-assisted / unsolved breakdown
+- performance split by daily source bucket
+- “What improved” and “What failed”
+- session-start vs final spaced-schedule comparison
+- interval, streak, due-date change list
+- automatic 15/20/30-minute tomorrow recommendation
+- tomorrow due-load count
+- carryover failed-focus labels
+- novelty budget can drop to zero after weak/heavy sessions
+- early session termination reported honestly
+- latest 60 reports persisted locally
+- latest report visible in Training and Play & Coach
+
+Next candidate: v0.9.8 — weekly coach report + trend detection and study-goal adjustment.
+
+
+## v0.9.8 — Weekly coach report + trend detection ✅
+
+- week-to-date vs same elapsed portion of last week
+- overall weekly attempts / accuracy / active-day comparison
+- Improving / Declining / Steady / Insufficient weekly status
+- per-weakness trend detection
+- per-opening/repertoire trend detection
+- explicit accuracy percentage-point deltas
+- Increase / Maintain / Reduce next-week priority recommendations
+- transparent planner multipliers
+- completed-week reports frozen at local Monday rollover
+- 52 completed weekly reports retained locally
+- completed report automatically controls the following week's Daily Study ordering
+- due repertoire reordered within eligible due cards
+- weakness priorities multiplied before top-three selection
+- new material reordered only inside the existing small novelty cap
+- no changes to Stockfish grading, due timestamps, or new-material quota
+
+Next candidate: v0.9.9 — goal-based training plans (opening target, tactical target, rating target) with 4–8 week progress tracking.

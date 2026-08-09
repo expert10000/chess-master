@@ -82,11 +82,14 @@ function arrowGeometry(arrow: BoardArrow, orientation: 'white' | 'black') {
   const length = Math.max(0.001, Math.hypot(dx, dy));
   const trimStart = 2.2;
   const trimEnd = 4.2;
+  const offset = arrow.offset ?? 0;
+  const normalX = -dy / length * offset;
+  const normalY = dx / length * offset;
   return {
-    x1: x1 + dx / length * trimStart,
-    y1: y1 + dy / length * trimStart,
-    x2: x2 - dx / length * trimEnd,
-    y2: y2 - dy / length * trimEnd,
+    x1: x1 + dx / length * trimStart + normalX,
+    y1: y1 + dy / length * trimStart + normalY,
+    x2: x2 - dx / length * trimEnd + normalX,
+    y2: y2 - dy / length * trimEnd + normalY,
   };
 }
 
@@ -304,7 +307,7 @@ export function ChessBoard({
           aria-label={ideaInspection ? 'Interactive board idea arrows' : undefined}
         >
           <defs>
-            {(['best', 'played', 'candidate', 'tactical', 'white-control', 'black-control', 'legal'] as const).map((kind) => (
+            {(['best', 'played', 'candidate', 'tactical', 'book', 'repertoire', 'white-control', 'black-control', 'legal'] as const).map((kind) => (
               <marker
                 id={`arrow-head-${kind}`}
                 key={kind}

@@ -149,3 +149,22 @@ describe('v0.8.6 square control overlay', () => {
     expect(overlay.blackAttackers).toHaveLength(0);
   });
 });
+
+
+describe('v0.9.2.1 opening/repertoire arrow semantics', () => {
+  it('supports book and repertoire arrows as distinct explanation categories', () => {
+    const book = explainBoardIdea({
+      type: 'arrow',
+      item: { id: 'book', from: 'd2', to: 'd4', kind: 'book', label: 'Local book · d4' },
+    });
+    const repertoire = explainBoardIdea({
+      type: 'arrow',
+      item: { id: 'rep', from: 'd2', to: 'd4', kind: 'repertoire', label: 'My repertoire · d4' },
+    });
+
+    expect(book.text.toLowerCase()).toContain('local opening book');
+    expect(repertoire.text.toLowerCase()).toContain('saved repertoire');
+    expect(book.category).toBe('book');
+    expect(repertoire.category).toBe('repertoire');
+  });
+});

@@ -8,12 +8,21 @@ import { TrainingPanel } from './components/TrainingPanel';
 import { ImportGameDialog } from './components/ImportGameDialog';
 import { GameReviewSummary } from './components/GameReviewSummary';
 import { EvaluationTimeline } from './components/EvaluationTimeline';
+import { OpeningExplorerPanel } from './components/OpeningExplorerPanel';
+import { OpeningMemoryPanel } from './components/OpeningMemoryPanel';
+import { WeaknessProfilePanel } from './components/WeaknessProfilePanel';
+import { SpacedRepetitionPanel } from './components/SpacedRepetitionPanel';
+import { TrainingAnalyticsPanel } from './components/TrainingAnalyticsPanel';
+import { DailyStudyPlannerPanel } from './components/DailyStudyPlannerPanel';
+import { DailySessionReportPanel } from './components/DailySessionReportPanel';
+import { WeeklyCoachPanel } from './components/WeeklyCoachPanel';
 import {
   buildAnalysisBoardIdeas,
   buildReviewBoardIdeas,
   buildSquareControlOverlay,
   explainBoardIdea,
   explainBoardSquare,
+  type BoardArrow,
   type BoardIdeaExplanation,
   type BoardIdeaTarget,
   type InspectionOverlayMode,
@@ -53,6 +62,79 @@ import {
   type PvSpeed,
 } from './lib/pvStudy';
 import type { MoveComparisonFocus } from './lib/moveComparison';
+import {
+  recognizeOpening,
+  type OpeningAlternative,
+  type OpeningRecognition,
+} from './lib/openingBook';
+import {
+  WEAKNESS_STORAGE_KEY,
+  loadWeaknessMemory,
+  recordOpeningDeviationWeakness,
+  recordReviewedMoveWeakness,
+  serializeWeaknessMemory,
+  weakestCategory,
+  weaknessTrainingExamples,
+  type WeaknessCategoryId,
+  type WeaknessMemory,
+} from './lib/weaknessProfile';
+import {
+  REPERTOIRE_STORAGE_KEY,
+  loadRepertoireMemory,
+  recordOpeningDeviation,
+  recordRepertoirePractice,
+  removeRepertoireChoice,
+  repertoireChoiceForFen,
+  saveRepertoireChoice,
+  serializeRepertoireMemory,
+  updateOpeningDeviationReview,
+  type OpeningDeviationMemory,
+  type RepertoireMemory,
+} from './lib/repertoireMemory';
+import {
+  buildAdaptiveDailyStudyPlan,
+  type DailyStudyDuration,
+} from './lib/dailyStudyPlanner';
+import {
+  DAILY_SESSION_REPORT_STORAGE_KEY,
+  appendDailySessionAttempt,
+  beginDailyStudySession,
+  buildDailySessionReport,
+  dailySessionAttemptedCount,
+  latestDailySessionReport,
+  loadDailySessionReportMemory,
+  saveDailySessionReport,
+  serializeDailySessionReportMemory,
+  type ActiveDailyStudySession,
+  type DailySessionReportMemory,
+} from './lib/dailySessionReport';
+import {
+  WEEKLY_COACH_STORAGE_KEY,
+  activeWeeklyPriorityProfile,
+  buildLiveWeeklyCoachReport,
+  emptyWeeklyCoachMemory,
+  loadWeeklyCoachMemory,
+  serializeWeeklyCoachMemory,
+  syncWeeklyCoachMemory,
+  type WeeklyCoachMemory,
+} from './lib/weeklyCoach';
+import {
+  TRAINING_ANALYTICS_STORAGE_KEY,
+  loadTrainingAnalyticsMemory,
+  recordTrainingAnalyticsEvent,
+  serializeTrainingAnalyticsMemory,
+  type TrainingAnalyticsMemory,
+} from './lib/trainingAnalytics';
+import {
+  SPACED_REPETITION_STORAGE_KEY,
+  dueSpacedItems,
+  loadSpacedRepetitionMemory,
+  recordSpacedAttempt,
+  serializeSpacedRepetitionMemory,
+  spacedItemToTrainingExercise,
+  syncSpacedRepetitionMemory,
+  type SpacedRepetitionMemory,
+} from './lib/spacedRepetition';
 import type { AnalyseResult, EngineStatus, EngineStrength } from './types/engine';
 import type { OllamaStatus } from './types/ollama';
 
@@ -162,6 +244,9 @@ export default function App() {
   const nextLineId = useRef(2);
   const nextVariationNumber = useRef(1);
   const nextChatId = useRef(1);
+  const observedOpeningDeviationsRef = useRef(new Set<string>());
+  const observedWeaknessReviewsRef = useRef(new Set<string>());
+  const weaknessGameSessionRef = useRef(1);
   const [revision, setRevision] = useState(0);
   const [trainingRevision, setTrainingRevision] = useState(0);
   const [pvRevision, setPvRevision] = useState(0);
@@ -183,6 +268,37 @@ export default function App() {
   const [trainingAttempts, setTrainingAttempts] = useState(0);
   const [trainingSolvedKeys, setTrainingSolvedKeys] = useState<string[]>([]);
   const [trainingBestScores, setTrainingBestScores] = useState<Record<string, number>>({});
+  const [openingTrainingExercise, setOpeningTrainingExercise] = useState<TrainingExercise | null>(null);
+  const [weaknessTrainingExercises, setWeaknessTrainingExercises] = useState<TrainingExercise[]>([]);
+  const [weaknessMemory, setWeaknessMemory] = useState<WeaknessMemory>(() => {
+    if (typeof window === 'undefined') return loadWeaknessMemory(null);
+    return loadWeaknessMemory(window.localStorage.getItem(WEAKNESS_STORAGE_KEY));
+  });
+  const [spacedMemory, setSpacedMemory] = useState<SpacedRepetitionMemory>(() => {
+    if (typeof window === 'undefined') return loadSpacedRepetitionMemory(null);
+    return loadSpacedRepetitionMemory(window.localStorage.getItem(SPACED_REPETITION_STORAGE_KEY));
+  });
+  const [trainingAnalytics, setTrainingAnalytics] = useState<TrainingAnalyticsMemory>(() => {
+    if (typeof window === 'undefined') return loadTrainingAnalyticsMemory(null);
+    return loadTrainingAnalyticsMemory(window.localStorage.getItem(TRAINING_ANALYTICS_STORAGE_KEY));
+  });
+  const [spacedTrainingExercises, setSpacedTrainingExercises] = useState<TrainingExercise[]>([]);
+  const [dailyTrainingExercises, setDailyTrainingExercises] = useState<TrainingExercise[]>([]);
+  const [dailyStudyDuration, setDailyStudyDuration] = useState<DailyStudyDuration>(20);
+  const [activeDailySession, setActiveDailySession] = useState<ActiveDailyStudySession | null>(null);
+  const [dailySessionReports, setDailySessionReports] = useState<DailySessionReportMemory>(() => {
+    if (typeof window === 'undefined') return loadDailySessionReportMemory(null);
+    return loadDailySessionReportMemory(window.localStorage.getItem(DAILY_SESSION_REPORT_STORAGE_KEY));
+  });
+  const [weeklyCoachMemory, setWeeklyCoachMemory] = useState<WeeklyCoachMemory>(() => {
+    if (typeof window === 'undefined') return emptyWeeklyCoachMemory();
+    return loadWeeklyCoachMemory(window.localStorage.getItem(WEEKLY_COACH_STORAGE_KEY));
+  });
+  const [schedulerNow, setSchedulerNow] = useState(() => Date.now());
+  const [repertoireMemory, setRepertoireMemory] = useState<RepertoireMemory>(() => {
+    if (typeof window === 'undefined') return { version: 1, choices: {}, deviations: {} };
+    return loadRepertoireMemory(window.localStorage.getItem(REPERTOIRE_STORAGE_KEY));
+  });
   const [records, setRecords] = useState<PlyRecord[]>([]);
   const [currentStartFen, setCurrentStartFen] = useState(DEFAULT_START_FEN);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -222,6 +338,11 @@ export default function App() {
   const engineThinking = phase === 'engine-thinking';
   const analysisBusy = phase === 'engine-thinking' || phase === 'reviewing' || batchReviewing || trainerLoading || chatLoading || trainingLoading || Boolean(pvPreview);
   const trainingExercises = useMemo<TrainingExercise[]>(() => {
+    if (trainingSource === 'opening') return openingTrainingExercise ? [openingTrainingExercise] : [];
+    if (trainingSource === 'weakness') return weaknessTrainingExercises;
+    if (trainingSource === 'due') return spacedTrainingExercises;
+    if (trainingSource === 'daily') return dailyTrainingExercises;
+
     return records.flatMap((record) => {
       const moveReview = record.review;
       if (record.color !== humanColor || !moveReview?.bestMoveUci || !moveReview.bestMoveSan) return [];
@@ -237,16 +358,92 @@ export default function App() {
         bestMoveUci: moveReview.bestMoveUci,
         bestMoveSan: moveReview.bestMoveSan,
         review: moveReview,
+        kind: 'review' as const,
       }];
     });
-  }, [records, humanColor, trainingSource, currentLine.id]);
+  }, [records, humanColor, trainingSource, currentLine.id, openingTrainingExercise, weaknessTrainingExercises, spacedTrainingExercises, dailyTrainingExercises]);
   const trainingExerciseIndex = trainingExercises.length ? Math.min(trainingIndex, trainingExercises.length - 1) : 0;
   const trainingExercise = trainingExercises[trainingExerciseIndex] ?? null;
   const trainingMistakeCount = records.filter((record) => record.color === humanColor && isTrainingIssue(record.review) && record.review?.bestMoveUci).length;
   const trainingReviewedCount = records.filter((record) => record.color === humanColor && record.review?.bestMoveUci).length;
+  const trainingOpeningCount = openingTrainingExercise ? 1 : 0;
+  const trainingWeaknessCount = weaknessTrainingExercises.length;
+  const spacedDueItems = useMemo(
+    () => dueSpacedItems(spacedMemory, schedulerNow, 20),
+    [spacedMemory, schedulerNow],
+  );
+  const trainingDueCount = spacedDueItems.length;
+  const liveWeeklyCoachReport = useMemo(
+    () => buildLiveWeeklyCoachReport(trainingAnalytics, schedulerNow),
+    [trainingAnalytics, schedulerNow],
+  );
+  const activeWeeklyPriorities = useMemo(
+    () => activeWeeklyPriorityProfile(weeklyCoachMemory, schedulerNow),
+    [weeklyCoachMemory, schedulerNow],
+  );
+  const dailyStudyPlan = useMemo(
+    () => buildAdaptiveDailyStudyPlan({
+      durationMinutes: dailyStudyDuration,
+      now: schedulerNow,
+      spacedMemory,
+      weaknessMemory,
+      records,
+      humanColor,
+      weeklyPriorityMultipliers: activeWeeklyPriorities.multipliers,
+      weeklyPriorityReasons: activeWeeklyPriorities.reasons,
+    }),
+    [dailyStudyDuration, schedulerNow, spacedMemory, weaknessMemory, records, humanColor, activeWeeklyPriorities],
+  );
+  const trainingDailyCount = dailyTrainingExercises.length || dailyStudyPlan.items.length;
+  const dailyAttemptedCount = dailySessionAttemptedCount(activeDailySession);
+  const latestDailyReport = latestDailySessionReport(dailySessionReports);
   const trainingScore = Object.values(trainingBestScores).reduce((sum, value) => sum + value, 0);
   const isHistoryView = historyCursor !== null;
   const visiblePly = historyCursor ?? records.length;
+  const openingRecognition = useMemo<OpeningRecognition | null>(() => {
+    if (currentStartFen !== DEFAULT_START_FEN) return null;
+    return recognizeOpening(records.slice(0, visiblePly).map((record) => record.uci));
+  }, [records, visiblePly, currentStartFen]);
+  const currentRepertoireChoice = useMemo(
+    () => openingRecognition ? repertoireChoiceForFen(repertoireMemory, openingRecognition.explorerFen) : null,
+    [repertoireMemory, openingRecognition],
+  );
+  const openingDeviationReview = useMemo(() => {
+    const deviation = openingRecognition?.deviation;
+    if (!deviation) return undefined;
+    return records[deviation.ply - 1]?.review;
+  }, [openingRecognition, records]);
+  const openingGuideArrows = useMemo<BoardArrow[]>(() => {
+    if (!showBoardIdeas || !openingRecognition?.withinBook) return [];
+
+    const arrows: BoardArrow[] = [];
+    const topBookMove = openingRecognition.alternatives[0];
+    if (topBookMove) {
+      arrows.push({
+        id: `opening-book-${openingRecognition.matchedPly}-${topBookMove.uci}`,
+        from: topBookMove.uci.slice(0, 2) as Square,
+        to: topBookMove.uci.slice(2, 4) as Square,
+        kind: 'book',
+        label: `Local book · ${topBookMove.san}`,
+        detail: `${topBookMove.san} is the highest-weight continuation in the bundled local opening book at this position (${topBookMove.localShare}% local share). This is book guidance, not a Stockfish score.`,
+        offset: 0.9,
+      });
+    }
+
+    if (currentRepertoireChoice) {
+      arrows.push({
+        id: `opening-repertoire-${openingRecognition.matchedPly}-${currentRepertoireChoice.moveUci}`,
+        from: currentRepertoireChoice.moveUci.slice(0, 2) as Square,
+        to: currentRepertoireChoice.moveUci.slice(2, 4) as Square,
+        kind: 'repertoire',
+        label: `My repertoire · ${currentRepertoireChoice.moveSan}`,
+        detail: `${currentRepertoireChoice.moveSan} is your saved repertoire move for this exact opening position. It may agree with or differ from Stockfish and the bundled book.`,
+        offset: -0.9,
+      });
+    }
+
+    return arrows;
+  }, [showBoardIdeas, openingRecognition, currentRepertoireChoice]);
   const game = useMemo(
     () => historyCursor === null ? gameRef.current : replayRecords(records.slice(0, historyCursor), currentStartFen),
     [historyCursor, records, revision, currentStartFen],
@@ -269,8 +466,8 @@ export default function App() {
     return boardIdeas.arrows.filter((arrow) => arrow.id === 'review-played');
   }, [boardIdeas.arrows, review, moveComparisonFocus]);
   const displayBoardArrows = useMemo(
-    () => [...comparisonBoardArrows, ...(inspectionOverlay?.arrows ?? [])],
-    [comparisonBoardArrows, inspectionOverlay],
+    () => [...comparisonBoardArrows, ...openingGuideArrows, ...(inspectionOverlay?.arrows ?? [])],
+    [comparisonBoardArrows, openingGuideArrows, inspectionOverlay],
   );
   const displayBoardHighlights = useMemo(
     () => review && moveComparisonFocus !== 'both' ? [] : boardIdeas.highlights,
@@ -308,6 +505,104 @@ export default function App() {
       return next;
     });
   }
+
+  useEffect(() => {
+    window.localStorage.setItem(REPERTOIRE_STORAGE_KEY, serializeRepertoireMemory(repertoireMemory));
+  }, [repertoireMemory]);
+
+  useEffect(() => {
+    window.localStorage.setItem(WEAKNESS_STORAGE_KEY, serializeWeaknessMemory(weaknessMemory));
+  }, [weaknessMemory]);
+
+  useEffect(() => {
+    const now = Date.now();
+    setSpacedMemory((current) => syncSpacedRepetitionMemory(
+      current,
+      repertoireMemory,
+      weaknessMemory,
+      now,
+    ));
+    setSchedulerNow(now);
+  }, [repertoireMemory, weaknessMemory]);
+
+  useEffect(() => {
+    window.localStorage.setItem(SPACED_REPETITION_STORAGE_KEY, serializeSpacedRepetitionMemory(spacedMemory));
+  }, [spacedMemory]);
+
+  useEffect(() => {
+    window.localStorage.setItem(TRAINING_ANALYTICS_STORAGE_KEY, serializeTrainingAnalyticsMemory(trainingAnalytics));
+  }, [trainingAnalytics]);
+
+  useEffect(() => {
+    window.localStorage.setItem(DAILY_SESSION_REPORT_STORAGE_KEY, serializeDailySessionReportMemory(dailySessionReports));
+  }, [dailySessionReports]);
+
+  useEffect(() => {
+    setWeeklyCoachMemory((current) => syncWeeklyCoachMemory(current, trainingAnalytics, schedulerNow));
+  }, [trainingAnalytics, schedulerNow]);
+
+  useEffect(() => {
+    window.localStorage.setItem(WEEKLY_COACH_STORAGE_KEY, serializeWeeklyCoachMemory(weeklyCoachMemory));
+  }, [weeklyCoachMemory]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setSchedulerNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const unseen = records.filter((record) => {
+      if (record.color !== humanColor || !record.review) return false;
+      const token = `${weaknessGameSessionRef.current}:${record.id}:${record.beforeFen}:${record.uci}`;
+      return !observedWeaknessReviewsRef.current.has(token);
+    });
+    if (!unseen.length) return;
+
+    setWeaknessMemory((current) => {
+      let next = current;
+      for (const record of unseen) {
+        const token = `${weaknessGameSessionRef.current}:${record.id}:${record.beforeFen}:${record.uci}`;
+        if (observedWeaknessReviewsRef.current.has(token) || !record.review) continue;
+        observedWeaknessReviewsRef.current.add(token);
+        next = recordReviewedMoveWeakness(next, {
+          observationId: token,
+          ply: record.ply,
+          san: record.san,
+          review: record.review,
+        });
+      }
+      return next;
+    });
+  }, [records, humanColor]);
+
+  useEffect(() => {
+    if (historyCursor !== null || !openingRecognition?.deviation) return;
+    const deviation = openingRecognition.deviation;
+    const token = `${currentLine.id}:${deviation.ply}:${deviation.uci}`;
+    if (observedOpeningDeviationsRef.current.has(token)) return;
+    observedOpeningDeviationsRef.current.add(token);
+    const reviewAtDeviation = records[deviation.ply - 1]?.review;
+    setRepertoireMemory((current) => recordOpeningDeviation(
+      current,
+      openingRecognition,
+      reviewAtDeviation,
+    ));
+    setWeaknessMemory((current) => recordOpeningDeviationWeakness(
+      current,
+      openingRecognition,
+      reviewAtDeviation,
+      `opening:${weaknessGameSessionRef.current}:${currentLine.id}:${deviation.ply}:${deviation.uci}`,
+    ));
+  }, [historyCursor, openingRecognition?.deviation?.ply, openingRecognition?.deviation?.uci, currentLine.id]);
+
+  useEffect(() => {
+    if (!openingRecognition?.deviation || !openingDeviationReview) return;
+    setRepertoireMemory((current) => updateOpeningDeviationReview(
+      current,
+      openingRecognition,
+      openingDeviationReview,
+    ));
+  }, [openingRecognition?.deviation?.uci, openingDeviationReview?.verdict, openingDeviationReview?.centipawnLoss]);
 
   useEffect(() => {
     engineApi.status()
@@ -383,7 +678,10 @@ export default function App() {
     setTrainingAttempt(null);
     setTrainingHintLevel(0);
     setTrainingPromotion(null);
-    setOrientation(humanColor === 'w' ? 'white' : 'black');
+    const trainingSide = trainingGameRef.current.turn();
+    setOrientation(trainingExercise.kind === 'opening' || trainingExercise.kind === 'weakness'
+      ? (trainingSide === 'w' ? 'white' : 'black')
+      : (humanColor === 'w' ? 'white' : 'black'));
     setTrainingRevision((value) => value + 1);
     setStatusText(`Training ${trainingExerciseIndex + 1}/${trainingExercises.length}`);
   }, [appMode, trainingExercise?.key, trainingExerciseIndex, trainingExercises.length, humanColor]);
@@ -1164,8 +1462,10 @@ export default function App() {
         best,
         played: candidate,
       });
-      const accepted = isAcceptedTrainingMove(moveReview);
-      const points = scoreTrainingAttempt(moveReview, trainingHintLevel);
+      const acceptedByOpeningBook = trainingExercise.kind === 'opening'
+        && Boolean(trainingExercise.expectedMoves?.includes(uci));
+      const accepted = isAcceptedTrainingMove(moveReview, trainingExercise, uci);
+      const points = scoreTrainingAttempt(moveReview, trainingHintLevel, acceptedByOpeningBook);
       const attempt: TrainingAttempt = {
         uci,
         san: move.san,
@@ -1175,6 +1475,39 @@ export default function App() {
         hintLevel: trainingHintLevel,
       };
       setTrainingAttempt(attempt);
+      const attemptTimestamp = Date.now();
+      setTrainingAnalytics((current) => recordTrainingAnalyticsEvent(current, {
+        source: trainingSource,
+        exercise: trainingExercise,
+        attempt,
+        timestamp: attemptTimestamp,
+      }));
+      if (trainingSource === 'daily' && trainingExercise.dailySource) {
+        setActiveDailySession((current) => current
+          ? appendDailySessionAttempt(current, trainingExercise, attempt, attemptTimestamp)
+          : current);
+      }
+      if (trainingExercise.repertoirePositionKey) {
+        setRepertoireMemory((current) => recordRepertoirePractice(
+          current,
+          trainingExercise.repertoirePositionKey!,
+          accepted,
+        ));
+      }
+      if (trainingExercise.spacedItemId) {
+        const now = Date.now();
+        setSpacedMemory((current) => recordSpacedAttempt(
+          current,
+          trainingExercise.spacedItemId!,
+          {
+            accepted,
+            hintLevel: trainingHintLevel,
+            points,
+          },
+          now,
+        ));
+        setSchedulerNow(now);
+      }
       setTrainingAttempts((value) => value + 1);
       setTrainingBestScores((previous) => ({
         ...previous,
@@ -1249,7 +1582,306 @@ export default function App() {
     return true;
   }
 
+  function saveOpeningAlternativeToRepertoire(alternative: OpeningAlternative): void {
+    if (!openingRecognition) return;
+    setRepertoireMemory((current) => saveRepertoireChoice(current, {
+      fen: openingRecognition.explorerFen,
+      eco: openingRecognition.eco,
+      openingName: openingRecognition.name,
+      variation: openingRecognition.variation,
+      moveUci: alternative.uci,
+      moveSan: alternative.san,
+      source: 'book',
+    }));
+    setStatusText(`Repertoire saved · ${alternative.san}`);
+  }
+
+  function saveTopOpeningMoveToRepertoire(): void {
+    const top = openingRecognition?.alternatives[0];
+    if (top) saveOpeningAlternativeToRepertoire(top);
+  }
+
+  function keepPlayedOpeningMoveInRepertoire(): void {
+    const recognition = openingRecognition;
+    const deviation = recognition?.deviation;
+    if (!recognition || !deviation) return;
+
+    setRepertoireMemory((current) => saveRepertoireChoice(current, {
+      fen: deviation.beforeFen,
+      eco: recognition.eco,
+      openingName: recognition.name,
+      variation: recognition.variation,
+      moveUci: deviation.uci,
+      moveSan: deviation.san,
+      source: 'personal',
+    }));
+    setStatusText(`Personal repertoire saved · ${deviation.san}`);
+  }
+
+  function forgetCurrentRepertoireMove(): void {
+    if (!openingRecognition) return;
+    setRepertoireMemory((current) => removeRepertoireChoice(current, openingRecognition.explorerFen));
+    setStatusText('Repertoire move removed');
+  }
+
+  function buildRepertoireTrainingExercise(): TrainingExercise | null {
+    if (!openingRecognition || !currentRepertoireChoice) return null;
+    const choice = currentRepertoireChoice;
+
+    return {
+      key: `repertoire:${choice.positionKey}:${choice.moveUci}`,
+      recordId: openingRecognition.matchedPly + 1,
+      ply: openingRecognition.matchedPly + 1,
+      beforeFen: choice.fen,
+      originalMoveSan: 'Repertoire recall',
+      originalVerdict: 'Good',
+      originalLoss: 0,
+      bestMoveUci: choice.moveUci,
+      bestMoveSan: choice.moveSan,
+      kind: 'opening',
+      openingName: choice.variation
+        ? `${choice.openingName} · ${choice.variation}`
+        : choice.openingName,
+      expectedMoves: [choice.moveUci],
+      expectedMoveSans: [choice.moveSan],
+      repertoirePositionKey: choice.positionKey,
+    };
+  }
+
+  async function trainCurrentRepertoireMove(): Promise<void> {
+    const exercise = buildRepertoireTrainingExercise();
+    if (!exercise) return;
+    setOpeningTrainingExercise(exercise);
+    setTrainingSource('opening');
+    setTrainingIndex(0);
+    setTrainingAttempt(null);
+    setTrainingHintLevel(0);
+    await switchAppMode('training');
+  }
+
+  function buildStoredDeviationTrainingExercise(entry: OpeningDeviationMemory): TrainingExercise | null {
+    const top = entry.alternatives[0];
+    if (!top) return null;
+
+    return {
+      key: `opening-memory:${entry.key}`,
+      recordId: entry.ply,
+      ply: entry.ply,
+      beforeFen: entry.beforeFen,
+      originalMoveSan: entry.moveSan,
+      originalVerdict: entry.lastVerdict ?? 'Good',
+      originalLoss: entry.lastLossCp ?? 0,
+      bestMoveUci: top.uci,
+      bestMoveSan: top.san,
+      kind: 'opening',
+      openingName: entry.variation
+        ? `${entry.openingName} · ${entry.variation}`
+        : entry.openingName,
+      expectedMoves: entry.alternatives.map((alternative) => alternative.uci),
+      expectedMoveSans: entry.alternatives.map((alternative) => alternative.san),
+    };
+  }
+
+  async function trainRememberedOpeningDeviation(entry: OpeningDeviationMemory): Promise<void> {
+    const exercise = buildStoredDeviationTrainingExercise(entry);
+    if (!exercise) return;
+    setOpeningTrainingExercise(exercise);
+    setTrainingSource('opening');
+    setTrainingIndex(0);
+    setTrainingAttempt(null);
+    setTrainingHintLevel(0);
+    await switchAppMode('training');
+  }
+
+  function buildOpeningTrainingExercise(recognition: OpeningRecognition): TrainingExercise | null {
+    const deviation = recognition.deviation;
+    const top = recognition.alternatives[0];
+    if (!deviation || !top) return null;
+
+    const record = records[deviation.ply - 1];
+    const openingName = recognition.variation
+      ? `${recognition.name} · ${recognition.variation}`
+      : recognition.name;
+
+    return {
+      key: `opening:${currentLine.id}:${deviation.ply}:${deviation.uci}`,
+      recordId: record?.id ?? deviation.ply,
+      ply: deviation.ply,
+      beforeFen: deviation.beforeFen,
+      originalMoveSan: deviation.san,
+      originalVerdict: record?.review?.verdict ?? 'Good',
+      originalLoss: record?.review?.centipawnLoss ?? 0,
+      bestMoveUci: top.uci,
+      bestMoveSan: top.san,
+      review: record?.review,
+      kind: 'opening',
+      openingName,
+      expectedMoves: recognition.alternatives.map((alternative) => alternative.uci),
+      expectedMoveSans: recognition.alternatives.map((alternative) => alternative.san),
+    };
+  }
+
+  async function trainOpeningDeviation(): Promise<void> {
+    if (!openingRecognition?.deviation || openingRecognition.alternatives.length === 0) return;
+    const exercise = buildOpeningTrainingExercise(openingRecognition);
+    if (!exercise) return;
+
+    setOpeningTrainingExercise(exercise);
+    setTrainingSource('opening');
+    setTrainingIndex(0);
+    setTrainingAttempt(null);
+    setTrainingHintLevel(0);
+    setTrainingSelected(null);
+    setTrainingPromotion(null);
+    await switchAppMode('training');
+  }
+
+  function studyOpeningAlternative(alternative: OpeningAlternative): void {
+    if (!openingRecognition) return;
+    void playPrincipalVariation(
+      openingRecognition.explorerFen,
+      alternative.continuationUci,
+      `${alternative.targetEco} · ${alternative.targetName}${alternative.targetVariation ? ` · ${alternative.targetVariation}` : ''}`,
+    );
+  }
+
+  function buildWeaknessTrainingSet(category: WeaknessCategoryId): TrainingExercise[] {
+    return weaknessTrainingExamples(weaknessMemory, category, 12).map((example, index) => ({
+      key: `weakness:${category}:${example.id}:${index}`,
+      recordId: index + 1,
+      ply: example.ply,
+      beforeFen: example.beforeFen,
+      originalMoveSan: example.originalMoveSan,
+      originalVerdict: example.originalVerdict,
+      originalLoss: example.originalLoss,
+      bestMoveUci: example.bestMoveUci,
+      bestMoveSan: example.bestMoveSan,
+      kind: example.kind,
+      openingName: example.openingName,
+      expectedMoves: example.expectedMoves,
+      expectedMoveSans: example.expectedMoveSans,
+      weaknessLabel: example.weaknessLabel,
+    }));
+  }
+
+  async function trainWeaknessCategory(category: WeaknessCategoryId): Promise<void> {
+    const exercises = buildWeaknessTrainingSet(category);
+    if (!exercises.length) return;
+
+    setWeaknessTrainingExercises(exercises);
+    setTrainingSource('weakness');
+    setTrainingIndex(0);
+    setTrainingAttempt(null);
+    setTrainingHintLevel(0);
+    setTrainingSelected(null);
+    setTrainingPromotion(null);
+    await switchAppMode('training');
+  }
+
+  async function trainWeakestArea(): Promise<void> {
+    const weakest = weakestCategory(weaknessMemory);
+    if (!weakest) return;
+    await trainWeaknessCategory(weakest.id);
+  }
+
+  function buildDailyTrainingSet(): TrainingExercise[] {
+    return buildAdaptiveDailyStudyPlan({
+      durationMinutes: dailyStudyDuration,
+      now: Date.now(),
+      spacedMemory,
+      weaknessMemory,
+      records,
+      humanColor,
+      weeklyPriorityMultipliers: activeWeeklyPriorities.multipliers,
+      weeklyPriorityReasons: activeWeeklyPriorities.reasons,
+    }).items.map((item) => item.exercise);
+  }
+
+  async function startDailyStudy(): Promise<void> {
+    const now = Date.now();
+    const plan = buildAdaptiveDailyStudyPlan({
+      durationMinutes: dailyStudyDuration,
+      now,
+      spacedMemory,
+      weaknessMemory,
+      records,
+      humanColor,
+      weeklyPriorityMultipliers: activeWeeklyPriorities.multipliers,
+      weeklyPriorityReasons: activeWeeklyPriorities.reasons,
+    });
+    const exercises = plan.items.map((item) => item.exercise);
+    if (!exercises.length) {
+      setSchedulerNow(now);
+      setStatusText('Daily study · no material available yet');
+      return;
+    }
+
+    setDailyTrainingExercises(exercises);
+    setActiveDailySession(beginDailyStudySession(plan, spacedMemory, now));
+    setTrainingSource('daily');
+    setTrainingIndex(0);
+    setTrainingAttempt(null);
+    setTrainingHintLevel(0);
+    setTrainingSelected(null);
+    setTrainingPromotion(null);
+    setTrainingAttempts(0);
+    setTrainingSolvedKeys([]);
+    setTrainingBestScores({});
+    await switchAppMode('training');
+  }
+
+  function finishDailyStudySession(): void {
+    if (!activeDailySession || activeDailySession.attempts.length === 0) return;
+    const now = Date.now();
+    const report = buildDailySessionReport(activeDailySession, spacedMemory, now);
+    setDailySessionReports((current) => saveDailySessionReport(current, report));
+    setActiveDailySession(null);
+    setSchedulerNow(now);
+    setStatusText(`Daily study complete · ${report.solvedPositions}/${report.attemptedPositions} attempted positions solved`);
+  }
+
+  function buildDueTrainingSet(): TrainingExercise[] {
+    return dueSpacedItems(spacedMemory, Date.now(), 20)
+      .map((item, index) => spacedItemToTrainingExercise(item, index));
+  }
+
+  async function trainDueReviews(): Promise<void> {
+    const exercises = buildDueTrainingSet();
+    if (!exercises.length) {
+      setSchedulerNow(Date.now());
+      setStatusText('Spaced repetition · nothing due right now');
+      return;
+    }
+
+    setSpacedTrainingExercises(exercises);
+    setTrainingSource('due');
+    setTrainingIndex(0);
+    setTrainingAttempt(null);
+    setTrainingHintLevel(0);
+    setTrainingSelected(null);
+    setTrainingPromotion(null);
+    await switchAppMode('training');
+  }
+
   function changeTrainingSource(source: TrainingSource): void {
+    if (source === 'due') setSpacedTrainingExercises(buildDueTrainingSet());
+    if (source === 'daily') {
+      const now = Date.now();
+      const plan = buildAdaptiveDailyStudyPlan({
+        durationMinutes: dailyStudyDuration,
+        now,
+        spacedMemory,
+        weaknessMemory,
+        records,
+        humanColor,
+        weeklyPriorityMultipliers: activeWeeklyPriorities.multipliers,
+        weeklyPriorityReasons: activeWeeklyPriorities.reasons,
+      });
+      setDailyTrainingExercises(plan.items.map((item) => item.exercise));
+      setActiveDailySession(beginDailyStudySession(plan, spacedMemory, now));
+    } else if (trainingSource === 'daily') {
+      setActiveDailySession(null);
+    }
     setTrainingSource(source);
     setTrainingIndex(0);
     setTrainingAttempt(null);
@@ -1304,6 +1936,9 @@ export default function App() {
     if (!isCurrentSession(session)) return;
 
     gameRef.current = new Chess();
+    observedOpeningDeviationsRef.current.clear();
+    observedWeaknessReviewsRef.current.clear();
+    weaknessGameSessionRef.current += 1;
     setCurrentStartFen(DEFAULT_START_FEN);
     nextRecordId.current = 1;
     nextLineId.current = 2;
@@ -1315,6 +1950,11 @@ export default function App() {
     setTrainingAttempts(0);
     setTrainingSolvedKeys([]);
     setTrainingBestScores({});
+    setOpeningTrainingExercise(null);
+    setWeaknessTrainingExercises([]);
+    setSpacedTrainingExercises([]);
+    setDailyTrainingExercises([]);
+    setActiveDailySession(null);
     setCurrentLine({ id: 1, name: 'Main line', originPly: null });
     setInactiveLines([]);
     setHistoryCursor(null);
@@ -1483,6 +2123,12 @@ export default function App() {
     if (ply !== null) void navigateHistory(ply);
   }
 
+  function scrollReviewSection(id: string): void {
+    window.requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
   async function reviewRecordBatch(list: PlyRecord[], label = 'Review complete'): Promise<void> {
     if (!engineStatus?.configured || phase === 'promotion' || list.length === 0) return;
     const session = sessionRef.current;
@@ -1498,7 +2144,10 @@ export default function App() {
         const request = nextAnalysisRequest();
         await runMoveReview(record, session, humanColor, request, Boolean(record.review));
       }
-      if (isCurrentSession(session)) setStatusText(`${label} · ${list.length} moves analyzed`);
+      if (isCurrentSession(session)) {
+        setStatusText(`${label} · ${list.length} moves analyzed`);
+        scrollReviewSection('game-review-dashboard');
+      }
     } finally {
       setBatchReviewing(false);
       if (isCurrentSession(session)) setPhase(gameRef.current.isGameOver() ? 'game-over' : (engineStatus?.configured ? 'player-turn' : 'engine-missing'));
@@ -1530,6 +2179,9 @@ export default function App() {
       if (!isCurrentSession(session)) return;
 
       gameRef.current = imported.game;
+      observedOpeningDeviationsRef.current.clear();
+      observedWeaknessReviewsRef.current.clear();
+      weaknessGameSessionRef.current += 1;
       setCurrentStartFen(imported.startFen);
       nextRecordId.current = imported.records.length + 1;
       nextLineId.current = 2;
@@ -1560,6 +2212,11 @@ export default function App() {
       setTrainingAttempts(0);
       setTrainingSolvedKeys([]);
       setTrainingBestScores({});
+      setOpeningTrainingExercise(null);
+      setWeaknessTrainingExercises([]);
+      setSpacedTrainingExercises([]);
+      setDailyTrainingExercises([]);
+      setActiveDailySession(null);
       setAppMode('play');
       refresh();
 
@@ -1590,6 +2247,9 @@ export default function App() {
 
       const startFen = imported.fen();
       gameRef.current = imported;
+      observedOpeningDeviationsRef.current.clear();
+      observedWeaknessReviewsRef.current.clear();
+      weaknessGameSessionRef.current += 1;
       setCurrentStartFen(startFen);
       nextRecordId.current = 1;
       nextLineId.current = 2;
@@ -1618,6 +2278,11 @@ export default function App() {
       setTrainingAttempts(0);
       setTrainingSolvedKeys([]);
       setTrainingBestScores({});
+      setOpeningTrainingExercise(null);
+      setWeaknessTrainingExercises([]);
+      setSpacedTrainingExercises([]);
+      setDailyTrainingExercises([]);
+      setActiveDailySession(null);
       setAppMode('play');
       refresh();
       setStatusText('FEN imported · ready to analyze or continue');
@@ -2081,12 +2746,26 @@ export default function App() {
               <div className="board-ideas-toolbar">
                 <div>
                   <strong>Board inspector</strong>
-                  {(review || currentAnalysis) && showBoardIdeas && (
-                    <>
-                      <span className="board-idea-legend"><i className="board-idea-swatch best" /> best</span>
-                      <span className="board-idea-legend"><i className="board-idea-swatch played" /> played issue</span>
-                      <span className="board-idea-legend"><i className="board-idea-swatch tactical" /> tactical</span>
-                    </>
+                  {showBoardIdeas && (review || currentAnalysis || openingGuideArrows.length > 0) && (
+                    <div className="board-legend-groups" aria-label="Board arrow legend">
+                      {(review || currentAnalysis) && (
+                        <span className="board-legend-group">
+                          <b>Engine</b>
+                          <span className="board-idea-legend"><i className="board-idea-swatch best" /> Stockfish best</span>
+                          <span className="board-idea-legend"><i className="board-idea-swatch played" /> played issue</span>
+                          <span className="board-idea-legend"><i className="board-idea-swatch tactical" /> tactical</span>
+                        </span>
+                      )}
+                      {openingGuideArrows.length > 0 && (
+                        <span className="board-legend-group">
+                          <b>Opening</b>
+                          <span className="board-idea-legend"><i className="board-idea-swatch book" /> local book</span>
+                          {currentRepertoireChoice && (
+                            <span className="board-idea-legend"><i className="board-idea-swatch repertoire" /> my repertoire</span>
+                          )}
+                        </span>
+                      )}
+                    </div>
                   )}
                   {ideaInspection && (
                     <span className="board-inspect-help">
@@ -2103,7 +2782,7 @@ export default function App() {
                   >
                     {ideaInspection ? 'Exit inspect' : 'Inspect board'}
                   </button>
-                  {(review || currentAnalysis) && (
+                  {(review || currentAnalysis || Boolean(openingRecognition?.withinBook && (openingRecognition.alternatives.length || currentRepertoireChoice))) && (
                     <button type="button" onClick={() => {
                       setShowBoardIdeas((value) => {
                         const next = !value;
@@ -2190,6 +2869,8 @@ export default function App() {
                 reviewing={batchReviewing}
                 onReviewAll={() => void reviewAllUnreviewedMoves(records.every((record) => Boolean(record.review)))}
                 onGoToFirstIssue={goToFirstMistake}
+                selectedRecord={historyCursor !== null && historyCursor > 0 ? visibleRecord : null}
+                onOpenSelected={() => scrollReviewSection('selected-move-details')}
               />
               <EvaluationTimeline
                 records={records}
@@ -2245,6 +2926,27 @@ export default function App() {
               <strong>{mistakeCount} {mistakeCount === 1 ? 'issue' : 'issues'}</strong>
             </div>
 
+            {historyCursor !== null && historyCursor > 0 && visibleRecord && (
+              <div className="history-selected-move">
+                <div>
+                  <span>Selected</span>
+                  <strong>{Math.ceil(visibleRecord.ply / 2)}{visibleRecord.color === 'b' ? '…' : '.'}{visibleRecord.san}</strong>
+                </div>
+                {visibleRecord.review ? (
+                  <>
+                    <span className={`history-selected-verdict verdict-${visibleRecord.review.verdict.toLowerCase()}`}>
+                      {visibleRecord.review.verdict}
+                    </span>
+                    <span>{visibleRecord.review.centipawnLoss} cp loss</span>
+                    <span>best {visibleRecord.review.bestMoveSan ?? '—'}</span>
+                    <button type="button" onClick={() => scrollReviewSection('selected-move-details')}>Details ↓</button>
+                  </>
+                ) : (
+                  <span>Not reviewed yet</span>
+                )}
+              </div>
+            )}
+
             <MoveList
               records={records}
               activeId={activeReviewId}
@@ -2258,6 +2960,7 @@ export default function App() {
             />
           </section>
 
+          <div id="selected-move-details" className="selected-move-details-anchor">
           <CoachPanel
             review={review}
             loading={coachLoading}
@@ -2294,6 +2997,71 @@ export default function App() {
             }}
             onAskBoardIdea={(question) => void askConversationalCoach(question)}
           />
+          </div>
+
+          <OpeningExplorerPanel
+            recognition={openingRecognition}
+            disabled={analysisBusy || phase === 'promotion'}
+            onStudyAlternative={studyOpeningAlternative}
+            preferredMoveUci={currentRepertoireChoice?.moveUci ?? null}
+            onSaveAlternative={saveOpeningAlternativeToRepertoire}
+            onForgetPreferred={forgetCurrentRepertoireMove}
+            onTrainDeviation={() => void trainOpeningDeviation()}
+            onGoToTheoryEnd={(ply) => void navigateHistory(ply)}
+          />
+
+          <OpeningMemoryPanel
+            recognition={openingRecognition}
+            memory={repertoireMemory}
+            deviationReview={openingDeviationReview}
+            disabled={analysisBusy || phase === 'promotion'}
+            onSaveTopBookMove={saveTopOpeningMoveToRepertoire}
+            onKeepPlayedMove={keepPlayedOpeningMoveInRepertoire}
+            onForgetCurrent={forgetCurrentRepertoireMove}
+            onTrainCurrentRepertoire={() => void trainCurrentRepertoireMove()}
+            onTrainCurrentDeviation={() => void trainOpeningDeviation()}
+            onTrainRememberedDeviation={(entry) => void trainRememberedOpeningDeviation(entry)}
+            onReviewDeviation={() => {
+              const deviation = openingRecognition?.deviation;
+              if (deviation) void navigateHistory(deviation.ply);
+            }}
+          />
+
+          <WeaknessProfilePanel
+            memory={weaknessMemory}
+            disabled={analysisBusy || phase === 'promotion'}
+            onTrainWeakest={() => void trainWeakestArea()}
+            onTrainCategory={(category) => void trainWeaknessCategory(category)}
+          />
+
+          <SpacedRepetitionPanel
+            memory={spacedMemory}
+            now={schedulerNow}
+            disabled={analysisBusy || phase === 'promotion'}
+            onTrainDue={() => void trainDueReviews()}
+          />
+
+          <WeeklyCoachPanel
+            report={liveWeeklyCoachReport}
+            activePriorities={activeWeeklyPriorities}
+          />
+
+          <DailyStudyPlannerPanel
+            plan={dailyStudyPlan}
+            duration={dailyStudyDuration}
+            disabled={analysisBusy || phase === 'promotion'}
+            latestReport={latestDailyReport}
+            onDurationChange={setDailyStudyDuration}
+            onStart={() => void startDailyStudy()}
+          />
+
+          {latestDailyReport && <DailySessionReportPanel report={latestDailyReport} compact />}
+
+          <TrainingAnalyticsPanel
+            memory={trainingAnalytics}
+            spacedMemory={spacedMemory}
+            now={schedulerNow}
+          />
         </aside>
           </>
         ) : (
@@ -2309,6 +3077,10 @@ export default function App() {
                   >
                     <option value="mistakes">My mistakes — {trainingMistakeCount}</option>
                     <option value="reviewed">All reviewed — {trainingReviewedCount}</option>
+                    <option value="opening">Opening deviation — {trainingOpeningCount}</option>
+                    <option value="weakness">Targeted weakness — {trainingWeaknessCount}</option>
+                    <option value="due">Due review — {trainingDueCount}</option>
+                    <option value="daily">Daily study — {trainingDailyCount}</option>
                   </select>
                 </label>
                 <button type="button" onClick={() => moveTrainingExercise(-1)} disabled={trainingLoading || trainingExercises.length < 2}>‹ Previous</button>
@@ -2366,6 +3138,11 @@ export default function App() {
                 source={trainingSource}
                 mistakeCount={trainingMistakeCount}
                 reviewedCount={trainingReviewedCount}
+                openingCount={trainingOpeningCount}
+                weaknessCount={trainingWeaknessCount}
+                dueCount={trainingDueCount}
+                dailyCount={trainingDailyCount}
+                dailyAttemptedCount={dailyAttemptedCount}
                 exercise={trainingExercise}
                 exerciseIndex={trainingExerciseIndex}
                 exerciseCount={trainingExercises.length}
@@ -2381,13 +3158,18 @@ export default function App() {
                 onRetry={() => resetTrainingBoard(true)}
                 onPrevious={() => moveTrainingExercise(-1)}
                 onNext={() => moveTrainingExercise(1)}
+                onFinishDaily={finishDailyStudySession}
               />
+
+              {latestDailyReport && trainingSource === 'daily' && !activeDailySession && (
+                <DailySessionReportPanel report={latestDailyReport} />
+              )}
 
               <section className="panel training-help-panel">
                 <span className="eyebrow">How it works</span>
                 <h2>Your games become exercises</h2>
                 <p>Training never changes the live game. Switch back to Play & Coach at any time and your board, history, saved variations and coaching remain exactly where you left them.</p>
-                <p><strong>Best / Excellent</strong> counts as solved. Hints reduce the score, while Retry lets you calculate the same position again.</p>
+                <p><strong>Best / Excellent</strong> counts as solved. Opening exercises also accept recognized book continuations. Daily Study automatically mixes due repertoire, weakest areas, recent mistakes, and a small amount of new material into a 15–30 minute session. Spaced cards still reschedule from the result.</p>
               </section>
             </aside>
           </>

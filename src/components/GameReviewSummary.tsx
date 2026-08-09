@@ -6,11 +6,21 @@ interface GameReviewSummaryProps {
   reviewing: boolean;
   onReviewAll(): void;
   onGoToFirstIssue(): void;
+  selectedRecord?: PlyRecord | null;
+  onOpenSelected?(): void;
 }
 
 const verdictOrder = ['Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder'] as const;
 
-export function GameReviewSummary({ records, humanColor, reviewing, onReviewAll, onGoToFirstIssue }: GameReviewSummaryProps) {
+export function GameReviewSummary({
+  records,
+  humanColor,
+  reviewing,
+  onReviewAll,
+  onGoToFirstIssue,
+  selectedRecord = null,
+  onOpenSelected,
+}: GameReviewSummaryProps) {
   const myMoves = records.filter((record) => record.color === humanColor);
   const reviewed = myMoves.filter((record) => record.review);
   const counts = Object.fromEntries(verdictOrder.map((verdict) => [verdict, reviewed.filter((record) => record.review?.verdict === verdict).length])) as Record<typeof verdictOrder[number], number>;
@@ -19,8 +29,13 @@ export function GameReviewSummary({ records, humanColor, reviewing, onReviewAll,
     ? Math.round(reviewed.reduce((sum, record) => sum + (record.review?.centipawnLoss ?? 0), 0) / reviewed.length)
     : null;
 
+  const selectedReview = selectedRecord?.review ?? null;
+  const selectedMoveLabel = selectedRecord
+    ? `${Math.ceil(selectedRecord.ply / 2)}${selectedRecord.color === 'b' ? '…' : '.'}${selectedRecord.san}`
+    : null;
+
   return (
-    <section className="panel game-review-summary">
+    <section className="panel game-review-summary" id="game-review-dashboard">
       <div className="panel-heading compact">
         <div>
           <span className="eyebrow">Full game review</span>
@@ -55,6 +70,37 @@ export function GameReviewSummary({ records, humanColor, reviewing, onReviewAll,
         </button>
         <button type="button" onClick={onGoToFirstIssue} disabled={issues === 0}>First issue</button>
       </div>
+
+      {selectedRecord && (
+        <div className="selected-review-dashboard">
+          <div className="selected-review-dashboard-heading">
+            <span>Selected move</span>
+            <strong>{selectedMoveLabel}</strong>
+            {selectedReview && <b className={`selected-review-verdict verdict-${selectedReview.verdict.toLowerCase()}`}>{selectedReview.verdict}</b>}
+          </div>
+          {selectedReview ? (
+            <>
+              <div className="selected-review-dashboard-stats">
+                <div>
+                  <span>Loss</span>
+                  <strong>{selectedReview.centipawnLoss} cp</strong>
+                </div>
+                <div>
+                  <span>Best move</span>
+                  <strong>{selectedReview.bestMoveSan ?? '—'}</strong>
+                </div>
+                <div>
+                  <span>Played eval</span>
+                  <strong>{selectedReview.playedEvaluation ?? '—'}</strong>
+                </div>
+              </div>
+              <button type="button" onClick={onOpenSelected}>Open full move explanation ↓</button>
+            </>
+          ) : (
+            <p>This move has not been reviewed yet.</p>
+          )}
+        </div>
+      )}
     </section>
   );
 }

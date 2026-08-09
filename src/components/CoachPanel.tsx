@@ -7,6 +7,7 @@ import { analyzePositionConcepts, type ChessConcept } from '../lib/chessConcepts
 import type { BoardIdeaExplanation, InspectionOverlayMode, SquareControlOverlay } from '../lib/boardIdeas';
 import { MoveComparisonPanel } from './MoveComparisonPanel';
 import type { MoveComparisonFocus } from '../lib/moveComparison';
+import { PositionBeforeAfterPanel } from './PositionBeforeAfterPanel';
 
 interface CoachPanelProps {
   review: MoveReview | null;
@@ -343,6 +344,11 @@ export function CoachPanel({
           focus={moveComparisonFocus}
           onFocusChange={onMoveComparisonFocusChange}
           onPlayLine={onPlayLine}
+        />
+
+        <PositionBeforeAfterPanel
+          review={review}
+          onAskCoach={onChatSubmit}
         />
 
         <ul className="reason-list">

@@ -5,6 +5,11 @@ interface TrainingPanelProps {
   source: TrainingSource;
   mistakeCount: number;
   reviewedCount: number;
+  openingCount: number;
+  weaknessCount: number;
+  dueCount: number;
+  dailyCount: number;
+  dailyAttemptedCount: number;
   exercise: TrainingExercise | null;
   exerciseIndex: number;
   exerciseCount: number;
@@ -20,6 +25,7 @@ interface TrainingPanelProps {
   onRetry(): void;
   onPrevious(): void;
   onNext(): void;
+  onFinishDaily?(): void;
 }
 
 function verdictClass(verdict: string): string {
@@ -30,6 +36,11 @@ export function TrainingPanel({
   source,
   mistakeCount,
   reviewedCount,
+  openingCount,
+  weaknessCount,
+  dueCount,
+  dailyCount,
+  dailyAttemptedCount,
   exercise,
   exerciseIndex,
   exerciseCount,
@@ -45,6 +56,7 @@ export function TrainingPanel({
   onRetry,
   onPrevious,
   onNext,
+  onFinishDaily,
 }: TrainingPanelProps) {
   const hints = exercise ? buildTrainingHints(exercise) : [];
 
@@ -64,6 +76,10 @@ export function TrainingPanel({
           <select value={source} onChange={(event) => onSourceChange(event.target.value as TrainingSource)} disabled={loading}>
             <option value="mistakes">My mistakes ({mistakeCount})</option>
             <option value="reviewed">All reviewed moves ({reviewedCount})</option>
+            <option value="opening">Opening deviation ({openingCount})</option>
+            <option value="weakness">Targeted weakness ({weaknessCount})</option>
+            <option value="due">Due review ({dueCount})</option>
+            <option value="daily">Daily study ({dailyCount})</option>
           </select>
         </label>
       </div>
@@ -74,16 +90,58 @@ export function TrainingPanel({
           <p>
             {source === 'mistakes'
               ? 'Play and review a game first. Inaccuracies, mistakes and blunders will automatically become exercises.'
-              : 'Review moves in Play & Coach first, then return here.'}
+              : source === 'opening'
+                ? 'Use Train deviation in the Opening Explorer to send an opening departure here.'
+                : source === 'weakness'
+                  ? 'Use Train my weakest area in the Personal Weakness Profile to build a targeted set.'
+                  : source === 'due'
+                    ? 'Nothing is due right now. Correct answers move cards into the future; incorrect answers return after about 10 minutes.'
+                    : source === 'daily'
+                      ? 'Build today’s 15–30 minute plan from the Adaptive Planner in Play & Coach.'
+                      : 'Review moves in Play & Coach first, then return here.'}
           </p>
         </div>
       ) : (
         <>
-          <div className="training-exercise-card">
-            <span>{exerciseTitle(exercise)}</span>
-            <strong>Find a stronger move.</strong>
-            <p>Your original move was <b>{exercise.originalMoveSan}</b> — {exercise.originalVerdict} ({(exercise.originalLoss / 100).toFixed(2)} pawn loss).</p>
+          <div className={`training-exercise-card ${exercise.kind === 'opening' ? 'opening-training-card' : exercise.kind === 'weakness' ? 'weakness-training-card' : ''}`}>
+            <span>
+              {exercise.kind === 'opening'
+                ? 'Opening deviation'
+                : exercise.kind === 'weakness'
+                  ? `Targeted training · ${exercise.weaknessLabel ?? 'Weakness'}`
+                  : exerciseTitle(exercise)}
+            </span>
+            <strong>
+              {exercise.kind === 'opening'
+                ? `Find a book continuation in ${exercise.openingName ?? 'this opening'}.`
+                : exercise.kind === 'weakness'
+                  ? `Find the stronger move that addresses ${exercise.weaknessLabel?.toLowerCase() ?? 'this weakness'}.`
+                  : 'Find a stronger move.'}
+            </strong>
+            {exercise.kind === 'opening' ? (
+              <p>Your game left the bundled local book with <b>{exercise.originalMoveSan}</b>. A recognized book move also counts as solved, even if Stockfish grades it merely Good.</p>
+            ) : exercise.kind === 'weakness' ? (
+              <p>This stored position contributed to your <b>{exercise.weaknessLabel}</b> profile. You originally played <b>{exercise.originalMoveSan}</b> — {exercise.originalVerdict} ({(exercise.originalLoss / 100).toFixed(2)} pawn loss).</p>
+            ) : (
+              <p>Your original move was <b>{exercise.originalMoveSan}</b> — {exercise.originalVerdict} ({(exercise.originalLoss / 100).toFixed(2)} pawn loss).</p>
+            )}
           </div>
+
+          {exercise.dailySource && (
+            <div className={`daily-training-banner source-${exercise.dailySource}`}>
+              <span>Daily study · {exercise.dailySourceLabel ?? 'Adaptive plan'}</span>
+              <strong>{exercise.dailyReason ?? 'Selected by today’s adaptive planner.'}</strong>
+              <small>The planner interleaves memory review, weak areas, recent errors, and limited new material.</small>
+            </div>
+          )}
+
+          {exercise.spacedItemId && (
+            <div className="spaced-training-banner">
+              <span>Spaced repetition</span>
+              <strong>{exercise.spacedSource === 'repertoire' ? 'Repertoire recall' : 'Weakness review'}</strong>
+              <small>The scheduler will set the next due time from this result and your hint usage.</small>
+            </div>
+          )}
 
           <div className="training-instruction">
             {loading ? <><span className="mini-spinner" aria-hidden="true" /> Stockfish is checking your attempt…</> : attempt ? 'Attempt evaluated.' : 'Play your answer directly on the board.'}
@@ -121,6 +179,9 @@ export function TrainingPanel({
                 <span>{attempt.review.centipawnLoss} cp loss</span>
               </div>
               <p>{attempt.review.summary}</p>
+              {exercise.kind === 'opening' && exercise.expectedMoves?.includes(attempt.uci) && (
+                <p className="opening-training-accepted">Recognized local-book continuation ✓</p>
+              )}
               <ul>
                 {attempt.review.reasons.slice(0, 4).map((reason) => <li key={reason}>{reason}</li>)}
               </ul>
@@ -143,6 +204,18 @@ export function TrainingPanel({
             <button type="button" onClick={onNext} disabled={loading || exerciseCount < 2}>Next ›</button>
           </div>
         </>
+      )}
+
+      {source === 'daily' && exerciseCount > 0 && (
+        <div className="daily-session-finish">
+          <div>
+            <span>Today’s session progress</span>
+            <strong>{dailyAttemptedCount}/{exerciseCount} positions attempted</strong>
+          </div>
+          <button type="button" className="primary-button" onClick={onFinishDaily} disabled={loading || dailyAttemptedCount === 0}>
+            {dailyAttemptedCount >= exerciseCount ? 'Finish & view report' : 'End session & report'}
+          </button>
+        </div>
       )}
 
       <div className="training-session-stats">

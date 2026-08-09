@@ -1,8 +1,8 @@
 {
   "name": "stockfish-coach",
-  "version": "0.8.8",
+  "version": "0.9.8",
   "private": true,
-  "description": "Local Electron chess trainer powered by Stockfish with visual two-move comparison, full principal-variation study controls, attack/defense overlays, inspect-any-square coaching, PGN/FEN review, training, conversational coaching, and optional Ollama explanations",
+  "description": "Local Electron chess trainer powered by Stockfish with weekly coach reports, week-over-week trend detection for weaknesses and openings, automatic next-week study priority adjustments, adaptive daily study, post-session reports, training analytics, spaced repetition, repertoire memory, PGN/FEN review, and optional Ollama",
   "main": "dist-electron/main.js",
   "engines": {
     "node": ">=22.12.0"

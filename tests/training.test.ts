@@ -60,3 +60,19 @@ describe('training hints', () => {
     expect(hints[3]).toContain('Nf3');
   });
 });
+
+
+describe('v0.9.0 opening-deviation training', () => {
+  it('accepts a recognized opening-book continuation even when engine verdict is only Good', () => {
+    const review = { verdict: 'Good' } as any;
+    const exercise = { kind: 'opening', expectedMoves: ['e2e4', 'd2d4'] } as any;
+
+    expect(isAcceptedTrainingMove(review, exercise, 'e2e4')).toBe(true);
+    expect(isAcceptedTrainingMove(review, exercise, 'a2a3')).toBe(false);
+  });
+
+  it('gives accepted book moves at least Excellent-level base credit before hints', () => {
+    const review = { verdict: 'Good' } as any;
+    expect(scoreTrainingAttempt(review, 0, true)).toBeGreaterThanOrEqual(88);
+  });
+});

@@ -32,7 +32,7 @@ It already supports:
 
 The project is configured for Electron 43, React 19.2, Vite 8, and Stockfish 18.
 
-## v0.8.8 — Interactive board explanations
+## v0.9.8 — Interactive board explanations
 
 - Enter **Inspect ideas** mode without changing the game.
 - Click a highlighted tactical/positional square to get a dedicated coach explanation.
@@ -386,3 +386,58 @@ Every Stockfish line can now be paused and studied ply by ply. The PV banner pro
 ## v0.8.8 — Compare two moves visually
 
 Reviewed positions now show a dedicated two-column comparison between the played move and Stockfish's best move. Each side has its own evaluation, continuation, detected concepts, and **Study this line** action. The main board can isolate both arrows, the played move, or the best move, making the difference visible before opening either PV.
+
+
+## v0.9.0 — Opening Recognition + Local Opening Explorer
+
+The app now ships with a curated offline ECO opening book. Standard-start games display the recognized ECO code, opening/variation name, the deepest local-book path, common bundled continuations, and the exact first move where the game leaves the local book. Any listed continuation can be opened in the existing PV study player. A detected opening deviation can be sent directly to Training mode, where bundled book moves count as valid solutions while Stockfish still grades the attempted move.
+
+
+## v0.9.1 — Opening Mistake Coach + Repertoire Memory
+
+Opening choices can now be saved as a persistent personal White/Black repertoire. The coach remembers repeated first deviations from the bundled local book and explicitly distinguishes a repertoire miss from an objective Stockfish mistake. Saved repertoire positions have recall training, practice success counters, and can include personal moves outside the local book.
+
+
+## v0.9.2 — Positional Before / After Comparison
+
+Reviewed moves now include a six-dimensional structural comparison for development, king safety, central control, pawn structure, piece activity, and tactical pressure. The panel can switch between the played move and Stockfish's best move, shows before/after values and deltas, and exposes the concrete heuristic evidence behind every bar. These values are deliberately labeled teaching heuristics rather than engine evaluations.
+
+
+## v0.9.2.1 — Opening taxonomy and arrow-source clarity
+
+The Opening Explorer now identifies Type, Family, Branch, and Variation. The board legend explicitly separates Stockfish calculation from opening guidance: solid green is Stockfish best, dashed blue is the bundled local-book move, and dashed gold is the user's saved repertoire move. Book/repertoire arrows are slightly offset when they coincide so both sources remain visible.
+
+
+## v0.9.3 — Personal Weakness Profile + Targeted Training
+
+Reviewed games now feed a persistent local profile across hanging pieces, missed tactics, king safety, pawn structure, poor development, and opening deviations. Priority combines recurrence, Stockfish verdict severity, and centipawn loss. **Train my weakest area** creates a targeted Training-mode set from recent stored positions, while each individual weakness row can be trained directly.
+
+
+## v0.9.4 — Spaced Repetition
+
+Saved repertoire positions and stored weakness examples now receive persistent due dates. Clean correct recall moves a card from 1 day to 3 days and then to adaptive longer intervals; hints shorten the interval, while an incorrect answer resets the streak and returns the card after about 10 minutes. The new Spaced Repetition panel shows the due queue and launches **Train due now**, while every attempted move is still evaluated through the existing Stockfish training pipeline.
+
+
+## v0.9.5 — Training Analytics + Heatmap + Retention Forecast
+
+The app now logs every evaluated Training attempt and displays an eight-week practice heatmap, 7/30-day accuracy summaries, accuracy by weakness/opening, and the scheduler's current 7/30-day review load. Spaced-repetition cards are also classified as New, Fragile, Growing, or Stable using an explicitly heuristic retention estimate, with a “Knowledge becoming stable” list for repertoire and weakness material that is becoming durable.
+
+
+## v0.9.5.1 — Review Workspace UX
+
+Full-game review is now review-first: the summary and evaluation timeline sit immediately below Position Tools, selecting a move updates a compact Selected Move dashboard, and Review All automatically reveals the summary when analysis completes. Desktop windows keep the board beside the review sidebar down to 1000 px, with viewport-aware sizing and a sticky board so historical move selection remains visible without scrolling back to the top.
+
+
+## v0.9.6 — Adaptive Daily Study Planner
+
+The app now builds a 15, 20, or 30 minute mixed daily session from four sources: due reviewed repertoire, the highest-priority recurring weaknesses, recent reviewed mistakes, and a deliberately small amount of new material. The default 20-minute plan targets 13 distinct positions (5 due repertoire, 4 weakest-area, 3 recent, 1 new when available), fills shortages from review material rather than extra novelty, interleaves categories, and opens as a snapshotted **Daily study** Training session. Stockfish grading, spaced scheduling, and Training Analytics all remain active.
+
+
+## v0.9.7 — Post-Session Report + Tomorrow Recommendation
+
+Adaptive Daily Study now has a complete end-of-session report. It separates clean first-try solves, recovered positions, hint-assisted solves and unresolved positions; shows performance by planner bucket; compares spaced-repetition interval/streak/due dates before and after the session; and automatically recommends a 15, 20 or 30 minute load for tomorrow based on today's failures and cards due by tomorrow night. Completed reports persist locally and the latest recommendation remains visible after returning to Play & Coach.
+
+
+## v0.9.8 — Weekly Coach Report + Trend Detection
+
+Training Analytics now produces a live week-to-date comparison against the same elapsed part of last week, with separate trend tables for weakness categories and openings/repertoire lines. Declining or persistently low areas receive transparent next-week priority multipliers, while stable high-accuracy material can be slightly reduced. At the local Monday rollover the completed weekly report is frozen and its priorities automatically reorder the following week's Adaptive Daily Study candidates without changing due dates, novelty limits, or Stockfish grading.

@@ -3,7 +3,7 @@ import { formatEvaluation, type MoveReview, type Verdict } from './chessCoach';
 import { analyzePositionConcepts, type ChessConcept } from './chessConcepts';
 import type { AnalyseResult } from '../types/engine';
 
-export type BoardArrowKind = 'best' | 'played' | 'candidate' | 'tactical' | 'white-control' | 'black-control' | 'legal';
+export type BoardArrowKind = 'best' | 'played' | 'candidate' | 'tactical' | 'book' | 'repertoire' | 'white-control' | 'black-control' | 'legal';
 export type BoardHighlightKind = 'tactical' | 'positional' | 'structure' | 'king' | 'material';
 
 export interface BoardArrow {
@@ -13,6 +13,7 @@ export interface BoardArrow {
   kind: BoardArrowKind;
   label?: string;
   detail?: string;
+  offset?: number;
 }
 
 export interface BoardHighlight {
@@ -218,6 +219,8 @@ function arrowKindExplanation(kind: BoardArrowKind): string {
   if (kind === 'best') return 'This arrow marks Stockfish’s first-choice move in the position.';
   if (kind === 'played') return 'This arrow marks the move that was played and was graded as an issue compared with best play.';
   if (kind === 'candidate') return 'This is one of Stockfish’s MultiPV alternatives, useful for comparing different plans.';
+  if (kind === 'book') return 'This dashed blue arrow marks the top continuation in the bundled local opening book. It is opening guidance, not a Stockfish evaluation.';
+  if (kind === 'repertoire') return 'This dashed gold arrow marks your saved repertoire move for this exact opening position.';
   if (kind === 'white-control') return 'This arrow shows a White piece directly attacking or controlling the inspected square.';
   if (kind === 'black-control') return 'This arrow shows a Black piece directly attacking or controlling the inspected square.';
   if (kind === 'legal') return 'This arrow shows a legal destination for the inspected piece in the current position.';
