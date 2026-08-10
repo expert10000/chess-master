@@ -67,3 +67,7 @@ The release now supports one continuous local coaching loop:
 ## Upgrade path
 
 v1.0.0 is designed as a direct overlay from v0.9.9. Existing local-storage keys remain unchanged, with backup support added above them.
+
+## Version history
+
+The release-by-release development history is maintained in [`../VERSIONS.md`](../VERSIONS.md).

@@ -16,6 +16,7 @@ if (!pkg.scripts?.['release:qa']) errors.push('release:qa script is missing');
 const required = [
   'README.md',
   'CHANGELOG.md',
+  'VERSIONS.md',
   'docs/STABLE_RELEASE_V1.md',
   'docs/DATA_BACKUP.md',
   'docs/RELEASE_QA_V1.md',

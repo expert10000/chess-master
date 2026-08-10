@@ -448,6 +448,72 @@ Training Analytics now produces a live week-to-date comparison against the same 
 The coach now supports one explicit primary 4-, 6-, or 8-week goal: improve a known opening, reduce a recurring weakness, or prepare toward a target rating such as 2200. Each plan freezes a baseline, creates weekly milestones and measurable end targets, tracks progress from actual Training data, and applies transparent goal-priority multipliers to Adaptive Daily Study. Rating preparation uses a labeled training-readiness proxy rather than claiming to measure or predict Elo.
 
 
+
+## Product architecture
+
+Stockfish Coach 1.0 is organized as one continuous personal-coaching system:
+
+```text
+                    STOCKFISH COACH 1.0
+                           │
+                  PERSONAL COACH DASHBOARD
+                           │
+      ┌────────────────────┼────────────────────┐
+      │                    │                    │
+     PLAY                 REVIEW              TRAIN
+      │                    │                    │
+   Stockfish           Game review          Daily Study
+      │                 Timeline               │
+      │                 PV study               │
+      │                 Why?/Why not?          │
+      │                    │                   │
+      └─────────────── PERSONAL MEMORY ────────┘
+                           │
+             ┌─────────────┼─────────────┐
+             │             │             │
+         Repertoire     Weaknesses   Spaced memory
+             │             │             │
+             └─────────────┼─────────────┘
+                           │
+                        ANALYTICS
+                           │
+                  Daily → Weekly → Goals
+                           │
+                  adaptive next session
+```
+
+The system closes the full learning loop:
+
+```text
+Play
+  ↓
+Review with Stockfish
+  ↓
+Detect mistakes and opening deviations
+  ↓
+Build personal weakness and repertoire memory
+  ↓
+Targeted exercises
+  ↓
+Spaced repetition
+  ↓
+Daily Study
+  ↓
+Post-session report
+  ↓
+Weekly trend detection
+  ↓
+4–8 week goals
+  ↓
+Change future Daily Study priorities
+  ↓
+Play again
+```
+
+The important design principle is that these are not separate tools. Game review feeds personal memory; personal memory feeds training; training results feed spaced repetition and analytics; analytics and goals then change what the coach selects next.
+
+For the release-by-release history, see [`VERSIONS.md`](VERSIONS.md).
+
 ## v1.0.0 — First Stable Release
 
 Stockfish Coach 1.0 integrates the accumulated review/training systems into a compact **Personal Coach Dashboard** placed directly below Position Tools. It summarizes due spaced reviews, the top recurring weakness, recent weekly training performance, repertoire status, active 4–8 week goal progress, and the latest Daily Study result, with one-click navigation to the underlying specialist panels.
