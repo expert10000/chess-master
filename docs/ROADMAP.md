@@ -315,3 +315,43 @@ Next candidate: v0.9.8 — weekly coach report + trend detection and study-goal 
 - no changes to Stockfish grading, due timestamps, or new-material quota
 
 Next candidate: v0.9.9 — goal-based training plans (opening target, tactical target, rating target) with 4–8 week progress tracking.
+
+
+## v0.9.9 — Goal-based training plans ✅
+
+- explicit Opening / Weakness / Rating-preparation goal types
+- 4 / 6 / 8 week plans
+- one primary active goal, paused/completed history retained
+- frozen pre-goal baseline
+- explicit measurable end targets
+- weekly Baseline / Focus / Application / Consolidation milestones
+- goal progress from accuracy/readiness + volume + active days + retention
+- Ahead / On track / Behind / Insufficient pacing
+- rating target explicitly treated as training-preparation goal, not Elo prediction
+- active opening/weakness goal ×1.70 Daily Study focus
+- rating preparation boosts top recurring weaknesses
+- weekly-trend and goal multipliers combine with safety cap
+- overdue severity remains above trend/goal reordering
+- no changes to Stockfish grading, due dates, or novelty quota
+- local persistent goal history
+
+Next candidate: v1.0.0 — integrated Personal Chess Coach dashboard, data export/import, release QA and first stable release.
+
+
+## v1.0.0 — First stable release ✅
+
+- integrated Personal Chess Coach dashboard near top of core Play & Coach workflow
+- dashboard: due memory / weakest area / weekly trend / repertoire / goal / last session
+- one-click navigation from dashboard to specialist panels
+- local JSON backup/export/import
+- schema-validation and replacement restore semantics
+- backup covers weakness/repertoire/spaced/analytics/daily/weekly/goals/Ollama preferences
+- explicit exclusions for Stockfish executable, Ollama model binaries and unsaved game state
+- v1 stable release badge
+- `npm run release:qa`
+- stable-release documentation
+- backup documentation
+- changelog
+- first stable 1.0.0 package version
+
+Post-1.0 candidates: installer/packaging, optional persistent game library, cloud-sync bridge, and richer longitudinal reports.

@@ -29,7 +29,7 @@ export function SpacedRepetitionPanel({
       : 'nothing scheduled';
 
   return (
-    <section className="panel spaced-repetition-panel">
+    <section className="panel spaced-repetition-panel" id="coach-spaced-repetition">
       <div className="panel-heading compact">
         <div>
           <span className="eyebrow">Memory training</span>

@@ -54,7 +54,7 @@ export function OpeningMemoryPanel({
     .slice(0, 3);
 
   return (
-    <section className="panel opening-memory-panel">
+    <section className="panel opening-memory-panel" id="coach-opening-memory">
       <div className="panel-heading compact">
         <div>
           <span className="eyebrow">Opening coach</span>

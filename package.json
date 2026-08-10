@@ -1,8 +1,8 @@
 {
   "name": "stockfish-coach",
-  "version": "0.9.8",
+  "version": "1.0.0",
   "private": true,
-  "description": "Local Electron chess trainer powered by Stockfish with weekly coach reports, week-over-week trend detection for weaknesses and openings, automatic next-week study priority adjustments, adaptive daily study, post-session reports, training analytics, spaced repetition, repertoire memory, PGN/FEN review, and optional Ollama",
+  "description": "Stockfish Coach 1.0 \u2014 stable local personal chess coach with integrated dashboard, Stockfish-grounded review, adaptive daily and weekly training, goal plans, spaced repetition, opening repertoire memory, personal weakness profiling, training analytics, and local backup/import.",
   "main": "dist-electron/main.js",
   "engines": {
     "node": ">=22.12.0"
@@ -21,7 +21,9 @@
     "test": "vitest run",
     "stockfish:add": "node scripts/add-stockfish.mjs",
     "stockfish:check": "node scripts/check-stockfish.mjs",
-    "ollama:check": "node scripts/check-ollama.mjs"
+    "ollama:check": "node scripts/check-ollama.mjs",
+    "release:static": "node scripts/release-qa.mjs",
+    "release:qa": "npm run typecheck && npm test && npm run build && npm run release:static"
   },
   "dependencies": {
     "chess.js": "1.4.0",

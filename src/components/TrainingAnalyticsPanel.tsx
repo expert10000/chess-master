@@ -54,7 +54,7 @@ export function TrainingAnalyticsPanel({
   const stable = stableKnowledge(spacedMemory, now, 6);
 
   return (
-    <section className="panel training-analytics-panel">
+    <section className="panel training-analytics-panel" id="coach-training-analytics">
       <div className="panel-heading compact">
         <div>
           <span className="eyebrow">Training analytics</span>

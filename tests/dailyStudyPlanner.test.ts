@@ -257,3 +257,34 @@ describe('v0.9.8 weekly coach priority integration', () => {
     expect(plan.weeklyPriorityLabels).toContain('French Defense · Advance');
   });
 });
+
+
+describe('v0.9.9 goal-priority integration', () => {
+  it('lets an explicit goal boost relevant due repertoire within the same urgency band', () => {
+    const spaced: SpacedRepetitionMemory = emptySpacedRepetitionMemory();
+    spaced.items.french = spacedItem('french-goal', 'repertoire', 3, NOW - 1000, 1);
+    spaced.items.najdorf = spacedItem('najdorf-normal', 'repertoire', 3, NOW - 1000, 2);
+    spaced.items.french.exercise.openingName = 'French Defense · Advance';
+    spaced.items.najdorf.exercise.openingName = 'Sicilian Defense · Najdorf';
+
+    const plan = buildAdaptiveDailyStudyPlan({
+      durationMinutes: 15,
+      now: NOW,
+      spacedMemory: spaced,
+      weaknessMemory: emptyWeaknessMemory(),
+      records: [],
+      humanColor: 'w',
+      goalPriorityMultipliers: {
+        'French Defense · Advance': 1.70,
+      },
+      goalPriorityReasons: {
+        'French Defense · Advance': 'Six-week opening goal.',
+      },
+    });
+
+    const firstDue = plan.items.find((item) => item.source === 'due-repertoire')!;
+    expect(firstDue.exercise.openingName).toBe('French Defense · Advance');
+    expect(plan.goalAdjusted).toBe(true);
+    expect(plan.goalPriorityLabels).toContain('French Defense · Advance');
+  });
+});

@@ -24,7 +24,7 @@ export function DailyStudyPlannerPanel({
   const full = plan.items.length >= plan.targetPositions;
 
   return (
-    <section className="panel daily-study-planner-panel">
+    <section className="panel daily-study-planner-panel" id="coach-daily-study">
       <div className="panel-heading compact">
         <div>
           <span className="eyebrow">Adaptive planner</span>
@@ -82,6 +82,14 @@ export function DailyStudyPlannerPanel({
           <strong>{plan.counts.newMaterial}</strong>
         </div>
       </div>
+
+      {plan.goalAdjusted && (
+        <div className="daily-goal-adjustment">
+          <span>Goal plan focus applied</span>
+          <div>{plan.goalPriorityLabels.map((label) => <b key={label}>{label}</b>)}</div>
+          <small>The active 4–8 week goal increases selection priority for relevant eligible positions without changing due dates.</small>
+        </div>
+      )}
 
       {plan.weeklyAdjusted && (
         <div className="daily-weekly-adjustment">

@@ -46,6 +46,8 @@ export interface DailyStudyPlan {
   weakestLabels: string[];
   weeklyAdjusted: boolean;
   weeklyPriorityLabels: string[];
+  goalAdjusted: boolean;
+  goalPriorityLabels: string[];
   summary: string;
 }
 
@@ -58,6 +60,8 @@ export interface BuildDailyStudyPlanInput {
   humanColor: 'w' | 'b';
   weeklyPriorityMultipliers?: Record<string, number>;
   weeklyPriorityReasons?: Record<string, string>;
+  goalPriorityMultipliers?: Record<string, number>;
+  goalPriorityReasons?: Record<string, string>;
 }
 
 const TARGETS: Record<DailyStudyDuration, {
@@ -194,6 +198,35 @@ function weeklyReason(
   return ` · Weekly coach ${multiplier > 1 ? 'boost' : 'reduction'} ×${multiplier.toFixed(2)}${reason ? ` (${reason})` : ''}`;
 }
 
+function goalMultiplier(
+  label: string | null | undefined,
+  multipliers?: Record<string, number>,
+): number {
+  if (!label || !multipliers) return 1;
+  return multipliers[label] ?? 1;
+}
+
+function combinedPriorityMultiplier(
+  label: string | null | undefined,
+  weekly?: Record<string, number>,
+  goal?: Record<string, number>,
+): number {
+  const combined = weeklyMultiplier(label, weekly) * goalMultiplier(label, goal);
+  return Math.max(0.65, Math.min(2.20, combined));
+}
+
+function goalReason(
+  label: string | null | undefined,
+  multipliers?: Record<string, number>,
+  reasons?: Record<string, string>,
+): string {
+  if (!label || !multipliers) return '';
+  const multiplier = multipliers[label] ?? 1;
+  if (Math.abs(multiplier - 1) < 0.05) return '';
+  const reason = reasons?.[label];
+  return ` · Goal plan focus ×${multiplier.toFixed(2)}${reason ? ` (${reason})` : ''}`;
+}
+
 function overdueUrgencyBand(dueAt: number, now: number): number {
   const overdueDays = Math.max(0, (now - dueAt) / 86_400_000);
   if (overdueDays >= 14) return 4;
@@ -207,14 +240,15 @@ function dueRepertoireCandidates(
   memory: SpacedRepetitionMemory,
   now: number,
   multipliers?: Record<string, number>,
+  goalMultipliers?: Record<string, number>,
 ): SpacedItem[] {
   return Object.values(memory.items)
     .filter((item) => item.sourceKind === 'repertoire' && item.reviews > 0 && item.dueAt <= now)
     .sort((a, b) => {
       const urgencyA = overdueUrgencyBand(a.dueAt, now);
       const urgencyB = overdueUrgencyBand(b.dueAt, now);
-      const priorityA = weeklyMultiplier(exercisePriorityLabel(a.exercise), multipliers);
-      const priorityB = weeklyMultiplier(exercisePriorityLabel(b.exercise), multipliers);
+      const priorityA = combinedPriorityMultiplier(exercisePriorityLabel(a.exercise), multipliers, goalMultipliers);
+      const priorityB = combinedPriorityMultiplier(exercisePriorityLabel(b.exercise), multipliers, goalMultipliers);
       return urgencyB - urgencyA
         || priorityB - priorityA
         || a.dueAt - b.dueAt
@@ -226,12 +260,13 @@ function dueRepertoireCandidates(
 function newMaterialCandidates(
   memory: SpacedRepetitionMemory,
   multipliers?: Record<string, number>,
+  goalMultipliers?: Record<string, number>,
 ): SpacedItem[] {
   return Object.values(memory.items)
     .filter((item) => item.reviews === 0)
     .sort((a, b) => {
-      const priorityA = weeklyMultiplier(exercisePriorityLabel(a.exercise), multipliers);
-      const priorityB = weeklyMultiplier(exercisePriorityLabel(b.exercise), multipliers);
+      const priorityA = combinedPriorityMultiplier(exercisePriorityLabel(a.exercise), multipliers, goalMultipliers);
+      const priorityB = combinedPriorityMultiplier(exercisePriorityLabel(b.exercise), multipliers, goalMultipliers);
       return priorityB - priorityA
         || b.createdAt - a.createdAt
         || a.sourceKind.localeCompare(b.sourceKind)
@@ -243,14 +278,15 @@ function allDueReviewCandidates(
   memory: SpacedRepetitionMemory,
   now: number,
   multipliers?: Record<string, number>,
+  goalMultipliers?: Record<string, number>,
 ): SpacedItem[] {
   return Object.values(memory.items)
     .filter((item) => item.reviews > 0 && item.dueAt <= now)
     .sort((a, b) => {
       const urgencyA = overdueUrgencyBand(a.dueAt, now);
       const urgencyB = overdueUrgencyBand(b.dueAt, now);
-      const priorityA = weeklyMultiplier(exercisePriorityLabel(a.exercise), multipliers);
-      const priorityB = weeklyMultiplier(exercisePriorityLabel(b.exercise), multipliers);
+      const priorityA = combinedPriorityMultiplier(exercisePriorityLabel(a.exercise), multipliers, goalMultipliers);
+      const priorityB = combinedPriorityMultiplier(exercisePriorityLabel(b.exercise), multipliers, goalMultipliers);
       return urgencyB - urgencyA
         || priorityB - priorityA
         || a.dueAt - b.dueAt
@@ -277,12 +313,13 @@ function weakestAreaCandidates(
   weaknessMemory: WeaknessMemory,
   spacedMemory: SpacedRepetitionMemory,
   multipliers?: Record<string, number>,
+  goalMultipliers?: Record<string, number>,
 ): Array<{ exercise: TrainingExercise; label: string; priority: number }> {
   const rows = weaknessProfileRows(weaknessMemory)
     .filter((row) => row.examples > 0)
     .sort((a, b) =>
-      b.priority * weeklyMultiplier(b.label, multipliers)
-      - a.priority * weeklyMultiplier(a.label, multipliers)
+      b.priority * combinedPriorityMultiplier(b.label, multipliers, goalMultipliers)
+      - a.priority * combinedPriorityMultiplier(a.label, multipliers, goalMultipliers)
     )
     .slice(0, 3);
   const result: Array<{ exercise: TrainingExercise; label: string; priority: number }> = [];
@@ -376,20 +413,21 @@ export function buildAdaptiveDailyStudyPlan(input: BuildDailyStudyPlanInput): Da
   const selected: DailyStudyPlanItem[] = [];
   const used = new Set<string>();
 
-  const dueRepertoire = dueRepertoireCandidates(input.spacedMemory, now, input.weeklyPriorityMultipliers).map((item, index) => ({
+  const dueRepertoire = dueRepertoireCandidates(input.spacedMemory, now, input.weeklyPriorityMultipliers, input.goalPriorityMultipliers).map((item, index) => ({
     exercise: spacedItemToTrainingExercise(item, index),
     label: 'Due repertoire',
     reason: (item.dueAt < now
       ? `Overdue repertoire recall · ${item.label}`
       : `Repertoire recall is due · ${item.label}`)
-      + weeklyReason(exercisePriorityLabel(item.exercise), input.weeklyPriorityMultipliers, input.weeklyPriorityReasons),
+      + weeklyReason(exercisePriorityLabel(item.exercise), input.weeklyPriorityMultipliers, input.weeklyPriorityReasons)
+      + goalReason(exercisePriorityLabel(item.exercise), input.goalPriorityMultipliers, input.goalPriorityReasons),
   }));
   takeUntil(selected, used, target.due, dueRepertoire, 'due-repertoire', dateKey);
 
-  const weakest = weakestAreaCandidates(input.weaknessMemory, input.spacedMemory, input.weeklyPriorityMultipliers).map((candidate) => ({
+  const weakest = weakestAreaCandidates(input.weaknessMemory, input.spacedMemory, input.weeklyPriorityMultipliers, input.goalPriorityMultipliers).map((candidate) => ({
     exercise: candidate.exercise,
     label: candidate.label,
-    reason: `High-priority recurring weakness · ${candidate.label}${weeklyReason(candidate.label, input.weeklyPriorityMultipliers, input.weeklyPriorityReasons)}`,
+    reason: `High-priority recurring weakness · ${candidate.label}${weeklyReason(candidate.label, input.weeklyPriorityMultipliers, input.weeklyPriorityReasons)}${goalReason(candidate.label, input.goalPriorityMultipliers, input.goalPriorityReasons)}`,
   }));
   takeUntil(selected, used, target.weakest, weakest, 'weakest-area', dateKey);
 
@@ -416,20 +454,21 @@ export function buildAdaptiveDailyStudyPlan(input: BuildDailyStudyPlanInput): Da
     dateKey,
   );
 
-  const fresh = newMaterialCandidates(input.spacedMemory, input.weeklyPriorityMultipliers).map((item, index) => ({
+  const fresh = newMaterialCandidates(input.spacedMemory, input.weeklyPriorityMultipliers, input.goalPriorityMultipliers).map((item, index) => ({
     exercise: spacedItemToTrainingExercise(item, index),
     label: 'New material',
     reason: (item.sourceKind === 'repertoire'
       ? `New repertoire card · ${item.label}`
       : `New weakness card · ${item.label}`)
-      + weeklyReason(exercisePriorityLabel(item.exercise), input.weeklyPriorityMultipliers, input.weeklyPriorityReasons),
+      + weeklyReason(exercisePriorityLabel(item.exercise), input.weeklyPriorityMultipliers, input.weeklyPriorityReasons)
+      + goalReason(exercisePriorityLabel(item.exercise), input.goalPriorityMultipliers, input.goalPriorityReasons),
   }));
   takeUntil(selected, used, target.fresh, fresh, 'new-material', dateKey);
 
   // If a bucket is undersupplied, fill the remaining study time without increasing
   // the new-material cap. Due review and recurring weaknesses take precedence.
   if (selected.length < target.total) {
-    const dueFallback = allDueReviewCandidates(input.spacedMemory, now, input.weeklyPriorityMultipliers).map((item, index) => ({
+    const dueFallback = allDueReviewCandidates(input.spacedMemory, now, input.weeklyPriorityMultipliers, input.goalPriorityMultipliers).map((item, index) => ({
       exercise: spacedItemToTrainingExercise(item, index),
       label: item.sourceKind === 'repertoire' ? 'Due repertoire' : 'Due weakness review',
       reason: `${item.sourceKind === 'repertoire' ? 'Repertoire' : 'Weakness'} review is due · ${item.label}`,
@@ -490,6 +529,16 @@ export function buildAdaptiveDailyStudyPlan(input: BuildDailyStudyPlanInput): Da
       )),
   )];
   const weeklyAdjusted = selectedWeeklyLabels.length > 0;
+  const selectedGoalLabels = [...new Set(
+    items
+      .map((item) => exercisePriorityLabel(item.exercise))
+      .filter((label): label is string => Boolean(
+        label
+        && input.goalPriorityMultipliers
+        && Math.abs((input.goalPriorityMultipliers[label] ?? 1) - 1) >= 0.05
+      )),
+  )];
+  const goalAdjusted = selectedGoalLabels.length > 0;
 
   let summary: string;
   if (!items.length) {
@@ -511,6 +560,8 @@ export function buildAdaptiveDailyStudyPlan(input: BuildDailyStudyPlanInput): Da
     weakestLabels,
     weeklyAdjusted,
     weeklyPriorityLabels: selectedWeeklyLabels.slice(0, 5),
+    goalAdjusted,
+    goalPriorityLabels: selectedGoalLabels.slice(0, 5),
     summary,
   };
 }

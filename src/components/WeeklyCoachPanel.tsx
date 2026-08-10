@@ -75,7 +75,7 @@ export function WeeklyCoachPanel({
   const hasActive = Boolean(activePriorities.sourceReportId);
 
   return (
-    <section className="panel weekly-coach-panel">
+    <section className="panel weekly-coach-panel" id="coach-weekly-report">
       <div className="panel-heading compact">
         <div>
           <span className="eyebrow">Weekly coach</span>

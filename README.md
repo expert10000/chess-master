@@ -32,7 +32,7 @@ It already supports:
 
 The project is configured for Electron 43, React 19.2, Vite 8, and Stockfish 18.
 
-## v0.9.8 — Interactive board explanations
+## v1.0.0 — Interactive board explanations
 
 - Enter **Inspect ideas** mode without changing the game.
 - Click a highlighted tactical/positional square to get a dedicated coach explanation.
@@ -441,3 +441,23 @@ Adaptive Daily Study now has a complete end-of-session report. It separates clea
 ## v0.9.8 — Weekly Coach Report + Trend Detection
 
 Training Analytics now produces a live week-to-date comparison against the same elapsed part of last week, with separate trend tables for weakness categories and openings/repertoire lines. Declining or persistently low areas receive transparent next-week priority multipliers, while stable high-accuracy material can be slightly reduced. At the local Monday rollover the completed weekly report is frozen and its priorities automatically reorder the following week's Adaptive Daily Study candidates without changing due dates, novelty limits, or Stockfish grading.
+
+
+## v0.9.9 — Goal-Based Training Plans
+
+The coach now supports one explicit primary 4-, 6-, or 8-week goal: improve a known opening, reduce a recurring weakness, or prepare toward a target rating such as 2200. Each plan freezes a baseline, creates weekly milestones and measurable end targets, tracks progress from actual Training data, and applies transparent goal-priority multipliers to Adaptive Daily Study. Rating preparation uses a labeled training-readiness proxy rather than claiming to measure or predict Elo.
+
+
+## v1.0.0 — First Stable Release
+
+Stockfish Coach 1.0 integrates the accumulated review/training systems into a compact **Personal Coach Dashboard** placed directly below Position Tools. It summarizes due spaced reviews, the top recurring weakness, recent weekly training performance, repertoire status, active 4–8 week goal progress, and the latest Daily Study result, with one-click navigation to the underlying specialist panels.
+
+v1.0.0 also adds explicit **local JSON backup/import** for weakness memory, repertoire, spaced repetition, Training Analytics, daily/weekly reports, goal plans and Ollama preferences. Import is schema-validated, confirmation-gated and reloads the application after a replacement restore.
+
+For release verification use:
+
+```powershell
+npm run release:qa
+```
+
+which runs typechecking, tests, a production build and the stable-release static QA gate.

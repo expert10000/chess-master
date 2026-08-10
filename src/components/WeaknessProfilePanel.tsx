@@ -24,7 +24,7 @@ export function WeaknessProfilePanel({
   const observedWeaknesses = rows.reduce((sum, row) => sum + row.occurrences, 0);
 
   return (
-    <section className="panel weakness-profile-panel">
+    <section className="panel weakness-profile-panel" id="coach-weakness-profile">
       <div className="panel-heading compact">
         <div>
           <span className="eyebrow">Personal coach</span>

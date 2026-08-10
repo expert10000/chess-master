@@ -16,6 +16,9 @@ import { TrainingAnalyticsPanel } from './components/TrainingAnalyticsPanel';
 import { DailyStudyPlannerPanel } from './components/DailyStudyPlannerPanel';
 import { DailySessionReportPanel } from './components/DailySessionReportPanel';
 import { WeeklyCoachPanel } from './components/WeeklyCoachPanel';
+import { GoalBasedTrainingPanel } from './components/GoalBasedTrainingPanel';
+import { PersonalCoachDashboard } from './components/PersonalCoachDashboard';
+import { DataManagementPanel } from './components/DataManagementPanel';
 import {
   buildAnalysisBoardIdeas,
   buildReviewBoardIdeas,
@@ -109,6 +112,19 @@ import {
   type DailySessionReportMemory,
 } from './lib/dailySessionReport';
 import {
+  GOAL_PLAN_STORAGE_KEY,
+  completeActiveGoal,
+  createGoalPlan,
+  emptyGoalPlanMemory,
+  goalPriorityProfile,
+  loadGoalPlanMemory,
+  pauseActiveGoal,
+  resumeGoal,
+  serializeGoalPlanMemory,
+  type GoalPlanCreateInput,
+  type GoalPlanMemory,
+} from './lib/goalPlans';
+import {
   WEEKLY_COACH_STORAGE_KEY,
   activeWeeklyPriorityProfile,
   buildLiveWeeklyCoachReport,
@@ -135,6 +151,13 @@ import {
   syncSpacedRepetitionMemory,
   type SpacedRepetitionMemory,
 } from './lib/spacedRepetition';
+import {
+  backupFileName,
+  createCoachBackup,
+  inspectCoachBackup,
+  restoreCoachBackup,
+  serializeCoachBackup,
+} from './lib/dataBackup';
 import type { AnalyseResult, EngineStatus, EngineStrength } from './types/engine';
 import type { OllamaStatus } from './types/ollama';
 
@@ -294,7 +317,13 @@ export default function App() {
     if (typeof window === 'undefined') return emptyWeeklyCoachMemory();
     return loadWeeklyCoachMemory(window.localStorage.getItem(WEEKLY_COACH_STORAGE_KEY));
   });
+  const [goalPlanMemory, setGoalPlanMemory] = useState<GoalPlanMemory>(() => {
+    if (typeof window === 'undefined') return emptyGoalPlanMemory();
+    return loadGoalPlanMemory(window.localStorage.getItem(GOAL_PLAN_STORAGE_KEY));
+  });
   const [schedulerNow, setSchedulerNow] = useState(() => Date.now());
+  const [lastBackupAt, setLastBackupAt] = useState<number | null>(null);
+  const [backupStatus, setBackupStatus] = useState<string | null>(null);
   const [repertoireMemory, setRepertoireMemory] = useState<RepertoireMemory>(() => {
     if (typeof window === 'undefined') return { version: 1, choices: {}, deviations: {} };
     return loadRepertoireMemory(window.localStorage.getItem(REPERTOIRE_STORAGE_KEY));
@@ -381,6 +410,29 @@ export default function App() {
     () => activeWeeklyPriorityProfile(weeklyCoachMemory, schedulerNow),
     [weeklyCoachMemory, schedulerNow],
   );
+  const activeGoalPriorities = useMemo(
+    () => goalPriorityProfile(goalPlanMemory, weaknessMemory),
+    [goalPlanMemory, weaknessMemory],
+  );
+  const goalOpeningOptions = useMemo(
+    () => [...new Set([
+      ...trainingAnalytics.events.map((event) => event.openingName).filter((value): value is string => Boolean(value)),
+      ...Object.values(repertoireMemory.choices).map((choice) => choice.variation
+        ? `${choice.openingName} · ${choice.variation}`
+        : choice.openingName),
+    ])].sort(),
+    [trainingAnalytics, repertoireMemory],
+  );
+  const goalWeaknessOptions = useMemo(
+    () => [...new Set([
+      ...trainingAnalytics.events.map((event) => event.weaknessLabel).filter((value): value is string => Boolean(value)),
+      ...Object.values(weaknessMemory.categories)
+        .filter((category) => category.occurrences > 0)
+        .map((category) => category.examples[0]?.weaknessLabel)
+        .filter((value): value is string => Boolean(value)),
+    ])].sort(),
+    [trainingAnalytics, weaknessMemory],
+  );
   const dailyStudyPlan = useMemo(
     () => buildAdaptiveDailyStudyPlan({
       durationMinutes: dailyStudyDuration,
@@ -391,8 +443,10 @@ export default function App() {
       humanColor,
       weeklyPriorityMultipliers: activeWeeklyPriorities.multipliers,
       weeklyPriorityReasons: activeWeeklyPriorities.reasons,
+      goalPriorityMultipliers: activeGoalPriorities.multipliers,
+      goalPriorityReasons: activeGoalPriorities.reasons,
     }),
-    [dailyStudyDuration, schedulerNow, spacedMemory, weaknessMemory, records, humanColor, activeWeeklyPriorities],
+    [dailyStudyDuration, schedulerNow, spacedMemory, weaknessMemory, records, humanColor, activeWeeklyPriorities, activeGoalPriorities],
   );
   const trainingDailyCount = dailyTrainingExercises.length || dailyStudyPlan.items.length;
   const dailyAttemptedCount = dailySessionAttemptedCount(activeDailySession);
@@ -544,6 +598,10 @@ export default function App() {
   useEffect(() => {
     window.localStorage.setItem(WEEKLY_COACH_STORAGE_KEY, serializeWeeklyCoachMemory(weeklyCoachMemory));
   }, [weeklyCoachMemory]);
+
+  useEffect(() => {
+    window.localStorage.setItem(GOAL_PLAN_STORAGE_KEY, serializeGoalPlanMemory(goalPlanMemory));
+  }, [goalPlanMemory]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setSchedulerNow(Date.now()), 60_000);
@@ -1784,6 +1842,34 @@ export default function App() {
     await trainWeaknessCategory(weakest.id);
   }
 
+  function createLongTermGoal(input: GoalPlanCreateInput): void {
+    const now = Date.now();
+    setGoalPlanMemory((current) => createGoalPlan(
+      current,
+      input,
+      trainingAnalytics,
+      spacedMemory,
+      now,
+    ));
+    setSchedulerNow(now);
+    setStatusText(`Goal plan created · ${input.durationWeeks} weeks`);
+  }
+
+  function completeLongTermGoal(): void {
+    setGoalPlanMemory((current) => completeActiveGoal(current, Date.now()));
+    setStatusText('Goal plan completed and archived');
+  }
+
+  function pauseLongTermGoal(): void {
+    setGoalPlanMemory((current) => pauseActiveGoal(current, Date.now()));
+    setStatusText('Goal plan paused');
+  }
+
+  function resumeLongTermGoal(goalId: string): void {
+    setGoalPlanMemory((current) => resumeGoal(current, goalId, Date.now()));
+    setStatusText('Goal plan resumed');
+  }
+
   function buildDailyTrainingSet(): TrainingExercise[] {
     return buildAdaptiveDailyStudyPlan({
       durationMinutes: dailyStudyDuration,
@@ -1794,6 +1880,8 @@ export default function App() {
       humanColor,
       weeklyPriorityMultipliers: activeWeeklyPriorities.multipliers,
       weeklyPriorityReasons: activeWeeklyPriorities.reasons,
+      goalPriorityMultipliers: activeGoalPriorities.multipliers,
+      goalPriorityReasons: activeGoalPriorities.reasons,
     }).items.map((item) => item.exercise);
   }
 
@@ -1808,6 +1896,8 @@ export default function App() {
       humanColor,
       weeklyPriorityMultipliers: activeWeeklyPriorities.multipliers,
       weeklyPriorityReasons: activeWeeklyPriorities.reasons,
+      goalPriorityMultipliers: activeGoalPriorities.multipliers,
+      goalPriorityReasons: activeGoalPriorities.reasons,
     });
     const exercises = plan.items.map((item) => item.exercise);
     if (!exercises.length) {
@@ -1876,6 +1966,8 @@ export default function App() {
         humanColor,
         weeklyPriorityMultipliers: activeWeeklyPriorities.multipliers,
         weeklyPriorityReasons: activeWeeklyPriorities.reasons,
+        goalPriorityMultipliers: activeGoalPriorities.multipliers,
+        goalPriorityReasons: activeGoalPriorities.reasons,
       });
       setDailyTrainingExercises(plan.items.map((item) => item.exercise));
       setActiveDailySession(beginDailyStudySession(plan, spacedMemory, now));
@@ -2121,6 +2213,54 @@ export default function App() {
   function goToFirstMistake(): void {
     const ply = mistakePlies()[0] ?? null;
     if (ply !== null) void navigateHistory(ply);
+  }
+
+  function jumpToCoachSection(id: string): void {
+    window.requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  function exportCoachData(): void {
+    const now = Date.now();
+    const backup = createCoachBackup(window.localStorage, '1.0.0', now);
+    const blob = new Blob([serializeCoachBackup(backup)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = backupFileName(now);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setLastBackupAt(now);
+    setBackupStatus(`Backup exported · ${Object.keys(backup.entries).length} local data sections.`);
+  }
+
+  async function importCoachData(file: File): Promise<void> {
+    try {
+      const inspection = inspectCoachBackup(await file.text());
+      if (!inspection.valid || !inspection.backup) {
+        setBackupStatus(inspection.error ?? 'Backup could not be read.');
+        return;
+      }
+
+      const exported = new Date(inspection.backup.exportedAt).toLocaleString();
+      const confirmed = window.confirm(
+        `Restore Stockfish Coach backup from ${exported} (app ${inspection.backup.appVersion})?\n\n`
+        + `This replaces the backed-up local coach data and reloads the app.`
+      );
+      if (!confirmed) {
+        setBackupStatus('Import cancelled.');
+        return;
+      }
+
+      const restored = restoreCoachBackup(window.localStorage, inspection.backup, true);
+      setBackupStatus(`Restored ${restored.length} data sections. Reloading…`);
+      window.setTimeout(() => window.location.reload(), 120);
+    } catch (error: unknown) {
+      setBackupStatus(`Import failed · ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   function scrollReviewSection(id: string): void {
@@ -2861,6 +3001,21 @@ export default function App() {
             </div>
           </section>
 
+          <PersonalCoachDashboard
+            weaknessMemory={weaknessMemory}
+            repertoireMemory={repertoireMemory}
+            spacedMemory={spacedMemory}
+            analytics={trainingAnalytics}
+            goalMemory={goalPlanMemory}
+            weeklyReport={liveWeeklyCoachReport}
+            dailyPlan={dailyStudyPlan}
+            latestDailyReport={latestDailyReport}
+            now={schedulerNow}
+            disabled={analysisBusy || phase === 'promotion'}
+            onStartDaily={() => void startDailyStudy()}
+            onJump={jumpToCoachSection}
+          />
+
           {records.length > 0 && (
             <>
               <GameReviewSummary
@@ -3046,6 +3201,21 @@ export default function App() {
             activePriorities={activeWeeklyPriorities}
           />
 
+          <GoalBasedTrainingPanel
+            memory={goalPlanMemory}
+            analytics={trainingAnalytics}
+            spacedMemory={spacedMemory}
+            weaknessMemory={weaknessMemory}
+            openingOptions={goalOpeningOptions}
+            weaknessOptions={goalWeaknessOptions}
+            now={schedulerNow}
+            disabled={analysisBusy || phase === 'promotion'}
+            onCreate={createLongTermGoal}
+            onPause={pauseLongTermGoal}
+            onComplete={completeLongTermGoal}
+            onResume={resumeLongTermGoal}
+          />
+
           <DailyStudyPlannerPanel
             plan={dailyStudyPlan}
             duration={dailyStudyDuration}
@@ -3061,6 +3231,14 @@ export default function App() {
             memory={trainingAnalytics}
             spacedMemory={spacedMemory}
             now={schedulerNow}
+          />
+
+          <DataManagementPanel
+            lastBackupAt={lastBackupAt}
+            status={backupStatus}
+            disabled={analysisBusy || phase === 'promotion'}
+            onExport={exportCoachData}
+            onImport={(file) => void importCoachData(file)}
           />
         </aside>
           </>
