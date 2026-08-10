@@ -355,3 +355,15 @@ Next candidate: v1.0.0 — integrated Personal Chess Coach dashboard, data expor
 - first stable 1.0.0 package version
 
 Post-1.0 candidates: installer/packaging, optional persistent game library, cloud-sync bridge, and richer longitudinal reports.
+
+
+## v1.0.1 — Real-use stabilization + UX cleanup ✅
+
+- persistent Small / Regular / Large text sizing
+- review-all progress visibility
+- quick core-workflow jumps
+- large-text/narrow-header overflow hardening
+- text-size preference included in backup
+- no changes to engine/training/scheduler algorithms
+
+Next substantial feature candidate: v1.0.2 — persistent local game library.

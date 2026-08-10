@@ -32,7 +32,7 @@ It already supports:
 
 The project is configured for Electron 43, React 19.2, Vite 8, and Stockfish 18.
 
-## v1.0.0 — Interactive board explanations
+## v1.0.1 — Interactive board explanations
 
 - Enter **Inspect ideas** mode without changing the game.
 - Click a highlighted tactical/positional square to get a dedicated coach explanation.
@@ -527,3 +527,16 @@ npm run release:qa
 ```
 
 which runs typechecking, tests, a production build and the stable-release static QA gate.
+
+
+## v1.0.1 — Real-Use Stabilization + UX Cleanup
+
+The first stable-line patch focuses on everyday usability rather than another large subsystem.
+
+- Persistent **Small / Regular / Large** interface text sizes are available in the top bar.
+- **Review All** now shows explicit move/total/percentage progress and the SAN move currently being analyzed.
+- Position Tools includes **Coach / Review / History / Study** quick jumps to reduce long-sidebar scrolling.
+- Large-text and narrow-window header wrapping is hardened.
+- The text-size preference is included in local JSON backup/restore.
+
+The chessboard geometry, Stockfish evaluation, training grading, scheduler, weekly coach, and long-term goal algorithms are unchanged.

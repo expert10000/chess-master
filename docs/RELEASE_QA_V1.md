@@ -1,4 +1,4 @@
-# v1.0.0 Release QA
+# v1 Stable-Line Release QA
 
 ## Automated gate
 
@@ -13,9 +13,9 @@ The command runs, in order:
 1. TypeScript typecheck for renderer + Electron;
 2. Vitest suite;
 3. production renderer/Electron build;
-4. static v1.0.0 release-integrity checks.
+4. static stable-line release-integrity checks.
 
-The static gate verifies the v1.0.0 package version and required stable-release files/integration markers.
+The static gate verifies the stable 1.x package version and required stable-release files/integration markers.
 
 ## Manual smoke checklist
 

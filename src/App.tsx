@@ -19,6 +19,8 @@ import { WeeklyCoachPanel } from './components/WeeklyCoachPanel';
 import { GoalBasedTrainingPanel } from './components/GoalBasedTrainingPanel';
 import { PersonalCoachDashboard } from './components/PersonalCoachDashboard';
 import { DataManagementPanel } from './components/DataManagementPanel';
+import { UiTextSizeControl } from './components/UiTextSizeControl';
+import { ReviewProgressPanel } from './components/ReviewProgressPanel';
 import {
   buildAnalysisBoardIdeas,
   buildReviewBoardIdeas,
@@ -158,6 +160,12 @@ import {
   restoreCoachBackup,
   serializeCoachBackup,
 } from './lib/dataBackup';
+import {
+  UI_FONT_SIZE_STORAGE_KEY,
+  loadUiFontSize,
+  serializeUiFontSize,
+  type UiFontSize,
+} from './lib/uiPreferences';
 import type { AnalyseResult, EngineStatus, EngineStrength } from './types/engine';
 import type { OllamaStatus } from './types/ollama';
 
@@ -343,11 +351,16 @@ export default function App() {
   const [phase, setPhase] = useState<GamePhase>('engine-missing');
   const [engineMoveAnimation, setEngineMoveAnimation] = useState<EngineMoveAnimation | null>(null);
   const [statusText, setStatusText] = useState('Ready');
+  const [uiFontSize, setUiFontSize] = useState<UiFontSize>(() => {
+    if (typeof window === 'undefined') return 'regular';
+    return loadUiFontSize(window.localStorage.getItem(UI_FONT_SIZE_STORAGE_KEY));
+  });
   const [review, setReview] = useState<MoveReview | null>(null);
   const [activeReviewId, setActiveReviewId] = useState<number | null>(null);
   const [moveComparisonFocus, setMoveComparisonFocus] = useState<MoveComparisonFocus>('both');
   const [coachLoading, setCoachLoading] = useState(false);
   const [batchReviewing, setBatchReviewing] = useState(false);
+  const [batchReviewProgress, setBatchReviewProgress] = useState<{ current: number; total: number; san: string } | null>(null);
   const [coachError, setCoachError] = useState<string | null>(null);
   const [coachAnswer, setCoachAnswer] = useState<CoachAnswer | null>(null);
   const [alternativeReview, setAlternativeReview] = useState<MoveReview | null>(null);
@@ -563,6 +576,10 @@ export default function App() {
   useEffect(() => {
     window.localStorage.setItem(REPERTOIRE_STORAGE_KEY, serializeRepertoireMemory(repertoireMemory));
   }, [repertoireMemory]);
+
+  useEffect(() => {
+    window.localStorage.setItem(UI_FONT_SIZE_STORAGE_KEY, serializeUiFontSize(uiFontSize));
+  }, [uiFontSize]);
 
   useEffect(() => {
     window.localStorage.setItem(WEAKNESS_STORAGE_KEY, serializeWeaknessMemory(weaknessMemory));
@@ -2060,6 +2077,7 @@ export default function App() {
     setCurrentAnalysisFen(null);
     setCoachLoading(false);
     setBatchReviewing(false);
+    setBatchReviewProgress(null);
     setCoachError(null);
     clearInteractiveCoachState();
     setChatTurns([]);
@@ -2223,7 +2241,7 @@ export default function App() {
 
   function exportCoachData(): void {
     const now = Date.now();
-    const backup = createCoachBackup(window.localStorage, '1.0.0', now);
+    const backup = createCoachBackup(window.localStorage, '1.0.1', now);
     const blob = new Blob([serializeCoachBackup(backup)], { type: 'application/json;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -2273,6 +2291,7 @@ export default function App() {
     if (!engineStatus?.configured || phase === 'promotion' || list.length === 0) return;
     const session = sessionRef.current;
     setBatchReviewing(true);
+    setBatchReviewProgress({ current: 0, total: list.length, san: '' });
     setHistoryCursor(null);
     setSelected(null);
     setPromotion(null);
@@ -2280,6 +2299,7 @@ export default function App() {
       for (let index = 0; index < list.length; index += 1) {
         if (!isCurrentSession(session)) return;
         const record = list[index];
+        setBatchReviewProgress({ current: index + 1, total: list.length, san: record.san });
         setStatusText(`Reviewing ${index + 1}/${list.length}: ${record.san}`);
         const request = nextAnalysisRequest();
         await runMoveReview(record, session, humanColor, request, Boolean(record.review));
@@ -2290,6 +2310,7 @@ export default function App() {
       }
     } finally {
       setBatchReviewing(false);
+      setBatchReviewProgress(null);
       if (isCurrentSession(session)) setPhase(gameRef.current.isGameOver() ? 'game-over' : (engineStatus?.configured ? 'player-turn' : 'engine-missing'));
     }
   }
@@ -2340,6 +2361,7 @@ export default function App() {
       setCurrentAnalysisFen(null);
       setCoachLoading(false);
       setBatchReviewing(false);
+      setBatchReviewProgress(null);
       setCoachError(null);
       clearInteractiveCoachState();
       setChatTurns([]);
@@ -2408,6 +2430,7 @@ export default function App() {
       setCurrentAnalysisFen(null);
       setCoachLoading(false);
       setBatchReviewing(false);
+      setBatchReviewProgress(null);
       setCoachError(null);
       clearInteractiveCoachState();
       setChatTurns([]);
@@ -2734,7 +2757,7 @@ export default function App() {
   }, [records, historyCursor, phase, batchReviewing, engineStatus?.configured, appMode, pvPreview]);
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-font-size={uiFontSize}>
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">♞</div>
@@ -2743,11 +2766,14 @@ export default function App() {
             <p>Play locally. Review every move. Ask why.</p>
           </div>
         </div>
-        <div className="topbar-status">
-          <span className={`status-dot ${engineStatus?.configured ? 'online' : ''}`} />
-          <div>
-            <strong>{engineStatus?.engineName ?? (engineStatus?.configured ? 'Stockfish configured' : 'Engine missing')}</strong>
-            <span>{statusText}</span>
+        <div className="topbar-right">
+          <UiTextSizeControl value={uiFontSize} onChange={setUiFontSize} />
+          <div className="topbar-status">
+            <span className={`status-dot ${engineStatus?.configured ? 'online' : ''}`} />
+            <div>
+              <strong>{engineStatus?.engineName ?? (engineStatus?.configured ? 'Stockfish configured' : 'Engine missing')}</strong>
+              <span>{statusText}</span>
+            </div>
           </div>
         </div>
       </header>
@@ -2999,6 +3025,21 @@ export default function App() {
               <button type="button" onClick={() => void copyFen()}>Copy FEN</button>
               <button type="button" onClick={() => void chooseEngine()} disabled={analysisBusy || phase === 'promotion'}>Change engine</button>
             </div>
+
+            {batchReviewProgress && (
+              <ReviewProgressPanel
+                current={batchReviewProgress.current}
+                total={batchReviewProgress.total}
+                san={batchReviewProgress.san}
+              />
+            )}
+
+            <nav className="workflow-jump-nav" aria-label="Review workflow shortcuts">
+              <button type="button" onClick={() => jumpToCoachSection('personal-coach-dashboard')}>Coach</button>
+              <button type="button" onClick={() => jumpToCoachSection('game-review-dashboard')} disabled={records.length === 0}>Review</button>
+              <button type="button" onClick={() => jumpToCoachSection('move-history-panel')}>History</button>
+              <button type="button" onClick={() => jumpToCoachSection('coach-daily-study')}>Study</button>
+            </nav>
           </section>
 
           <PersonalCoachDashboard
@@ -3038,7 +3079,7 @@ export default function App() {
             </>
           )}
 
-          <section className="panel history-panel">
+          <section className="panel history-panel" id="move-history-panel">
             <div className="panel-heading compact">
               <div>
                 <span className="eyebrow">Game</span>

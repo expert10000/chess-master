@@ -1,8 +1,8 @@
 {
   "name": "stockfish-coach",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
-  "description": "Stockfish Coach 1.0 \u2014 stable local personal chess coach with integrated dashboard, Stockfish-grounded review, adaptive daily and weekly training, goal plans, spaced repetition, opening repertoire memory, personal weakness profiling, training analytics, and local backup/import.",
+  "description": "Stockfish Coach 1.0.1 \u2014 real-use stabilization and UX cleanup with persistent Small/Regular/Large text sizes, clear full-game review progress, quick workflow navigation, and first stable-line polish.",
   "main": "dist-electron/main.js",
   "engines": {
     "node": ">=22.12.0"

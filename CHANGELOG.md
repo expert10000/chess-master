@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.1 — Real-Use Stabilization + UX Cleanup
+
+### Added
+
+- persistent Small / Regular / Large interface text-size control;
+- explicit Review All progress bar, move count, percentage, and current SAN;
+- quick Coach / Review / History / Study navigation from Position Tools;
+- text-size preference in data backup/export/import.
+
+### Changed
+
+- large-text and narrow-window topbar wrapping is more robust;
+- stable-line release remains feature-compatible with v1.0.0 coaching data.
+
 ## 1.0.0 — First stable release
 
 ### Added

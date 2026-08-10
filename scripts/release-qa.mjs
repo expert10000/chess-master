@@ -7,7 +7,7 @@ const exists = (relative) => fs.existsSync(path.join(root, relative));
 const errors = [];
 
 const pkg = readJson('package.json');
-if (pkg.version !== '1.0.0') errors.push(`package.json version must be 1.0.0, found ${pkg.version}`);
+if (!/^1\./.test(pkg.version)) errors.push(`package.json must be on the stable 1.x line, found ${pkg.version}`);
 if (!pkg.scripts?.typecheck) errors.push('typecheck script is missing');
 if (!pkg.scripts?.test) errors.push('test script is missing');
 if (!pkg.scripts?.build) errors.push('build script is missing');
@@ -34,17 +34,17 @@ const app = fs.readFileSync(path.join(root, 'src/App.tsx'), 'utf8');
 for (const marker of [
   '<PersonalCoachDashboard',
   '<DataManagementPanel',
-  "createCoachBackup(window.localStorage, '1.0.0'",
+  `createCoachBackup(window.localStorage, '${pkg.version}'`,
   'restoreCoachBackup(window.localStorage',
 ]) {
   if (!app.includes(marker)) errors.push(`App integration marker missing: ${marker}`);
 }
 
 if (errors.length) {
-  console.error('\nStockfish Coach v1.0.0 static release QA FAILED:\n');
+  console.error('\nStockfish Coach stable-line static release QA FAILED:\n');
   for (const error of errors) console.error(` - ${error}`);
   process.exit(1);
 }
 
-console.log('Stockfish Coach v1.0.0 static release QA passed.');
+console.log('Stockfish Coach stable-line static release QA passed.');
 console.log('Reminder: release:qa also runs typecheck, Vitest, and production build before this static gate.');

@@ -4,6 +4,17 @@ This file tracks the main product milestones. Patch/hotfix releases are listed w
 
 ## 1.0.x — Stable line
 
+
+### 1.0.1 — Real-Use Stabilization + UX Cleanup
+
+- Persistent Small / Regular / Large interface text sizes.
+- Explicit full-game Review All progress with percentage and current SAN.
+- Coach / Review / History / Study workflow shortcuts.
+- Large-text and narrow-header overflow hardening.
+- UI text-size preference included in local backup.
+- No changes to Stockfish grading or adaptive-training algorithms.
+
+
 ### 1.0.0 — First Stable Release
 
 - Integrated Personal Chess Coach dashboard.
