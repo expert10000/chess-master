@@ -2029,7 +2029,6 @@ export default function App() {
     if (mode === 'training') {
       setHistoryCursor(null);
       setStatusText(trainingExercises.length ? 'Training mode' : 'Training mode · review moves to create exercises');
-      if (phase === 'engine-thinking' || phase === 'reviewing') syncPhaseFromBoard(session, humanColor);
     } else {
       setOrientation(humanColor === 'w' ? 'white' : 'black');
       setStatusText(gameMessage(gameRef.current));

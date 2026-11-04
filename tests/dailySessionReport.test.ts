@@ -66,6 +66,10 @@ function plan(): DailyStudyPlan {
     estimatedMinutes: 3,
     counts: { dueRepertoire: 1, weakestAreas: 1, recentMistakes: 0, newMaterial: 0 },
     weakestLabels: ['Missed tactics'],
+    weeklyAdjusted: false,
+    weeklyPriorityLabels: [],
+    goalAdjusted: false,
+    goalPriorityLabels: [],
     summary: 'test',
     items: [
       {

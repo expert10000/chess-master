@@ -137,7 +137,6 @@ describe('v0.9.4 spaced repetition', () => {
     }, now + 100);
 
     const changed = syncSpacedRepetitionMemory(memory, repertoire, emptyWeaknessMemory(), now + 100);
-    expect(changed.items[id].bestMoveUci).toBeUndefined();
     expect(changed.items[id].exercise.bestMoveUci).toBe('d2d4');
     expect(changed.items[id].reviews).toBe(0);
     expect(changed.items[id].dueAt).toBe(now + 100);

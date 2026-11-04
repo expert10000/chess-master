@@ -244,7 +244,7 @@ export function dailySessionAttemptedCount(session: ActiveDailyStudySession | nu
 
 function positionResults(session: ActiveDailyStudySession): DailySessionPositionResult[] {
   return session.plannedExerciseKeys
-    .map((exerciseKey) => {
+    .map((exerciseKey): DailySessionPositionResult | null => {
       const attempts = session.attempts.filter((attempt) => attempt.exerciseKey === exerciseKey);
       if (!attempts.length) return null;
 

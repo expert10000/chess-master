@@ -128,6 +128,30 @@ not configured in this initial repository; the source is ready for adding
 Electron Builder or Electron Forge after the application identity and icons are
 chosen.
 
+## Android / Samsung Galaxy
+
+The focused Android app is a separate, offline Capacitor build. It has tap and drag
+chess, 1800/2000/2100 Elo and Max opponent settings, side selection, undo,
+board flip, mid-game strength changes, move history that opens the selected position on the board,
+position hints from a bundled Stockfish 19 lite engine, and short coach tips.
+The desktop Electron app remains available.
+
+```powershell
+npm ci
+npm run android:sync
+cd android
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr' # Java 21
+.\gradlew.bat assembleDebug
+adb install -r app\build\outputs\apk\debug\app-debug.apk
+```
+
+The APK is at `android/app/build/outputs/apk/debug/app-debug.apk`. Enable USB
+debugging and authorize the computer on the phone before using `adb`. Run
+`npm run test:mobile` after `npm run build:mobile` for the Playwright phone-size
+smoke test. The Android package includes a GPLv3 Stockfish WASM engine and its
+license text; distributing the APK requires meeting that license's terms. A
+public release also needs a signed release APK or AAB.
+
 ## How the explanation works
 
 For each reviewed move, the app asks Stockfish for:

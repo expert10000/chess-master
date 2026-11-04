@@ -1,7 +1,10 @@
 node_modules/
 dist/
 dist-electron/
+dist-mobile/
+mobile/public/engine/
 coverage/
+artifacts/
 *.log
 .DS_Store
 Thumbs.db

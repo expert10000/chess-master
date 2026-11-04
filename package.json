@@ -2,7 +2,7 @@
   "name": "stockfish-coach",
   "version": "1.0.1",
   "private": true,
-  "description": "Stockfish Coach 1.0.1 \u2014 real-use stabilization and UX cleanup with persistent Small/Regular/Large text sizes, clear full-game review progress, quick workflow navigation, and first stable-line polish.",
+  "description": "Stockfish Coach 1.0.1 — real-use stabilization and UX cleanup with persistent Small/Regular/Large text sizes, clear full-game review progress, quick workflow navigation, and first stable-line polish.",
   "main": "dist-electron/main.js",
   "engines": {
     "node": ">=22.12.0"
@@ -23,19 +23,29 @@
     "stockfish:check": "node scripts/check-stockfish.mjs",
     "ollama:check": "node scripts/check-ollama.mjs",
     "release:static": "node scripts/release-qa.mjs",
-    "release:qa": "npm run typecheck && npm test && npm run build && npm run release:static"
+    "release:qa": "npm run typecheck && npm test && npm run build && npm run release:static",
+    "test:e2e": "node tests/e2e-smoke.cjs",
+    "test:mobile": "node tests/mobile-smoke.cjs",
+    "build:mobile": "node scripts/copy-mobile-engine.mjs && vite build --config vite.mobile.config.ts",
+    "dev:mobile": "node scripts/copy-mobile-engine.mjs && vite --config vite.mobile.config.ts",
+    "android:sync": "npm run build:mobile && cap sync android"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/core": "^7.6.10",
     "chess.js": "1.4.0",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.7",
+    "stockfish": "^19.0.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.10",
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "concurrently": "9.2.4",
     "electron": "43.2.0",
+    "playwright": "^1.64.1",
     "typescript": "^5.9.2",
     "vite": "8.1.5",
     "vitest": "4.1.10"
