@@ -4,16 +4,18 @@ import { MobileEngine, type MobileAnalysis } from './engine';
 import { hintTip, moveTip } from './tips';
 import { openingHint } from './openingHint';
 import { createMobileExplanation, HINT_MODES, type HintMode, type MobileExplanation } from './causalHints';
+import { PIECE_GLYPHS } from '../lib/pieceGlyphs';
 
 type Side = 'w' | 'b';
 type Tab = 'play' | 'coach' | 'moves';
 type Difficulty = '1800' | '2000' | '2100' | 'max';
-type PieceStyle = 'spatial' | 'chessnut' | 'fantasy';
+type PieceStyle = 'desktop' | 'spatial' | 'chessnut' | 'fantasy';
 
 const STORAGE_KEY = 'stockfish-coach.mobile.v1';
 const HINT_MODE_KEY = 'stockfish-coach.mobile.hint-mode.v1';
-const PIECE_STYLE_KEY = 'stockfish-coach.mobile.piece-style.v1';
+const PIECE_STYLE_KEY = 'stockfish-coach.mobile.piece-style.v2';
 const PIECE_STYLES: { id: PieceStyle; name: string; description: string }[] = [
+  { id: 'desktop', name: 'Desktop original', description: 'The familiar Stockfish Coach pieces' },
   { id: 'spatial', name: 'Modern', description: 'Clean shapes and strong contrast' },
   { id: 'chessnut', name: 'Classic', description: 'Traditional tournament pieces' },
   { id: 'fantasy', name: 'Fantasy', description: 'Detailed carved pieces' },
@@ -25,6 +27,7 @@ const LEVELS: Record<Difficulty, { label: string; description: string; elo: numb
   max: { label: 'Max', description: 'No strength limit', elo: 3190, movetimeMs: 1300, unrestricted: true },
 };
 function PieceIcon({ color, piece, style }: { color: Side; piece: PieceSymbol; style: PieceStyle }) {
+  if (style === 'desktop') return <span className={`chess-piece piece-desktop piece-desktop-${color}`} aria-hidden="true">{PIECE_GLYPHS[color][piece]}</span>;
   return <img className={`chess-piece ${color === 'w' ? 'piece-white' : 'piece-black'} piece-style-${style}`} src={`./pieces/${style}/${color}${piece.toUpperCase()}.svg`} alt="" draggable={false} aria-hidden="true" />;
 }
 
@@ -60,7 +63,7 @@ function loadHintMode(): HintMode {
 
 function loadPieceStyle(): PieceStyle {
   const saved = localStorage.getItem(PIECE_STYLE_KEY);
-  return PIECE_STYLES.some(({ id }) => id === saved) ? saved as PieceStyle : 'spatial';
+  return PIECE_STYLES.some(({ id }) => id === saved) ? saved as PieceStyle : 'desktop';
 }
 
 function gameLabel(game: Chess, side: Side, busy: boolean): string {
@@ -550,7 +553,7 @@ export default function MobileApp() {
             <span className="piece-style-copy"><strong>{name}</strong><small>{description}</small></span>
             <span className="piece-style-check" aria-hidden="true">{pieceStyle === id ? '✓' : ''}</span>
           </button>)}</div>
-          <p className="piece-art-credit">Artwork: Maurizio Monge (Modern, Fantasy) and Alexis Luengas (Classic). License details are included with the app.</p>
+          <p className="piece-art-credit">Optional artwork: Maurizio Monge (Modern, Fantasy) and Alexis Luengas (Classic). License details are included with the app.</p>
           <button className="cancel-button" type="button" onClick={() => setShowPiecePicker(false)}>Back to game</button>
         </section>
       </div>}

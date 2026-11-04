@@ -1,21 +1,7 @@
 import { useRef, useState, type CSSProperties, type DragEvent, type MouseEvent } from 'react';
 import { type Chess, type Square } from 'chess.js';
 import type { BoardArrow, BoardHighlight, BoardIdeaTarget } from '../lib/boardIdeas';
-
-const glyphs: Record<string, string> = {
-  wp: '♙',
-  wn: '♘',
-  wb: '♗',
-  wr: '♖',
-  wq: '♕',
-  wk: '♔',
-  bp: '♟',
-  bn: '♞',
-  bb: '♝',
-  br: '♜',
-  bq: '♛',
-  bk: '♚',
-};
+import { PIECE_GLYPHS } from '../lib/pieceGlyphs';
 
 const DRAG_MIME = 'application/x-stockfish-coach-square';
 const ALL_FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
@@ -277,7 +263,7 @@ export function ChessBoard({
                   onDragEnd={finishDrag}
                   aria-hidden="true"
                 >
-                  {glyphs[`${piece.color}${piece.type}`]}
+                  {PIECE_GLYPHS[piece.color][piece.type]}
                 </span>
               )}
               {isTarget && <span className={piece ? 'capture-ring' : 'move-dot'} />}
@@ -358,7 +344,7 @@ export function ChessBoard({
       {engineMoveAnimation && animationPiece && animationStyle && (
         <div className="engine-move-overlay" style={animationStyle} aria-hidden="true">
           <span className={`piece piece-${animationPiece.color} engine-moving-piece`}>
-            {glyphs[`${animationPiece.color}${animationPiece.type}`]}
+            {PIECE_GLYPHS[animationPiece.color][animationPiece.type]}
           </span>
         </div>
       )}
