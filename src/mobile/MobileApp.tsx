@@ -3,12 +3,14 @@ import { Chess, type Move, type PieceSymbol, type Square } from 'chess.js';
 import { MobileEngine, type MobileAnalysis } from './engine';
 import { hintTip, moveTip } from './tips';
 import { openingHint } from './openingHint';
+import { createMobileExplanation, HINT_MODES, type HintMode, type MobileExplanation } from './causalHints';
 
 type Side = 'w' | 'b';
 type Tab = 'play' | 'coach' | 'moves';
 type Difficulty = '1800' | '2000' | '2100' | 'max';
 
 const STORAGE_KEY = 'stockfish-coach.mobile.v1';
+const HINT_MODE_KEY = 'stockfish-coach.mobile.hint-mode.v1';
 const LEVELS: Record<Difficulty, { label: string; description: string; elo: number; movetimeMs: number; unrestricted: boolean }> = {
   '1800': { label: '1800', description: 'A steady club challenge', elo: 1800, movetimeMs: 420, unrestricted: false },
   '2000': { label: '2000', description: 'Stronger positional play', elo: 2000, movetimeMs: 600, unrestricted: false },
@@ -45,6 +47,11 @@ function loadSaved(): SavedGame {
   }
 }
 
+function loadHintMode(): HintMode {
+  const saved = localStorage.getItem(HINT_MODE_KEY);
+  return saved === 'quick' || saved === 'deep' ? saved : 'explain';
+}
+
 function gameLabel(game: Chess, side: Side, busy: boolean): string {
   if (game.isCheckmate()) return game.turn() === side ? 'Checkmate · Stockfish wins' : 'Checkmate · you win!';
   if (game.isDraw()) return 'Drawn game';
@@ -67,6 +74,8 @@ export default function MobileApp() {
   const game = gameRef.current;
   const engineRef = useRef<MobileEngine | null>(null);
   const sessionRef = useRef(0);
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const tipCardRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef<{ from: Square; pointerId: number; startX: number; startY: number; piece: PieceSymbol; color: Side; active: boolean } | null>(null);
   const suppressDragClickRef = useRef<{ from: Square; until: number } | null>(null);
   const [fen, setFen] = useState(game.fen());
@@ -78,7 +87,10 @@ export default function MobileApp() {
   const [busy, setBusy] = useState(false);
   const [engineError, setEngineError] = useState('');
   const [selected, setSelected] = useState<Square | null>(null);
-  const [hint, setHint] = useState<{ move: Move; analysis: MobileAnalysis | null } | null>(null);
+  const [hint, setHint] = useState<{ move: Move; analysis: MobileAnalysis | null; explanation: MobileExplanation | null; source: 'book' | 'engine'; bookMoveSan: string | null } | null>(null);
+  const [hintMode, setHintMode] = useState<HintMode>(loadHintMode);
+  const [hintSearchMode, setHintSearchMode] = useState<HintMode | null>(null);
+  const [hintProgress, setHintProgress] = useState('');
   const [tip, setTip] = useState('Own the center, develop your pieces, and keep your king safe.');
   const [tab, setTab] = useState<Tab>('play');
   const [showSetup, setShowSetup] = useState(false);
@@ -157,6 +169,23 @@ export default function MobileApp() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ pgn: game.pgn(), side, difficulty, flipped } satisfies SavedGame));
   }, [fen, side, difficulty, flipped]);
 
+  useEffect(() => {
+    localStorage.setItem(HINT_MODE_KEY, hintMode);
+  }, [hintMode]);
+
+  useEffect(() => {
+    if (!hint || tab !== 'play' || viewPly !== null) return;
+    const frame = requestAnimationFrame(() => tipCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    return () => cancelAnimationFrame(frame);
+  }, [hint, tab, viewPly]);
+
+  useEffect(() => {
+    if (!hintSearchMode) return;
+    const onVisibilityChange = () => { if (document.hidden) cancelHint(); };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [hintSearchMode]);
+
   function makeHumanMove(from: Square, to: Square, promoteTo: PieceSymbol = 'q'): void {
     try {
       const move = game.move({ from, to, promotion: promoteTo });
@@ -225,53 +254,56 @@ export default function MobileApp() {
     setDragPiece(null);
   }
 
-  async function askForHint(): Promise<void> {
+  function cancelHint(): void {
+    sessionRef.current += 1;
+    engineRef.current?.stop();
+    setBusy(false);
+    setHintSearchMode(null);
+    setHintProgress('');
+    setTip('Analysis cancelled. The board has not changed.');
+  }
+
+  async function askForHint(requestedMode: HintMode = hintMode, verifyBook = false): Promise<void> {
     if (!engineRef.current || busy || viewPly !== null || game.isGameOver() || game.turn() !== side) return;
     const session = sessionRef.current;
+    const startFen = game.fen();
     const book = openingHint(game);
-    if (book) {
-      setHint({ move: book.move, analysis: null });
+    if (book && requestedMode === 'quick' && !verifyBook) {
+      setHint({ move: book.move, analysis: null, explanation: null, source: 'book', bookMoveSan: book.move.san });
       setSelected(null);
-      setTip(`Opening idea: ${book.move.san}. ${hintTip(book.move, game)} This move appears in the local opening book.`);
+      setTip(`Book suggestion: ${book.move.san}. ${hintTip(book.move, game)} This has not been checked by Stockfish at this position.`);
       return;
     }
     setBusy(true);
     setHint(null);
+    setEngineError('');
+    setHintSearchMode(requestedMode);
+    setHintProgress(requestedMode === 'deep' ? 'Searching the best line…' : 'Checking the position…');
     try {
-      const analysis = await engineRef.current.analyse(game.fen(), { elo: 2200, movetimeMs: 2500 }, true, 2);
-      if (session !== sessionRef.current || !analysis.bestMove) return;
-      const preview = new Chess(game.fen());
-      const move = preview.move({ from: analysis.bestMove.slice(0, 2), to: analysis.bestMove.slice(2, 4), promotion: analysis.bestMove[4] ?? 'q' });
-      let alternativeText = '';
-      const alternative = analysis.alternatives[0];
-      if (
-        alternative && analysis.scoreCp !== null && alternative.scoreCp !== null
-        && analysis.depth >= 12 && alternative.depth >= 12
-        && analysis.scoreCp - alternative.scoreCp <= 35
-      ) {
-        try {
-          const other = new Chess(game.fen()).move({
-            from: alternative.move.slice(0, 2),
-            to: alternative.move.slice(2, 4),
-            promotion: alternative.move[4] ?? 'q',
-          });
-          const activeKnightChoice = move.piece === 'n' && other.piece === 'n'
-            && ['b1', 'g1', 'b8', 'g8'].includes(move.to)
-            && !['b1', 'g1', 'b8', 'g8'].includes(other.to);
-          alternativeText = activeKnightChoice
-            ? ` ${other.san} is a close, more active alternative in this search.`
-            : ` ${other.san} is another move Stockfish scores close in this search.`;
-        } catch {
-          // A partial engine line should not hide the main hint.
-        }
+      const engine = engineRef.current;
+      const analysis = requestedMode === 'deep'
+        ? await engine.analyse(startFen, { elo: 2200, movetimeMs: 6500 }, true, 1)
+        : await engine.analyse(startFen, { elo: 2200, movetimeMs: requestedMode === 'quick' ? 1200 : 3800 }, true, requestedMode === 'quick' ? 1 : 2);
+      if (session !== sessionRef.current || game.fen() !== startFen) return;
+      let comparison: MobileAnalysis | undefined;
+      if (requestedMode === 'deep' && analysis.bestMove) {
+        setHintProgress('Comparing another move…');
+        comparison = await engine.analyse(startFen, { elo: 2200, movetimeMs: 2600 }, true, 2);
+        if (session !== sessionRef.current || game.fen() !== startFen) return;
       }
-      setHint({ move, analysis });
+      const explanation = createMobileExplanation(game, analysis, requestedMode, comparison);
+      if (!explanation) throw new Error('Stockfish did not return a legal move for this position.');
+      setHint({ move: explanation.move, analysis, explanation, source: 'engine', bookMoveSan: book?.move.san ?? null });
       setSelected(null);
-      setTip(`Stockfish suggests ${move.san}. ${hintTip(move, game)}${alternativeText}`);
+      setTip(`Stockfish suggests ${explanation.move.san}.`);
     } catch (error) {
       if (session === sessionRef.current) setEngineError(error instanceof Error ? error.message : 'Hint unavailable.');
     } finally {
-      if (session === sessionRef.current) setBusy(false);
+      if (session === sessionRef.current) {
+        setBusy(false);
+        setHintSearchMode(null);
+        setHintProgress('');
+      }
     }
   }
 
@@ -284,6 +316,8 @@ export default function MobileApp() {
     setFlipped(false);
     setSelected(null);
     setHint(null);
+    setHintSearchMode(null);
+    setHintProgress('');
     setPromotion(null);
     setViewPly(null);
     setTip('Own the center, develop your pieces, and keep your king safe.');
@@ -302,12 +336,21 @@ export default function MobileApp() {
     if (game.turn() !== side && game.history().length) game.undo();
     setBusy(false);
     setHint(null);
+    setHintSearchMode(null);
+    setHintProgress('');
     setSelected(null);
     setTip('Try a different plan. Look for a safe developing move.');
     refresh();
   }
 
   function openHistory(ply: number): void {
+    if (hintSearchMode) {
+      sessionRef.current += 1;
+      engineRef.current?.stop();
+      setBusy(false);
+      setHintSearchMode(null);
+      setHintProgress('');
+    }
     setViewPly(Math.max(0, Math.min(ply, moves.length)));
     setSelected(null);
     setHint(null);
@@ -339,7 +382,7 @@ export default function MobileApp() {
           <div><span>VIEWING HISTORY</span><strong>{viewPly === 0 ? 'Starting position' : `${Math.ceil(viewPly / 2)}${viewPly % 2 ? '. White' : '... Black'} · ${displayedMove?.san}`}</strong></div>
           <button type="button" onClick={() => setViewPly(null)}>Return to live</button>
         </div>}
-        <div className="board-wrap">
+        <div className="board-wrap" ref={boardRef}>
           <div className={`mobile-board ${busy ? 'busy' : ''}`} role="grid" aria-label="Chessboard">
             {[...ranks].flatMap((rank, row) => [...files].map((file, col) => {
               const square = `${file}${rank}` as Square;
@@ -390,9 +433,32 @@ export default function MobileApp() {
           <button type="button" onClick={() => setFlipped((value) => !value)}><span>⟳</span> Flip</button>
           <button className="hint-button" type="button" onClick={() => void askForHint()} disabled={!ready || busy || viewPly !== null || game.turn() !== side || game.isGameOver()}><span>✦</span> Hint</button>
         </div>
-        <section className="tip-card" aria-live="polite">
+        <div className="hint-mode-picker" role="group" aria-label="Hint analysis depth">
+          <div><strong>Hint analysis</strong><small>Separate from opponent strength</small></div>
+          <div className="hint-mode-options">{(Object.keys(HINT_MODES) as HintMode[]).map((mode) =>
+            <button key={mode} type="button" className={hintMode === mode ? 'active' : ''} aria-pressed={hintMode === mode} onClick={() => setHintMode(mode)} disabled={busy} title={HINT_MODES[mode].description}>
+              {HINT_MODES[mode].label}<small>{HINT_MODES[mode].duration}</small>
+            </button>)}</div>
+        </div>
+        {hintSearchMode && <div className="hint-progress" role="status"><span>{hintProgress}</span><button type="button" onClick={cancelHint}>Cancel</button></div>}
+        <section className="tip-card" aria-live="polite" ref={tipCardRef}>
           <div className="tip-symbol">✦</div>
-          <div><span className="tip-label">{viewPly === null ? 'COACH TIP' : 'POSITION TIP'}</span><p>{displayedTip}</p>{viewPly === null && hint && <small>{hint.analysis ? `Stockfish · depth ${hint.analysis.depth}` : 'Local opening book'} · tap the highlighted move to play it</small>}</div>
+          <div>
+            <span className="tip-label">{viewPly === null ? 'COACH TIP' : 'POSITION TIP'}</span>
+            <p>{displayedTip}</p>
+            {viewPly === null && hint?.source === 'book' && <button className="verify-book" type="button" onClick={() => void askForHint('explain', true)} disabled={busy}>Verify with Stockfish →</button>}
+            {viewPly === null && hint?.explanation && <div className="hint-explanation">
+              <div className="hint-evidence-heading"><strong>Why this move?</strong><span className={`hint-status ${hint.explanation.status}`}>{hint.explanation.status === 'supported' ? 'Checked line' : hint.explanation.status === 'provisional' ? 'Preliminary' : 'Limited evidence'}</span></div>
+              <p>{hint.explanation.whyNow}</p>
+              {hint.explanation.replySan && <p><b>Best reply in this search:</b> {game.turn() === 'w' ? 'Black' : 'White'} plays {hint.explanation.replySan}. {hint.explanation.replyConsequence}</p>}
+              {hint.explanation.alternativeSan && <p><b>{hint.explanation.alternativeGapCp !== null && Math.abs(hint.explanation.alternativeGapCp) <= 35 ? 'Close alternative' : 'Another candidate'}:</b> {hint.explanation.alternativeSan}{hint.explanation.alternativeReplySan ? `, followed by ${hint.explanation.alternativeReplySan} in its searched line` : ''}. {hint.explanation.alternativeGapCp !== null && Math.abs(hint.explanation.alternativeGapCp) <= 35 ? 'The engine scores these moves similarly; either may be practical.' : ''}</p>}
+              {hint.explanation.lineSan.length > 1 && <details><summary>Show searched continuation</summary><p>{hint.explanation.lineSan.join(' · ')}</p></details>}
+              {hint.bookMoveSan && <small>{hint.bookMoveSan === hint.move.san ? 'This move also appears in the local opening book.' : `The local book suggests ${hint.bookMoveSan}; this search chose ${hint.move.san}.`}</small>}
+              <small>{hint.explanation.evidenceNote}</small>
+            </div>}
+            {viewPly === null && hint && <small>{hint.analysis ? `Stockfish · depth ${hint.analysis.depth} · ${((hint.explanation?.elapsedMs ?? hint.analysis.elapsedMs) / 1000).toFixed(1)} s` : 'Local opening book · not engine verified'}</small>}
+            {viewPly === null && hint && <button className="view-hint-board" type="button" onClick={() => boardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>View highlighted move on board ↑</button>}
+          </div>
         </section>
         <div className="move-preview"><span>Moves</span><strong>{viewPly !== null ? `Viewing ${viewPly} of ${moves.length}` : moves.length ? moves.slice(-4).map((move) => move.san).join('  ·  ') : 'Your opening starts here'}</strong><button type="button" onClick={() => setTab('moves')}>View all →</button></div>
       </div>}

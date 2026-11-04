@@ -61,11 +61,36 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .game-actions button { min-height: 44px; border: 1px solid #385067; border-radius: 11px; background: #1b2a3a; color: #d8e5eb; font-size: 13px; font-weight: 700; }
 .game-actions button span { font-size: 18px; vertical-align: -1px; margin-right: 3px; }
 .game-actions .hint-button { border-color: #53ad8d; background: linear-gradient(135deg, #368d70, #23624f); color: #fff; }
+.hint-mode-picker { display: grid; gap: 8px; margin: 2px 0 12px; }
+.hint-mode-picker > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.hint-mode-picker strong { color: #dceee7; font-size: 11px; }
+.hint-mode-picker > div:first-child small { color: #819ba5; font-size: 10px; }
+.hint-mode-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.hint-mode-options button { display: grid; gap: 1px; justify-items: center; min-height: 42px; border: 1px solid #385565; border-radius: 10px; background: #1b2d3a; color: #c5d7dd; font-size: 11px; font-weight: 800; }
+.hint-mode-options button.active { border-color: #81d7ae; background: #254a42; color: #e2fff0; }
+.hint-mode-options button small { color: #98b5b4; font-size: 9px; font-weight: 600; }
+.hint-progress { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; padding: 9px 12px; border: 1px solid #4e8272; border-radius: 10px; background: #1d3d38; color: #caefdf; font-size: 11px; }
+.hint-progress button { flex: none; min-height: 32px; padding: 0 11px; border: 1px solid #9bcbb2; border-radius: 8px; background: #345f51; color: #f4fff7; font-weight: 800; }
 .tip-card { display: flex; gap: 12px; padding: 15px; border-radius: 15px; background: linear-gradient(130deg, #1e3940, #1a3038); border: 1px solid #397463; box-shadow: 0 12px 25px #0002; }
+.tip-card > div:last-child { min-width: 0; flex: 1; }
 .tip-symbol { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border-radius: 9px; background: #2e6556; color: #bfffe2; font-size: 21px; }
 .tip-label { color: #79d8ad; font-size: 10px; font-weight: 800; letter-spacing: 1.1px; }
 .tip-card p { color: #e1eee9; font-size: 13px; line-height: 1.45; margin: 5px 0 0; }
 .tip-card small { display: block; color: #9ec8b6; margin-top: 8px; line-height: 1.4; }
+.verify-book { min-height: 38px; margin-top: 10px; padding: 0 12px; border: 1px solid #8fd4b0; border-radius: 9px; background: #2e6c52; color: #eafff1; font-size: 11px; font-weight: 800; }
+.view-hint-board { min-height: 34px; margin-top: 9px; padding: 0; border: 0; background: transparent; color: #a9efca; font-size: 11px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.hint-explanation { display: grid; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #4c746a; }
+.hint-evidence-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hint-evidence-heading strong { color: #edfff5; font-size: 12px; }
+.hint-status { padding: 4px 7px; border-radius: 7px; background: #2e6d53; color: #e8fff1; font-size: 9px; font-weight: 800; white-space: nowrap; }
+.hint-status.provisional { background: #6c5b30; color: #fff0c9; }
+.hint-status.limited { background: #5b4950; color: #ffe2e5; }
+.hint-explanation p { margin: 0; font-size: 12px; line-height: 1.5; }
+.hint-explanation b { color: #b6f0d1; }
+.hint-explanation small { margin-top: 0; color: #a9c2bb; }
+.hint-explanation details { color: #d5f1e2; font-size: 11px; }
+.hint-explanation summary { cursor: pointer; font-weight: 800; }
+.hint-explanation details p { margin-top: 6px; color: #c5d8d0; }
 .move-preview { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 12px; background: #172634; border: 1px solid #2d4355; border-radius: 12px; font-size: 11px; }
 .move-preview span { color: #9eafba; }
 .move-preview strong { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-size: 12px; }
