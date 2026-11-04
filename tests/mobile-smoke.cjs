@@ -31,13 +31,18 @@ const root = join(__dirname, '..');
     await page.screenshot({ path: join(root, 'artifacts', 'mobile-start.png') });
     await page.locator('.mobile-board .piece-desktop').first().waitFor();
     const startingBoard = await page.locator('.mobile-board .square').evaluateAll(squares => squares.map(square => square.getAttribute('aria-label')));
-    for (const [style, id] of [['Classic', 'chessnut'], ['Fantasy', 'fantasy'], ['Modern', 'spatial'], ['Desktop original', 'desktop']]) {
+    for (const [style, id] of [['Illustrated', 'illustrated'], ['Classic', 'chessnut'], ['Fantasy', 'fantasy'], ['Modern', 'spatial'], ['Desktop original', 'desktop']]) {
       await page.getByRole('button', { name: 'Choose piece style' }).tap();
       await page.getByRole('dialog', { name: 'Piece style' }).waitFor();
       if (style === 'Classic') await page.screenshot({ path: join(root, 'artifacts', 'mobile-piece-styles.png') });
       await page.locator('.piece-style-list button').filter({ hasText: style }).tap();
-      await page.locator(`.mobile-board .${id === 'desktop' ? 'piece-desktop' : `piece-style-${id}`}`).first().waitFor();
-      if (id !== 'desktop') await page.waitForFunction(() => [...document.querySelectorAll('.mobile-board .chess-piece')].every(image => image.complete && image.naturalWidth > 0));
+      await page.locator(`.mobile-board .${id === 'desktop' ? 'piece-desktop' : id === 'illustrated' ? 'piece-illustrated' : `piece-style-${id}`}`).first().waitFor();
+      if (id === 'illustrated') {
+        if (!(await page.request.get('http://127.0.0.1:5174/pieces/illustrated-sheet.png')).ok()) throw new Error('Illustrated piece sheet did not load.');
+        await page.screenshot({ path: join(root, 'artifacts', 'mobile-illustrated.png') });
+      } else if (id !== 'desktop') {
+        await page.waitForFunction(() => [...document.querySelectorAll('.mobile-board .chess-piece')].every(image => image.complete && image.naturalWidth > 0));
+      }
       deepStrictEqual(await page.locator('.mobile-board .square').evaluateAll(squares => squares.map(square => square.getAttribute('aria-label'))), startingBoard);
     }
     await page.reload();
@@ -129,7 +134,7 @@ const root = join(__dirname, '..');
     await page.locator('.drag-piece').waitFor({ state: 'hidden' });
     await page.getByRole('gridcell', { name: 'e4 white p' }).waitFor();
     if (errors.length) throw new Error(errors.join('; '));
-    console.log(JSON.stringify({ pass: true, checks: ['64 squares', 'offline engine ready', 'phone width', 'desktop original default and four persistent piece styles', 'tap and touch drag moves', 'change level without resetting', 'explained hint and legal line', 'deep analysis and cancellation', 'book verification', 'history positions and live return', 'undo', '1800/2000/2100/Max levels', 'play as Black at Max'], screenshots: ['artifacts/mobile-start.png', 'artifacts/mobile-piece-styles.png', 'artifacts/mobile-levels.png', 'artifacts/mobile-hint.png', 'artifacts/mobile-history.png'] }));
+    console.log(JSON.stringify({ pass: true, checks: ['64 squares', 'offline engine ready', 'phone width', 'desktop original default and five persistent piece styles', 'tap and touch drag moves', 'change level without resetting', 'explained hint and legal line', 'deep analysis and cancellation', 'book verification', 'history positions and live return', 'undo', '1800/2000/2100/Max levels', 'play as Black at Max'], screenshots: ['artifacts/mobile-start.png', 'artifacts/mobile-illustrated.png', 'artifacts/mobile-piece-styles.png', 'artifacts/mobile-levels.png', 'artifacts/mobile-hint.png', 'artifacts/mobile-history.png'] }));
   } finally {
     await browser?.close();
     server.kill();

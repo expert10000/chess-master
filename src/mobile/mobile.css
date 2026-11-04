@@ -46,6 +46,7 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .piece-desktop { display: grid; place-items: center; font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", serif; font-size: clamp(30px, 9.3vw, 56px); line-height: 1; transform: translateY(-1px) scaleX(1.06); filter: drop-shadow(0 2px 1px #0004); }
 .piece-desktop-w { color: #f8f8f3; text-shadow: 0 0 1px #101010, 0 1px 2px #111; }
 .piece-desktop-b { color: #15191f; text-shadow: 0 1px 0 #ffffff38; }
+.piece-illustrated { overflow: hidden; filter: drop-shadow(0 2px 1px #0005); }
 .piece-black { filter: brightness(0) drop-shadow(0 2px 1px #0007); }
 .piece-white { filter: drop-shadow(0 1px 1px #10283266); }
 .square.drag-origin .chess-piece { opacity: .22; }

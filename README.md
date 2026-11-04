@@ -133,7 +133,7 @@ chosen.
 The focused Android app is a separate, offline Capacitor build. It has tap and drag
 chess, 1800/2000/2100 Elo and Max opponent settings, side selection, undo,
 board flip, mid-game strength changes, move history that opens the selected position on the board,
-the desktop original pieces plus three optional SVG piece sets (Modern, Classic, Fantasy), and offline hints from a bundled Stockfish 19 lite engine. Hint analysis has Quick (~1 s),
+the desktop original pieces plus four optional sets (Illustrated, Modern, Classic, Fantasy), and offline hints from a bundled Stockfish 19 lite engine. Hint analysis has Quick (~1 s),
 Explain (~4 s, default), and cancellable Deep (~9 s) modes, independent of opponent Elo.
 Engine hints show a checked board fact, the searched reply and continuation, an alternative
 when supported, and the actual depth. Quick opening-book hints are labelled as unverified
