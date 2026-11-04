@@ -103,7 +103,7 @@ const root = join(__dirname, '..');
     await page.getByText('Analysis cancelled. The board has not changed.').waitFor();
     await page.getByRole('button', { name: 'Hint' }).tap();
     await page.getByText(/Stockfish suggests/).waitFor({ timeout: 30000 });
-    await page.getByText('Show searched continuation').waitFor();
+    await page.locator('.hint-explanation').waitFor();
     await page.evaluate(() => localStorage.setItem('stockfish-coach.mobile.v1', JSON.stringify({ pgn: '', side: 'w', difficulty: '1800', flipped: false })));
     await page.reload();
     await page.getByText('Ready', { exact: true }).waitFor();
