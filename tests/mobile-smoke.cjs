@@ -29,6 +29,20 @@ const root = join(__dirname, '..');
     if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) throw new Error('Horizontal overflow on phone.');
     mkdirSync(join(root, 'artifacts'), { recursive: true });
     await page.screenshot({ path: join(root, 'artifacts', 'mobile-start.png') });
+    const startingBoard = await page.locator('.mobile-board .square').evaluateAll(squares => squares.map(square => square.getAttribute('aria-label')));
+    for (const style of ['Bold', 'Discs', 'Letters', 'Classic']) {
+      await page.getByRole('button', { name: 'Choose piece style' }).tap();
+      await page.getByRole('dialog', { name: 'Piece style' }).waitFor();
+      if (style === 'Bold') await page.screenshot({ path: join(root, 'artifacts', 'mobile-piece-styles.png') });
+      await page.locator('.piece-style-list button').filter({ hasText: style }).tap();
+      await page.locator(`.mobile-board .piece-style-${style.toLowerCase()}`).first().waitFor();
+      deepStrictEqual(await page.locator('.mobile-board .square').evaluateAll(squares => squares.map(square => square.getAttribute('aria-label'))), startingBoard);
+    }
+    await page.getByRole('button', { name: 'Choose piece style' }).tap();
+    await page.locator('.piece-style-list button').filter({ hasText: 'Discs' }).tap();
+    await page.reload();
+    await page.locator('.mobile-board .piece-style-discs').first().waitFor();
+    await page.getByText('Ready', { exact: true }).waitFor();
     await page.getByRole('gridcell', { name: 'e2 white p' }).tap();
     await page.getByRole('gridcell', { name: 'e4' }).tap();
     await page.waitForFunction(() => document.querySelector('.move-preview strong')?.textContent?.includes('·'), null, { timeout: 30000 });
@@ -115,7 +129,7 @@ const root = join(__dirname, '..');
     await page.locator('.drag-piece').waitFor({ state: 'hidden' });
     await page.getByRole('gridcell', { name: 'e4 white p' }).waitFor();
     if (errors.length) throw new Error(errors.join('; '));
-    console.log(JSON.stringify({ pass: true, checks: ['64 squares', 'offline engine ready', 'phone width', 'tap and touch drag moves', 'change level without resetting', 'explained hint and legal line', 'deep analysis and cancellation', 'book verification', 'history positions and live return', 'undo', '1800/2000/2100/Max levels', 'play as Black at Max'], screenshots: ['artifacts/mobile-start.png', 'artifacts/mobile-levels.png', 'artifacts/mobile-hint.png', 'artifacts/mobile-history.png'] }));
+    console.log(JSON.stringify({ pass: true, checks: ['64 squares', 'offline engine ready', 'phone width', 'four persistent piece styles without resetting', 'tap and touch drag moves', 'change level without resetting', 'explained hint and legal line', 'deep analysis and cancellation', 'book verification', 'history positions and live return', 'undo', '1800/2000/2100/Max levels', 'play as Black at Max'], screenshots: ['artifacts/mobile-start.png', 'artifacts/mobile-piece-styles.png', 'artifacts/mobile-levels.png', 'artifacts/mobile-hint.png', 'artifacts/mobile-history.png'] }));
   } finally {
     await browser?.close();
     server.kill();

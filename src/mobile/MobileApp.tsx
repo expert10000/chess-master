@@ -8,9 +8,17 @@ import { createMobileExplanation, HINT_MODES, type HintMode, type MobileExplanat
 type Side = 'w' | 'b';
 type Tab = 'play' | 'coach' | 'moves';
 type Difficulty = '1800' | '2000' | '2100' | 'max';
+type PieceStyle = 'classic' | 'bold' | 'discs' | 'letters';
 
 const STORAGE_KEY = 'stockfish-coach.mobile.v1';
 const HINT_MODE_KEY = 'stockfish-coach.mobile.hint-mode.v1';
+const PIECE_STYLE_KEY = 'stockfish-coach.mobile.piece-style.v1';
+const PIECE_STYLES: { id: PieceStyle; name: string; description: string }[] = [
+  { id: 'classic', name: 'Classic', description: 'Traditional white and black shapes' },
+  { id: 'bold', name: 'Bold', description: 'Large solid silhouettes' },
+  { id: 'discs', name: 'Discs', description: 'Light and dark piece tokens' },
+  { id: 'letters', name: 'Letters', description: 'Clear piece initials' },
+];
 const LEVELS: Record<Difficulty, { label: string; description: string; elo: number; movetimeMs: number; unrestricted: boolean }> = {
   '1800': { label: '1800', description: 'A steady club challenge', elo: 1800, movetimeMs: 420, unrestricted: false },
   '2000': { label: '2000', description: 'Stronger positional play', elo: 2000, movetimeMs: 600, unrestricted: false },
@@ -18,9 +26,16 @@ const LEVELS: Record<Difficulty, { label: string; description: string; elo: numb
   max: { label: 'Max', description: 'No strength limit', elo: 3190, movetimeMs: 1300, unrestricted: true },
 };
 const PIECES: Record<Side, Record<PieceSymbol, string>> = {
-  w: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' },
+  w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
   b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' },
 };
+const SOLID_PIECES = PIECES.b;
+const PIECE_LETTERS: Record<PieceSymbol, string> = { k: 'K', q: 'Q', r: 'R', b: 'B', n: 'N', p: 'P' };
+
+function PieceIcon({ color, piece, style }: { color: Side; piece: PieceSymbol; style: PieceStyle }) {
+  const symbol = style === 'letters' ? PIECE_LETTERS[piece] : style === 'classic' ? PIECES[color][piece] : SOLID_PIECES[piece];
+  return <span className={`chess-piece ${color === 'w' ? 'white-piece' : 'black-piece'} piece-style-${style}`} aria-hidden="true">{symbol}</span>;
+}
 
 interface SavedGame {
   pgn: string;
@@ -50,6 +65,11 @@ function loadSaved(): SavedGame {
 function loadHintMode(): HintMode {
   const saved = localStorage.getItem(HINT_MODE_KEY);
   return saved === 'quick' || saved === 'deep' ? saved : 'explain';
+}
+
+function loadPieceStyle(): PieceStyle {
+  const saved = localStorage.getItem(PIECE_STYLE_KEY);
+  return PIECE_STYLES.some(({ id }) => id === saved) ? saved as PieceStyle : 'discs';
 }
 
 function gameLabel(game: Chess, side: Side, busy: boolean): string {
@@ -89,6 +109,8 @@ export default function MobileApp() {
   const [selected, setSelected] = useState<Square | null>(null);
   const [hint, setHint] = useState<{ move: Move; analysis: MobileAnalysis | null; explanation: MobileExplanation | null; source: 'book' | 'engine'; bookMoveSan: string | null } | null>(null);
   const [hintMode, setHintMode] = useState<HintMode>(loadHintMode);
+  const [pieceStyle, setPieceStyle] = useState<PieceStyle>(loadPieceStyle);
+  const [showPiecePicker, setShowPiecePicker] = useState(false);
   const [hintSearchMode, setHintSearchMode] = useState<HintMode | null>(null);
   const [hintProgress, setHintProgress] = useState('');
   const [tip, setTip] = useState('Own the center, develop your pieces, and keep your king safe.');
@@ -172,6 +194,10 @@ export default function MobileApp() {
   useEffect(() => {
     localStorage.setItem(HINT_MODE_KEY, hintMode);
   }, [hintMode]);
+
+  useEffect(() => {
+    localStorage.setItem(PIECE_STYLE_KEY, pieceStyle);
+  }, [pieceStyle]);
 
   useEffect(() => {
     if (!hint || tab !== 'play' || viewPly !== null) return;
@@ -415,13 +441,13 @@ export default function MobileApp() {
               >
                 {col === 0 && <small className="rank">{rank}</small>}
                 {row === 7 && <small className="file">{file}</small>}
-                {piece && <span className={`chess-piece ${piece.color === 'w' ? 'white-piece' : 'black-piece'}`}>{PIECES[piece.color][piece.type]}</span>}
+                {piece && <PieceIcon color={piece.color} piece={piece.type} style={pieceStyle} />}
                 {isTarget && <span className={piece ? 'capture-target' : 'move-target'} />}
               </button>;
             }))}
           </div>
         </div>
-        {dragPiece && <div className={`drag-piece ${dragPiece.color === 'w' ? 'white-piece' : 'black-piece'}`} style={{ left: dragPiece.x, top: dragPiece.y - 22 }} aria-hidden="true">{PIECES[dragPiece.color][dragPiece.piece]}</div>}
+        {dragPiece && <div className="drag-piece" style={{ left: dragPiece.x, top: dragPiece.y - 22 }} aria-hidden="true"><PieceIcon color={dragPiece.color} piece={dragPiece.piece} style={pieceStyle} /></div>}
         <div className="match-strip you-strip">
           <div className="player-avatar you-avatar">YOU</div>
           <div className="match-player"><strong>You</strong><span>{playerLabel}</span></div>
@@ -431,6 +457,7 @@ export default function MobileApp() {
         <div className="game-actions">
           <button type="button" onClick={undo} disabled={!moves.length || viewPly !== null}><span>↶</span> Undo</button>
           <button type="button" onClick={() => setFlipped((value) => !value)}><span>⟳</span> Flip</button>
+          <button type="button" onClick={() => setShowPiecePicker(true)} aria-label="Choose piece style"><span>♗</span> Pieces</button>
           <button className="hint-button" type="button" onClick={() => void askForHint()} disabled={!ready || busy || viewPly !== null || game.turn() !== side || game.isGameOver()}><span>✦</span> Hint</button>
         </div>
         <div className="hint-mode-picker" role="group" aria-label="Hint analysis depth">
@@ -522,7 +549,20 @@ export default function MobileApp() {
           <button className="cancel-button" type="button" onClick={() => setShowLevelPicker(false)}>Keep current level</button>
         </section>
       </div>}
-      {promotion && <div className="modal-backdrop"><section className="promotion-sheet" role="dialog" aria-modal="true" aria-label="Choose promotion"><h2>Promote your pawn</h2><div>{(['q', 'r', 'b', 'n'] as const).map((piece) => <button key={piece} type="button" aria-label={`Promote to ${{ q: 'queen', r: 'rook', b: 'bishop', n: 'knight' }[piece]}`} onClick={() => makeHumanMove(promotion.from, promotion.to, piece)}>{PIECES[side][piece]}</button>)}</div></section></div>}
+      {showPiecePicker && <div className="modal-backdrop" onClick={() => setShowPiecePicker(false)}>
+        <section className="setup-sheet piece-sheet" role="dialog" aria-modal="true" aria-label="Piece style" onClick={(event) => event.stopPropagation()}>
+          <div className="sheet-handle" />
+          <span className="eyebrow">BOARD LOOK</span><h2>Piece style</h2>
+          <p>Choose the pieces that are easiest to recognize. Your game stays in place.</p>
+          <div className="piece-style-list">{PIECE_STYLES.map(({ id, name, description }) => <button key={id} type="button" className={pieceStyle === id ? 'active' : ''} aria-pressed={pieceStyle === id} onClick={() => { setPieceStyle(id); setShowPiecePicker(false); }}>
+            <span className="piece-style-preview" aria-hidden="true"><span className="preview-light"><PieceIcon color="w" piece="b" style={id} /></span><span className="preview-dark"><PieceIcon color="b" piece="b" style={id} /></span></span>
+            <span className="piece-style-copy"><strong>{name}</strong><small>{description}</small></span>
+            <span className="piece-style-check" aria-hidden="true">{pieceStyle === id ? '✓' : ''}</span>
+          </button>)}</div>
+          <button className="cancel-button" type="button" onClick={() => setShowPiecePicker(false)}>Back to game</button>
+        </section>
+      </div>}
+      {promotion && <div className="modal-backdrop"><section className="promotion-sheet" role="dialog" aria-modal="true" aria-label="Choose promotion"><h2>Promote your pawn</h2><div>{(['q', 'r', 'b', 'n'] as const).map((piece) => <button key={piece} type="button" aria-label={`Promote to ${{ q: 'queen', r: 'rook', b: 'bishop', n: 'knight' }[piece]}`} onClick={() => makeHumanMove(promotion.from, promotion.to, piece)}><PieceIcon color={side} piece={piece} style={pieceStyle} /></button>)}</div></section></div>}
     </main>
   );
 }
