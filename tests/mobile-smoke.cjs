@@ -30,18 +30,19 @@ const root = join(__dirname, '..');
     mkdirSync(join(root, 'artifacts'), { recursive: true });
     await page.screenshot({ path: join(root, 'artifacts', 'mobile-start.png') });
     const startingBoard = await page.locator('.mobile-board .square').evaluateAll(squares => squares.map(square => square.getAttribute('aria-label')));
-    for (const style of ['Bold', 'Discs', 'Letters', 'Classic']) {
+    for (const [style, id] of [['Classic', 'chessnut'], ['Fantasy', 'fantasy'], ['Modern', 'spatial']]) {
       await page.getByRole('button', { name: 'Choose piece style' }).tap();
       await page.getByRole('dialog', { name: 'Piece style' }).waitFor();
-      if (style === 'Bold') await page.screenshot({ path: join(root, 'artifacts', 'mobile-piece-styles.png') });
+      if (style === 'Classic') await page.screenshot({ path: join(root, 'artifacts', 'mobile-piece-styles.png') });
       await page.locator('.piece-style-list button').filter({ hasText: style }).tap();
-      await page.locator(`.mobile-board .piece-style-${style.toLowerCase()}`).first().waitFor();
+      await page.locator(`.mobile-board .piece-style-${id}`).first().waitFor();
+      await page.waitForFunction(() => [...document.querySelectorAll('.mobile-board .chess-piece')].every(image => image.complete && image.naturalWidth > 0));
       deepStrictEqual(await page.locator('.mobile-board .square').evaluateAll(squares => squares.map(square => square.getAttribute('aria-label'))), startingBoard);
     }
     await page.getByRole('button', { name: 'Choose piece style' }).tap();
-    await page.locator('.piece-style-list button').filter({ hasText: 'Discs' }).tap();
+    await page.locator('.piece-style-list button').filter({ hasText: 'Classic' }).tap();
     await page.reload();
-    await page.locator('.mobile-board .piece-style-discs').first().waitFor();
+    await page.locator('.mobile-board .piece-style-chessnut').first().waitFor();
     await page.getByText('Ready', { exact: true }).waitFor();
     await page.getByRole('gridcell', { name: 'e2 white p' }).tap();
     await page.getByRole('gridcell', { name: 'e4' }).tap();
@@ -129,7 +130,7 @@ const root = join(__dirname, '..');
     await page.locator('.drag-piece').waitFor({ state: 'hidden' });
     await page.getByRole('gridcell', { name: 'e4 white p' }).waitFor();
     if (errors.length) throw new Error(errors.join('; '));
-    console.log(JSON.stringify({ pass: true, checks: ['64 squares', 'offline engine ready', 'phone width', 'four persistent piece styles without resetting', 'tap and touch drag moves', 'change level without resetting', 'explained hint and legal line', 'deep analysis and cancellation', 'book verification', 'history positions and live return', 'undo', '1800/2000/2100/Max levels', 'play as Black at Max'], screenshots: ['artifacts/mobile-start.png', 'artifacts/mobile-piece-styles.png', 'artifacts/mobile-levels.png', 'artifacts/mobile-hint.png', 'artifacts/mobile-history.png'] }));
+    console.log(JSON.stringify({ pass: true, checks: ['64 squares', 'offline engine ready', 'phone width', 'three loaded SVG piece sets and persistence', 'tap and touch drag moves', 'change level without resetting', 'explained hint and legal line', 'deep analysis and cancellation', 'book verification', 'history positions and live return', 'undo', '1800/2000/2100/Max levels', 'play as Black at Max'], screenshots: ['artifacts/mobile-start.png', 'artifacts/mobile-piece-styles.png', 'artifacts/mobile-levels.png', 'artifacts/mobile-hint.png', 'artifacts/mobile-history.png'] }));
   } finally {
     await browser?.close();
     server.kill();

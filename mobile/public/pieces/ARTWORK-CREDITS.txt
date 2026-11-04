@@ -1,0 +1,15 @@
+Chess piece artwork bundled with the Android app
+
+Modern (spatial) and Fantasy piece sets
+Copyright (c) Maurizio Monge
+Source: https://github.com/maurimo/chess-art
+SVG exports sourced from https://github.com/lichess-org/lila/tree/master/public/piece
+License: MIT; see licenses/chess-art-LICENSE.txt
+
+Classic (chessnut) piece set
+Copyright 2015 Alexis Luengas
+Source: https://github.com/LexLuengas/chessnut-pieces
+License: Apache License 2.0; see licenses/chessnut-LICENSE.txt and
+licenses/chessnut-COPYRIGHT.txt
+
+These are independent open-source designs. No Chess.com artwork is included.

@@ -8,16 +8,15 @@ import { createMobileExplanation, HINT_MODES, type HintMode, type MobileExplanat
 type Side = 'w' | 'b';
 type Tab = 'play' | 'coach' | 'moves';
 type Difficulty = '1800' | '2000' | '2100' | 'max';
-type PieceStyle = 'classic' | 'bold' | 'discs' | 'letters';
+type PieceStyle = 'spatial' | 'chessnut' | 'fantasy';
 
 const STORAGE_KEY = 'stockfish-coach.mobile.v1';
 const HINT_MODE_KEY = 'stockfish-coach.mobile.hint-mode.v1';
 const PIECE_STYLE_KEY = 'stockfish-coach.mobile.piece-style.v1';
 const PIECE_STYLES: { id: PieceStyle; name: string; description: string }[] = [
-  { id: 'classic', name: 'Classic', description: 'Traditional white and black shapes' },
-  { id: 'bold', name: 'Bold', description: 'Large solid silhouettes' },
-  { id: 'discs', name: 'Discs', description: 'Light and dark piece tokens' },
-  { id: 'letters', name: 'Letters', description: 'Clear piece initials' },
+  { id: 'spatial', name: 'Modern', description: 'Clean shapes and strong contrast' },
+  { id: 'chessnut', name: 'Classic', description: 'Traditional tournament pieces' },
+  { id: 'fantasy', name: 'Fantasy', description: 'Detailed carved pieces' },
 ];
 const LEVELS: Record<Difficulty, { label: string; description: string; elo: number; movetimeMs: number; unrestricted: boolean }> = {
   '1800': { label: '1800', description: 'A steady club challenge', elo: 1800, movetimeMs: 420, unrestricted: false },
@@ -25,16 +24,8 @@ const LEVELS: Record<Difficulty, { label: string; description: string; elo: numb
   '2100': { label: '2100', description: 'Tough and tactical', elo: 2100, movetimeMs: 750, unrestricted: false },
   max: { label: 'Max', description: 'No strength limit', elo: 3190, movetimeMs: 1300, unrestricted: true },
 };
-const PIECES: Record<Side, Record<PieceSymbol, string>> = {
-  w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
-  b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' },
-};
-const SOLID_PIECES = PIECES.b;
-const PIECE_LETTERS: Record<PieceSymbol, string> = { k: 'K', q: 'Q', r: 'R', b: 'B', n: 'N', p: 'P' };
-
 function PieceIcon({ color, piece, style }: { color: Side; piece: PieceSymbol; style: PieceStyle }) {
-  const symbol = style === 'letters' ? PIECE_LETTERS[piece] : style === 'classic' ? PIECES[color][piece] : SOLID_PIECES[piece];
-  return <span className={`chess-piece ${color === 'w' ? 'white-piece' : 'black-piece'} piece-style-${style}`} aria-hidden="true">{symbol}</span>;
+  return <img className={`chess-piece ${color === 'w' ? 'piece-white' : 'piece-black'} piece-style-${style}`} src={`./pieces/${style}/${color}${piece.toUpperCase()}.svg`} alt="" draggable={false} aria-hidden="true" />;
 }
 
 interface SavedGame {
@@ -69,7 +60,7 @@ function loadHintMode(): HintMode {
 
 function loadPieceStyle(): PieceStyle {
   const saved = localStorage.getItem(PIECE_STYLE_KEY);
-  return PIECE_STYLES.some(({ id }) => id === saved) ? saved as PieceStyle : 'discs';
+  return PIECE_STYLES.some(({ id }) => id === saved) ? saved as PieceStyle : 'spatial';
 }
 
 function gameLabel(game: Chess, side: Side, busy: boolean): string {
@@ -559,6 +550,7 @@ export default function MobileApp() {
             <span className="piece-style-copy"><strong>{name}</strong><small>{description}</small></span>
             <span className="piece-style-check" aria-hidden="true">{pieceStyle === id ? '✓' : ''}</span>
           </button>)}</div>
+          <p className="piece-art-credit">Artwork: Maurizio Monge (Modern, Fantasy) and Alexis Luengas (Classic). License details are included with the app.</p>
           <button className="cancel-button" type="button" onClick={() => setShowPiecePicker(false)}>Back to game</button>
         </section>
       </div>}
