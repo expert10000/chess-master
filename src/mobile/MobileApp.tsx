@@ -32,7 +32,8 @@ function PieceIcon({ color, piece, style }: { color: Side; piece: PieceSymbol; s
   if (style === 'desktop') return <span className={`chess-piece piece-desktop piece-desktop-${color}`} aria-hidden="true">{PIECE_GLYPHS[color][piece]}</span>;
   if (style === 'illustrated') {
     const [x, y, width, height] = illustratedBounds(color, piece);
-    return <svg className="chess-piece piece-illustrated" viewBox={`${x} ${y} ${width} ${height}`} style={{ width: `${93 * width / height}%` }} aria-hidden="true"><image href="./pieces/illustrated-sheet.png" width="1448" height="1086" /></svg>;
+    const size = 83.7; // 90% of the previous 93% square height.
+    return <svg className="chess-piece piece-illustrated" viewBox={`${x} ${y} ${width} ${height}`} style={{ width: `${size * width / height}%`, height: `${size}%` }} aria-hidden="true"><image href="./pieces/illustrated-sheet.png" width="1448" height="1086" /></svg>;
   }
   return <img className={`chess-piece ${color === 'w' ? 'piece-white' : 'piece-black'} piece-style-${style}`} src={`./pieces/${style}/${color}${piece.toUpperCase()}.svg`} alt="" draggable={false} aria-hidden="true" />;
 }
