@@ -45,8 +45,8 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .chess-piece { z-index: 1; font-family: 'Segoe UI Symbol', 'Noto Sans Symbols 2', sans-serif; line-height: 1; font-size: clamp(29px, 9.6vw, 57px); user-select: none; }
 .square.drag-origin .chess-piece { opacity: .22; }
 .drag-piece { position: fixed; z-index: 100; pointer-events: none; transform: translate(-50%, -50%); font-family: 'Segoe UI Symbol', 'Noto Sans Symbols 2', sans-serif; line-height: 1; font-size: clamp(35px, 10.5vw, 62px); text-shadow: 0 5px 10px #0008; }
-.white-piece { color: #fffdf2; text-shadow: 0 2px 1px #38434b, 0 0 2px #263038, 1px 1px 2px #263038; -webkit-text-stroke: 1px #354752; }
-.black-piece { color: #172c38; text-shadow: 0 1px 1px #fff6; }
+.white-piece { color: #fff5dd; -webkit-text-stroke: 1px #2a3942; text-shadow: 0 2px 2px #1726329c; }
+.black-piece { color: #172833; -webkit-text-stroke: .7px #d8e5e1; text-shadow: 0 2px 2px #14232daa; }
 .square small { position: absolute; z-index: 2; font-size: 9px; font-weight: 800; line-height: 1; }
 .square .rank { top: 3px; left: 3px; }
 .square .file { bottom: 3px; right: 3px; }

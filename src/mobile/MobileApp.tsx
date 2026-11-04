@@ -16,7 +16,7 @@ const LEVELS: Record<Difficulty, { label: string; description: string; elo: numb
   max: { label: 'Max', description: 'No strength limit', elo: 3190, movetimeMs: 1300, unrestricted: true },
 };
 const PIECES: Record<Side, Record<PieceSymbol, string>> = {
-  w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
+  w: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' },
   b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' },
 };
 
