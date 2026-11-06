@@ -167,3 +167,28 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .promotion-sheet > div { display: flex; justify-content: space-around; padding: 15px 0 5px; }
 .promotion-sheet button { width: 60px; height: 60px; display: grid; place-items: center; border-radius: 12px; border: 1px solid #6b997f; background: #315a4f; color: #fff; }
 @media (max-width: 370px) { .mobile-app { padding-left: 10px; padding-right: 10px; } .brand-copy strong { font-size: 14px; } .offline-badge { padding: 5px 6px; } }
+
+@media (orientation: landscape) and (max-height: 600px) {
+  .mobile-app { width: 100%; max-width: none; height: 100dvh; min-height: 0; overflow: hidden; padding: max(26px, env(safe-area-inset-top)) 8px calc(51px + env(safe-area-inset-bottom)); }
+  .app-header, .play-heading, .you-strip, .move-preview { display: none; }
+  .play-screen { display: grid; grid-template-columns: min(45vw, calc(100dvh - 84px)) minmax(0, 1fr); grid-template-rows: 38px 40px 50px minmax(0, 1fr); gap: 5px 9px; height: 100%; min-height: 0; }
+  .play-screen > .match-strip:not(.you-strip) { grid-column: 2; grid-row: 1; padding: 0; min-width: 0; }
+  .board-wrap { grid-column: 1; grid-row: 1 / -1; align-self: center; width: 100%; box-shadow: 0 6px 18px #0005; }
+  .chess-piece.piece-desktop { font-size: clamp(28px, 9vh, 44px); }
+  .game-actions { grid-column: 2; grid-row: 2; gap: 5px; margin: 0; }
+  .game-actions button { min-height: 40px; }
+  .hint-mode-picker { grid-column: 2; grid-row: 3; gap: 0; margin: 0; }
+  .hint-mode-picker > div:first-child { display: none; }
+  .hint-mode-options { gap: 5px; }
+  .hint-mode-options button { min-height: 50px; }
+  .tip-card { grid-column: 2; grid-row: 4; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 9px 11px; gap: 8px; }
+  .tip-symbol { width: 24px; height: 24px; font-size: 17px; }
+  .tip-card p { line-height: 1.3; }
+  .hint-explanation { gap: 6px; margin-top: 8px; padding-top: 8px; }
+  .hint-explanation p { line-height: 1.35; }
+  .hint-progress, .error-banner, .history-banner { grid-column: 2; grid-row: 4; align-self: start; z-index: 2; margin: 0; }
+  .play-screen:has(.history-banner) .tip-card { display: none; }
+  .bottom-nav { max-width: none; padding: 2px 8px max(2px, env(safe-area-inset-bottom)); }
+  .bottom-nav button { min-height: 45px; }
+  .bottom-nav button span { font-size: 19px; }
+}

@@ -17,7 +17,7 @@ const HINT_MODE_KEY = 'stockfish-coach.mobile.hint-mode.v1';
 const PIECE_STYLE_KEY = 'stockfish-coach.mobile.piece-style.v2';
 const PIECE_STYLES: { id: PieceStyle; name: string; description: string }[] = [
   { id: 'desktop', name: 'Desktop original', description: 'The familiar Stockfish Coach pieces' },
-  { id: 'illustrated', name: 'Illustrated', description: 'Your detailed light and dark pieces' },
+  { id: 'illustrated', name: 'Staunton', description: 'Detailed light and dark pieces' },
   { id: 'spatial', name: 'Modern', description: 'Clean shapes and strong contrast' },
   { id: 'chessnut', name: 'Classic', description: 'Traditional tournament pieces' },
   { id: 'fantasy', name: 'Fantasy', description: 'Detailed carved pieces' },
@@ -32,8 +32,8 @@ function PieceIcon({ color, piece, style }: { color: Side; piece: PieceSymbol; s
   if (style === 'desktop') return <span className={`chess-piece piece-desktop piece-desktop-${color}`} aria-hidden="true">{PIECE_GLYPHS[color][piece]}</span>;
   if (style === 'illustrated') {
     const [x, y, width, height] = illustratedBounds(color, piece);
-    const size = 83.7; // 90% of the previous 93% square height.
-    return <svg className="chess-piece piece-illustrated" viewBox={`${x} ${y} ${width} ${height}`} style={{ width: `${size * width / height}%`, height: `${size}%` }} aria-hidden="true"><image href="./pieces/illustrated-sheet.png" width="1448" height="1086" /></svg>;
+    const size = 83.7;
+    return <svg className="chess-piece piece-illustrated" viewBox={`${x} ${y} ${width} ${height}`} style={{ width: `${size * width / height}%`, height: `${size}%` }} aria-hidden="true"><image href="./pieces/illustrated-sheet.png" width="1983" height="793" /></svg>;
   }
   return <img className={`chess-piece ${color === 'w' ? 'piece-white' : 'piece-black'} piece-style-${style}`} src={`./pieces/${style}/${color}${piece.toUpperCase()}.svg`} alt="" draggable={false} aria-hidden="true" />;
 }
@@ -96,7 +96,6 @@ export default function MobileApp() {
   const engineRef = useRef<MobileEngine | null>(null);
   const sessionRef = useRef(0);
   const boardRef = useRef<HTMLDivElement | null>(null);
-  const tipCardRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef<{ from: Square; pointerId: number; startX: number; startY: number; piece: PieceSymbol; color: Side; active: boolean } | null>(null);
   const suppressDragClickRef = useRef<{ from: Square; until: number } | null>(null);
   const [fen, setFen] = useState(game.fen());
@@ -199,12 +198,6 @@ export default function MobileApp() {
   useEffect(() => {
     localStorage.setItem(PIECE_STYLE_KEY, pieceStyle);
   }, [pieceStyle]);
-
-  useEffect(() => {
-    if (!hint || tab !== 'play' || viewPly !== null) return;
-    const frame = requestAnimationFrame(() => tipCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-    return () => cancelAnimationFrame(frame);
-  }, [hint, tab, viewPly]);
 
   useEffect(() => {
     if (!hintSearchMode) return;
@@ -469,7 +462,7 @@ export default function MobileApp() {
             </button>)}</div>
         </div>
         {hintSearchMode && <div className="hint-progress" role="status"><span>{hintProgress}</span><button type="button" onClick={cancelHint}>Cancel</button></div>}
-        <section className="tip-card" aria-live="polite" ref={tipCardRef}>
+        <section className="tip-card" aria-live="polite">
           <div className="tip-symbol">✦</div>
           <div>
             <span className="tip-label">{viewPly === null ? 'COACH TIP' : 'POSITION TIP'}</span>
