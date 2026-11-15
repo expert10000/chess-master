@@ -2,7 +2,243 @@
 
 This file tracks the main product milestones. Patch/hotfix releases are listed where they materially changed behavior or UX.
 
+## 1.15.4 — Fast Play Strength Integrity
+
+- Fast paces use strength-aware calculation floors instead of overriding every opponent to 50/100 ms.
+- Higher-level opponents no longer silently fall back to a heuristic legal move after a Stockfish recovery.
+
+---
+
+## 1.15.3 — Polished Move Motion
+
+- Engine pieces now lift, glide, and settle with a subtle motion glow.
+- Fast modes retain short, responsive transition budgets.
+
+---
+
+## 1.15.2 — Live Play Render Performance
+
+- Defers all detailed coach panels during active play to keep board input and controls responsive.
+- The workspace opens on demand and automatically when using a workflow shortcut.
+
+---
+
+## 1.15.1 — Fast End-to-End Recovery
+
+- Caps the entire Fast/Very-fast engine request, not just the calculation phase, at about 1.2 seconds.
+- Recovers by restarting Stockfish and making a legal fallback move when necessary.
+
+---
+
+## 1.15.0 — Very Fast Play + Move Motion
+
+- Adds a 50 ms Very fast pace alongside Fast and Coach.
+- Gives engine moves a smoother, shorter visual transition.
+
+---
+
+## 1.14.3 — Fast Play Recovery Hotfix
+
+- Detects and recovers from a stuck Fast Stockfish request in about a second instead of waiting through the normal analysis grace period.
+
+---
+
+## 1.14.2 — Fast Play Latency Hotfix
+
+- Removes repeated Stockfish configuration waits from consecutive Fast moves.
+- Uses a fixed 100 ms search target and lower-overhead engine resources in Fast pace.
+
+---
+
+## 1.14.1 — Startup Hotfix
+
+- Fixes a v1.14.0 initialization-order crash in the personal strength model.
+
+---
+
+## 1.14.0 — Coach Conversation 2.0
+
+- Natural-language coach understands stored personal trends, intervention evidence, motifs, and the active tournament cycle.
+- Whole-profile questions are answered from transparent saved evidence rather than only the board on screen.
+
+---
+
+## 1.13.0 — Season / Tournament Training Cycle
+
+- Persistent preparation, competition, post-event analysis, and consolidation phases.
+- Tournament goals track whether planned themes appeared in matched event games.
+- Summarizes preparation → execution → result with reviewed CPL where available.
+
+---
+
+## 1.12.0 — Model Games / Master Comparison
+
+- Adds model-game evidence alongside personal decisions and Stockfish in training.
+- Uses explicitly marked reference games and links to their exact continuations.
+
+---
+
+## 1.11.0 — Game Prediction / Pre-Move Risk Coach
+
+- Training-only alerts identify elevated personal mistake risk in structurally similar positions.
+- Shows exact reviewed examples and a transparent personal error rate.
+- Disabled outside training to protect fair rated play.
+
+---
+
+## 1.10.0 — Training Experimentation / A-B Coach
+
+- Adds evidence-led A/B comparisons between competing coaching methods.
+- Alternates the next suggested arm toward the less-tested method.
+- Uses existing 10/20-game post-intervention outcomes with intentionally conservative evidence labels.
+
+---
+
 ## 1.0.x — Stable line
+
+## 1.1.0 — Unified Personal Coach 2.0
+
+- Reframes the top coach view as **Today’s home** with a single clear next action.
+- Shows today's plan, strongest measured intervention type, recent 10-game quality, latest outcome checkpoint, top weakness, goal progress and weekly study result together.
+- Keeps detailed panels as evidence drill-downs, reducing dashboard scrolling without hiding functionality.
+
+---
+
+## 1.1.1 — Adaptive Session Composer
+
+- Supports 10, 20, 30 and 45-minute study presets.
+- Builds the mix from available due review, weaknesses, recent errors and new material, rather than retaining a fixed bucket count.
+- Makes each selected exercise’s inclusion reason visible before study begins.
+
+---
+
+## 1.1.2 — Skill Map / Chess Curriculum Graph
+
+- Adds an eight-skill persistent learner model with evidence, confidence, trend, and recommended training per skill.
+- Combines repeated concept evidence with opening/middlegame/endgame reviewed-game evidence.
+- Persists and backs up the model locally.
+
+---
+
+## 1.2.0 — Repertoire Builder 2.0
+
+- Adds White/Black repertoire trees with linked opening-memory evidence.
+- Shows preferred paths, available alternatives, weak/forgotten nodes and transposition markers.
+- Adds branch-level repertoire recall training.
+
+---
+
+## 1.3.0 — Endgame Curriculum + Syzygy
+
+- Adds a four-part endgame curriculum and automatic personal endgame mistake exercises.
+- Adds exact eligible-position Syzygy WDL/DTZ lookup and only-optimal-move detection.
+
+---
+
+
+### 1.0.8 — Intervention History Analytics + Fast Play
+
+- Ranks completed training-intervention types by average measured post-training improvement.
+- Groups outcomes into Phase training / Opening repair / White-Black side training / Blunder drills / Overall performance.
+- Uses 20-game outcome when available, otherwise measured 10-game checkpoint.
+- Shows average CPL improvement, blunder reduction, issue reduction, solve rate and outcome mix.
+- Marks 1–2 samples Provisional, 3–4 Developing, 5+ Established.
+- Adds expandable intervention history.
+- Adds **Fast — play first** pace: shorter opponent search/animation and deferred automatic move review.
+- Keeps **Coach — auto review** as the full-review workflow.
+- Persists play pace and includes it in backup.
+
+
+
+### 1.0.7 — Recommendation Outcome Tracking
+
+- Closes the loop from game-history diagnosis → Coach recommendation training → measured future-game outcome.
+- Adds explicit **Complete & track outcome** for recommendation training sessions.
+- Freezes scoped baseline CPL/blunders/issues at intervention completion.
+- Measures the first 10 and first 20 newly reviewed relevant personal games.
+- Outcomes: Collecting / Improved / Mixed / Stable / Worse.
+- Shows post-training evidence positions with Open move.
+- Excludes archived/model games and never counts pre-intervention games as future evidence.
+- Persists outcome history locally and includes it in Backup / Restore.
+
+
+### 1.0.6 — Personal Coach Recommendations from Game History
+
+- Ranked actions derived from persistent game-history diagnostics.
+- Detects phase gaps/trends, color gaps, opening problems, blunder rate and overall decline.
+- Last 10 / 20 / 50 game windows.
+- Why? / Show evidence / Train now workflow.
+- Up to seven exact saved positions per recommendation.
+- Dedicated Coach recommendation Training source and Training Analytics label.
+
+
+### 1.0.5 — Analytics → Games Drill-Down + Comparison Explorer
+
+- Makes primary game-analytics numbers clickable.
+- Shows exact saved games and reviewed moves responsible for CPL, blunder, issue, color, phase and opening metrics.
+- Opens analytics evidence at the exact historical game ply.
+- Adds Last N vs previous N, White vs Black, opening-vs-opening, and phase comparison modes.
+- Adds “games containing these blunders” evidence grouping.
+- Uses existing persistent game-library data; no new storage schema.
+
+
+### 1.0.4 — Saved Game Search / Filters / Tags / Notes / Pinned Games
+
+- User tags and free-form notes per saved game.
+- ★ pinned/favorite games and separate model-game marking.
+- Reversible archive and permanent delete.
+- Advanced filters: White/Black, result, source, review state, opening, weakness, CPL range and date range.
+- Sorting: newest, worst CPL, most issues, opening.
+- Search includes tags and notes.
+- Model and archived games excluded from personal game-performance analytics.
+
+
+### 1.0.3.3 — Review Layout Polish
+
+- Board / Balanced / Details workspace presets.
+- Pin/unpin board.
+- Compact history/inspector review chrome.
+- Follow selected move + Focus selected.
+- Persistent review-layout preference and backup support.
+
+
+### 1.0.3.2 — Review Board Fit & Scrolling UX Hotfix
+
+- Makes the desktop review board column internally scrollable when review chrome is taller than the viewport.
+- Reduces checkerboard size slightly in review/history/PV mode so the full board fits more reliably.
+- Compacts history-mode and board-inspector headers to avoid covering too much vertical space.
+
+
+
+### 1.0.3.1 — Game Analytics Null-Window Hotfix
+
+- Fixes a renderer crash when Game-Level Analytics has current reviewed games but no previous 10/20/50-game comparison window.
+- Adds regression coverage for sparse game libraries.
+- No changes to analytics formulas, board themes, Stockfish review, or training behavior.
+
+
+
+### 1.0.3 — Game-Level Analytics + Phase Statistics
+
+- Aggregates the persistent game library over the last 10 / 20 / 50 reviewed games.
+- Shows average CPL, blunders/game, issues/game, White/Black split, and opening performance.
+- Adds Opening / Middlegame / Endgame strength and trend cards.
+- Compares the current window against the previous same-size window.
+- Adds Current / Brown / Green checkerboard themes.
+- Stores board-theme preference locally and includes it in backup/restore.
+
+
+
+### 1.0.2 — Persistent Local Game Library
+
+- Every played/imported game is stored once it has moves and updated as reviews change.
+- Search by players, result, event, opening/ECO/variation, and per-game weaknesses.
+- Stores result, review status, average CPL, issue count and compact review snapshots.
+- Direct Open / Review / Train mistakes actions.
+- Deduplicates identical imported games.
+- Game library included in local JSON backup.
+- Small / Regular / Large text enlarged by ~1.2 pt; board piece sizing unchanged.
+
 
 
 ### 1.0.1 — Real-Use Stabilization + UX Cleanup

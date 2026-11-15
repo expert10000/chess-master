@@ -15,7 +15,7 @@ export function ImportGameDialog({ busy, onClose, onImportPgn, onImportFen }: Im
   const [kind, setKind] = useState<ImportKind>('pgn');
   const [value, setValue] = useState('');
   const [reviewAs, setReviewAs] = useState<'w' | 'b'>('w');
-  const [analyze, setAnalyze] = useState(true);
+  const [analyze, setAnalyze] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [selectedGameIndex, setSelectedGameIndex] = useState(0);
   const fileRef = useRef<HTMLInputElement | null>(null);

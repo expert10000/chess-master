@@ -1,8 +1,8 @@
 {
   "name": "stockfish-coach",
-  "version": "1.0.1",
+  "version": "1.15.4",
   "private": true,
-  "description": "Stockfish Coach 1.0.1 — real-use stabilization and UX cleanup with persistent Small/Regular/Large text sizes, clear full-game review progress, quick workflow navigation, and first stable-line polish.",
+  "description": "Stockfish Coach 1.15.4 — Fast play preserves the selected opponent strength with calculation-quality floors.",
   "main": "dist-electron/main.js",
   "engines": {
     "node": ">=22.12.0"

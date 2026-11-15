@@ -12,7 +12,9 @@ import {
   type WeaknessTrainingSnapshot,
 } from './weaknessProfile';
 
-export type DailyStudyDuration = 15 | 20 | 30;
+// 15 minutes remains accepted for saved/legacy sessions; the v1.1.1 UI offers
+// the clearer 10/20/30/45 presets.
+export type DailyStudyDuration = 10 | 15 | 20 | 30 | 45 | 60;
 
 export type DailyStudySource =
   | 'due-repertoire'
@@ -48,7 +50,27 @@ export interface DailyStudyPlan {
   weeklyPriorityLabels: string[];
   goalAdjusted: boolean;
   goalPriorityLabels: string[];
+  interventionAllocation?: DailyInterventionAllocation;
+  optimizedBlocks: AdaptiveTrainingBlock[];
   summary: string;
+}
+export interface AdaptiveTrainingBlock { label: string; minutes: number; reason: string; }
+
+export interface DailyInterventionAllocation {
+  effectiveMethod: string;
+  effectiveMethodLabel: string;
+  evidenceCount: number;
+  averageCplImprovement: number;
+  boostedPositions: number;
+  explorationReservePositions: number;
+}
+
+export interface InterventionPlannerEvidence {
+  trainingType: 'phase-training' | 'opening-repair' | 'color-side-training' | 'blunder-drills' | 'overall-performance';
+  label: string;
+  interventions: number;
+  avgCplImprovement: number | null;
+  rank: number;
 }
 
 export interface BuildDailyStudyPlanInput {
@@ -62,19 +84,25 @@ export interface BuildDailyStudyPlanInput {
   weeklyPriorityReasons?: Record<string, string>;
   goalPriorityMultipliers?: Record<string, number>;
   goalPriorityReasons?: Record<string, string>;
+  interventionEvidence?: InterventionPlannerEvidence[];
 }
 
-const TARGETS: Record<DailyStudyDuration, {
+const TARGETS: Record<DailyStudyDuration, number> = {
+  10: 7,
+  15: 10,
+  20: 13,
+  30: 20,
+  45: 30,
+  60: 40,
+};
+
+interface SessionTarget {
   total: number;
   due: number;
   weakest: number;
   recent: number;
   fresh: number;
-}> = {
-  15: { total: 10, due: 4, weakest: 3, recent: 2, fresh: 1 },
-  20: { total: 13, due: 5, weakest: 4, recent: 3, fresh: 1 },
-  30: { total: 20, due: 7, weakest: 6, recent: 5, fresh: 2 },
-};
+}
 
 function localDateKey(timestamp: number): string {
   const date = new Date(timestamp);
@@ -85,7 +113,74 @@ function localDateKey(timestamp: number): string {
 }
 
 export function targetPositionsForDuration(duration: DailyStudyDuration): number {
-  return TARGETS[duration].total;
+  return TARGETS[duration];
+}
+
+function composeSessionTargets(input: BuildDailyStudyPlanInput, now: number): SessionTarget {
+  const total = TARGETS[input.durationMinutes];
+  const hasDue = allDueReviewCandidates(input.spacedMemory, now).length > 0;
+  const hasWeakness = weakestAreaCandidates(input.weaknessMemory, input.spacedMemory).length > 0;
+  const hasRecent = input.records.some((record) => issueRecord(record, input.humanColor))
+    || recentWeaknessSnapshots(input.weaknessMemory).length > 0;
+  const hasFresh = newMaterialCandidates(input.spacedMemory).length > 0;
+  const target: SessionTarget = { total, due: 0, weakest: 0, recent: 0, fresh: 0 };
+
+  // The composer starts each meaningful evidence source with one exercise, then
+  // repeatedly allocates the next slot to the signal with the largest remaining need.
+  // This avoids a fixed 5/4/3/1 recipe while keeping due review ahead of new material.
+  const signals: Array<{ key: keyof Omit<SessionTarget, 'total'>; available: boolean; weight: number; cap: number }> = [
+    { key: 'due', available: hasDue, weight: 1.55, cap: Math.ceil(total * 0.50) },
+    { key: 'weakest', available: hasWeakness, weight: 1.35, cap: Math.ceil(total * 0.45) },
+    { key: 'recent', available: hasRecent, weight: 1.15, cap: Math.ceil(total * 0.40) },
+    { key: 'fresh', available: hasFresh, weight: 0.55, cap: Math.max(1, Math.ceil(total * 0.15)) },
+  ];
+  while (target.due + target.weakest + target.recent + target.fresh < total) {
+    const next = signals
+      .filter((signal) => signal.available && target[signal.key] < signal.cap)
+      .sort((a, b) => (b.weight / (target[b.key] + 1)) - (a.weight / (target[a.key] + 1)))[0];
+    if (!next) break;
+    target[next.key] += 1;
+  }
+  return target;
+}
+
+function adaptiveInterventionAllocation(
+  target: SessionTarget,
+  evidence: InterventionPlannerEvidence[] | undefined,
+): { target: typeof target; allocation: DailyInterventionAllocation | undefined } {
+  const best = evidence
+    ?.filter((row) => row.interventions >= 2 && (row.avgCplImprovement ?? 0) >= 10)
+    .sort((a, b) => a.rank - b.rank)[0];
+  if (!best || (best.trainingType !== 'phase-training' && best.trainingType !== 'opening-repair')) {
+    return { target, allocation: undefined };
+  }
+
+  // Reserve at least ~20% of a session for other methods.  The boost is capped at
+  // the remaining share, so a good early run cannot turn the planner into a single-drill loop.
+  const reserve = Math.max(1, Math.ceil(target.total * 0.20));
+  const boost = Math.min(2, Math.max(1, Math.round(target.total * 0.20)), target.total - reserve);
+  const adjusted = { ...target };
+  let moved: number;
+  if (best.trainingType === 'phase-training') {
+    moved = Math.min(boost, Math.max(0, adjusted.recent - 1));
+    adjusted.weakest += moved;
+    adjusted.recent -= moved;
+  } else {
+    moved = Math.min(boost, Math.max(0, adjusted.weakest - 1));
+    adjusted.due += moved;
+    adjusted.weakest -= moved;
+  }
+  return {
+    target: adjusted,
+    allocation: {
+      effectiveMethod: best.trainingType,
+      effectiveMethodLabel: best.label,
+      evidenceCount: best.interventions,
+      averageCplImprovement: best.avgCplImprovement ?? 0,
+      boostedPositions: moved,
+      explorationReservePositions: reserve,
+    },
+  };
 }
 
 function issueRecord(record: PlyRecord, humanColor: 'w' | 'b'): boolean {
@@ -409,7 +504,8 @@ function interleave(items: DailyStudyPlanItem[]): DailyStudyPlanItem[] {
 export function buildAdaptiveDailyStudyPlan(input: BuildDailyStudyPlanInput): DailyStudyPlan {
   const now = input.now ?? Date.now();
   const dateKey = localDateKey(now);
-  const target = TARGETS[input.durationMinutes];
+  const adaptive = adaptiveInterventionAllocation(composeSessionTargets(input, now), input.interventionEvidence);
+  const target = adaptive.target;
   const selected: DailyStudyPlanItem[] = [];
   const used = new Set<string>();
 
@@ -548,6 +644,16 @@ export function buildAdaptiveDailyStudyPlan(input: BuildDailyStudyPlanInput): Da
   } else {
     summary = `Today’s ${input.durationMinutes}-minute plan interleaves ${items.length} positions so due memory, recurring weaknesses, recent mistakes, and new material are not studied in one long block.`;
   }
+  if (adaptive.allocation) {
+    summary += ` ${adaptive.allocation.effectiveMethodLabel} has averaged +${adaptive.allocation.averageCplImprovement.toFixed(1)} cp across ${adaptive.allocation.evidenceCount} measured interventions, so ${adaptive.allocation.boostedPositions} positions are reallocated while an exploration reserve of ${adaptive.allocation.explorationReservePositions} remains for other approaches.`;
+  }
+  const minutesPerPosition = input.durationMinutes / Math.max(1, items.length);
+  const optimizedBlocks: AdaptiveTrainingBlock[] = [
+    { label: 'Due repertoire', minutes: Math.round(counts.dueRepertoire * minutesPerPosition), reason: 'Due spaced-repetition memory remains protected.' },
+    { label: adaptive.allocation?.effectiveMethod === 'phase-training' ? 'Recurring tactical / phase motif' : 'Recurring weakness patterns', minutes: Math.round(counts.weakestAreas * minutesPerPosition), reason: adaptive.allocation ? `${adaptive.allocation.effectiveMethodLabel} has averaged +${adaptive.allocation.averageCplImprovement.toFixed(1)} cp across ${adaptive.allocation.evidenceCount} measured interventions.` : 'Recurring reviewed weaknesses and motifs need targeted repetition.' },
+    { label: 'Recent game calculation', minutes: Math.round(counts.recentMistakes * minutesPerPosition), reason: 'Recent reviewed errors preserve game-specific calculation context.' },
+    { label: 'Experimental new material', minutes: Math.round(counts.newMaterial * minutesPerPosition), reason: 'A capped exploration reserve prevents overfitting to familiar drills.' },
+  ].filter((block) => block.minutes > 0);
 
   return {
     dateKey,
@@ -562,6 +668,8 @@ export function buildAdaptiveDailyStudyPlan(input: BuildDailyStudyPlanInput): Da
     weeklyPriorityLabels: selectedWeeklyLabels.slice(0, 5),
     goalAdjusted,
     goalPriorityLabels: selectedGoalLabels.slice(0, 5),
+    interventionAllocation: adaptive.allocation,
+    optimizedBlocks,
     summary,
   };
 }

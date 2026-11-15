@@ -9,6 +9,7 @@ interface TrainingPanelProps {
   weaknessCount: number;
   dueCount: number;
   dailyCount: number;
+  coachCount: number;
   dailyAttemptedCount: number;
   exercise: TrainingExercise | null;
   exerciseIndex: number;
@@ -26,6 +27,7 @@ interface TrainingPanelProps {
   onPrevious(): void;
   onNext(): void;
   onFinishDaily?(): void;
+  onFinishCoach?(): void;
 }
 
 function verdictClass(verdict: string): string {
@@ -40,6 +42,7 @@ export function TrainingPanel({
   weaknessCount,
   dueCount,
   dailyCount,
+  coachCount,
   dailyAttemptedCount,
   exercise,
   exerciseIndex,
@@ -57,6 +60,7 @@ export function TrainingPanel({
   onPrevious,
   onNext,
   onFinishDaily,
+  onFinishCoach,
 }: TrainingPanelProps) {
   const hints = exercise ? buildTrainingHints(exercise) : [];
 
@@ -80,6 +84,7 @@ export function TrainingPanel({
             <option value="weakness">Targeted weakness ({weaknessCount})</option>
             <option value="due">Due review ({dueCount})</option>
             <option value="daily">Daily study ({dailyCount})</option>
+            <option value="coach">Coach recommendation ({coachCount})</option>
           </select>
         </label>
       </div>
@@ -98,7 +103,9 @@ export function TrainingPanel({
                     ? 'Nothing is due right now. Correct answers move cards into the future; incorrect answers return after about 10 minutes.'
                     : source === 'daily'
                       ? 'Build today’s 15–30 minute plan from the Adaptive Planner in Play & Coach.'
-                      : 'Review moves in Play & Coach first, then return here.'}
+                      : source === 'coach'
+                        ? 'Use Train now in Game-history coach recommendations to build a ranked diagnostic exercise set.'
+                        : 'Review moves in Play & Coach first, then return here.'}
           </p>
         </div>
       ) : (
@@ -126,6 +133,14 @@ export function TrainingPanel({
               <p>Your original move was <b>{exercise.originalMoveSan}</b> — {exercise.originalVerdict} ({(exercise.originalLoss / 100).toFixed(2)} pawn loss).</p>
             )}
           </div>
+
+          {exercise.coachRecommendationTitle && (
+            <div className="coach-training-banner">
+              <span>Personal coach recommendation</span>
+              <strong>{exercise.coachRecommendationTitle}</strong>
+              <small>{exercise.coachReason ?? 'Selected from your persistent game-history diagnostics.'}</small>
+            </div>
+          )}
 
           {exercise.dailySource && (
             <div className={`daily-training-banner source-${exercise.dailySource}`}>
@@ -204,6 +219,25 @@ export function TrainingPanel({
             <button type="button" onClick={onNext} disabled={loading || exerciseCount < 2}>Next ›</button>
           </div>
         </>
+      )}
+
+
+      {source === 'coach' && exerciseCount > 0 && (
+        <div className="coach-session-finish">
+          <div>
+            <span>Recommendation intervention</span>
+            <strong>{sessionSolved}/{exerciseCount} positions solved · {sessionAttempts} attempts</strong>
+            <small>Finish when you are done with this targeted set. Outcome tracking will then measure your next 10 and 20 reviewed games.</small>
+          </div>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={onFinishCoach}
+            disabled={loading || sessionAttempts === 0}
+          >
+            Complete & track outcome
+          </button>
+        </div>
       )}
 
       {source === 'daily' && exerciseCount > 0 && (

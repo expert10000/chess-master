@@ -12,6 +12,14 @@ export const BACKUP_STORAGE_KEYS = [
   'stockfish-coach.ollama-enabled',
   'stockfish-coach.ollama-model',
   'stockfish-coach.ui-font-size.v1',
+  'stockfish-coach.ui-board-theme.v1',
+  'stockfish-coach.ui-review-layout.v1',
+  'stockfish-coach.play-pace.v1',
+  'stockfish-coach.game-library.v1',
+  'stockfish-coach.recommendation-outcomes.v1',
+  'stockfish-coach.skill-map.v1',
+  'stockfish-coach.endgame-outcomes.v1',
+  'stockfish-coach.opponent-preparation.v1',
 ] as const;
 
 export type BackupStorageKey = typeof BACKUP_STORAGE_KEYS[number];
@@ -39,7 +47,7 @@ export interface StorageLike {
 
 export function createCoachBackup(
   storage: StorageLike,
-  appVersion = '1.0.1',
+  appVersion = '1.0.8',
   now = Date.now(),
 ): CoachBackup {
   const entries: Partial<Record<BackupStorageKey, string>> = {};

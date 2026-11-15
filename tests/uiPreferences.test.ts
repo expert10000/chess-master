@@ -3,6 +3,10 @@ import {
   UI_FONT_SIZE_OPTIONS,
   loadUiFontSize,
   serializeUiFontSize,
+  loadUiReviewLayout,
+  serializeUiReviewLayout,
+  loadUiPlayPace,
+  serializeUiPlayPace,
 } from '../src/lib/uiPreferences';
 
 describe('v1.0.1 UI text-size preference', () => {
@@ -20,4 +24,33 @@ describe('v1.0.1 UI text-size preference', () => {
     expect(loadUiFontSize(serializeUiFontSize('regular'))).toBe('regular');
     expect(loadUiFontSize(serializeUiFontSize('large'))).toBe('large');
   });
+
+  it('loads and round-trips review layout preferences', () => {
+    const value = {
+      preset: 'details' as const,
+      boardPinned: false,
+      compactHeaders: true,
+      autoFocusBoard: false,
+    };
+    expect(loadUiReviewLayout(serializeUiReviewLayout(value))).toEqual(value);
+  });
+
+  it('falls back to balanced pinned compact review layout for invalid data', () => {
+    expect(loadUiReviewLayout('{bad')).toMatchObject({
+      preset: 'balanced',
+      boardPinned: true,
+      compactHeaders: true,
+      autoFocusBoard: true,
+    });
+  });
+
+  it('supports persistent Coach, Fast, and Very fast play pace', () => {
+    expect(loadUiPlayPace(null)).toBe('coach');
+    expect(loadUiPlayPace('unknown')).toBe('coach');
+    expect(loadUiPlayPace(serializeUiPlayPace('fast'))).toBe('fast');
+    expect(loadUiPlayPace(serializeUiPlayPace('very-fast'))).toBe('very-fast');
+    expect(loadUiPlayPace(serializeUiPlayPace('coach'))).toBe('coach');
+  });
+
+
 });

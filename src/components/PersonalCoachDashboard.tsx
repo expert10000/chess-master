@@ -7,6 +7,8 @@ import type { TrainingAnalyticsMemory } from '../lib/trainingAnalytics';
 import type { WeaknessMemory } from '../lib/weaknessProfile';
 import { weaknessProfileRows } from '../lib/weaknessProfile';
 import type { WeeklyCoachReport } from '../lib/weeklyCoach';
+import type { InterventionHistoryAnalytics } from '../lib/interventionHistoryAnalytics';
+import type { GameAnalyticsSummary } from '../lib/gameAnalytics';
 
 interface PersonalCoachDashboardProps {
   weaknessMemory: WeaknessMemory;
@@ -17,6 +19,8 @@ interface PersonalCoachDashboardProps {
   weeklyReport: WeeklyCoachReport;
   dailyPlan: DailyStudyPlan;
   latestDailyReport: DailySessionReport | null;
+  interventionAnalytics: InterventionHistoryAnalytics;
+  gameAnalytics: GameAnalyticsSummary;
   now: number;
   disabled?: boolean;
   onStartDaily(): void;
@@ -41,6 +45,8 @@ export function PersonalCoachDashboard({
   weeklyReport,
   dailyPlan,
   latestDailyReport,
+  interventionAnalytics,
+  gameAnalytics,
   now,
   disabled = false,
   onStartDaily,
@@ -52,6 +58,9 @@ export function PersonalCoachDashboard({
     .find((row) => row.occurrences > 0 && row.examples > 0) ?? null;
   const goal = activeGoal(goalMemory);
   const goalProgress = goal ? evaluateGoalProgress(goal, analytics, spacedMemory, now) : null;
+  const effectiveMethod = interventionAnalytics.bestType;
+  const recentQuality = gameAnalytics.current;
+  const latestOutcome = interventionAnalytics.history[0] ?? null;
 
   let recommendation = 'Review a game or save repertoire moves to give the personal coach more material.';
   if (spaced.due > 0) {
@@ -68,15 +77,15 @@ export function PersonalCoachDashboard({
     <section className="panel personal-coach-dashboard" id="personal-coach-dashboard">
       <div className="panel-heading compact">
         <div>
-          <span className="eyebrow">Personal coach</span>
-          <h2>Dashboard</h2>
+          <span className="eyebrow">Unified personal coach 2.0</span>
+          <h2>Today’s home</h2>
         </div>
-        <span className="stable-release-badge">1.0</span>
+        <span className="stable-release-badge">1.1</span>
       </div>
 
       <div className="coach-dashboard-primary">
         <div>
-          <span>Coach recommendation</span>
+          <span>What should I do today?</span>
           <strong>{recommendation}</strong>
         </div>
         <button
@@ -85,15 +94,15 @@ export function PersonalCoachDashboard({
           onClick={onStartDaily}
           disabled={disabled || dailyPlan.items.length === 0}
         >
-          Start today’s study
+          {dailyPlan.items.length ? 'Start today’s plan' : 'Add training material'}
         </button>
       </div>
 
       <div className="coach-dashboard-grid">
-        <button type="button" onClick={() => onJump('coach-spaced-repetition')}>
-          <span>Due now</span>
-          <strong>{spaced.due}</strong>
-          <small>{spaced.total} cards · {spaced.reviews ? `${pct(spaced.accuracy)} recall` : 'new deck'}</small>
+        <button type="button" onClick={() => onJump('coach-daily-study')}>
+          <span>Today’s plan</span>
+          <strong>{dailyPlan.items.length} positions</strong>
+          <small>~{dailyPlan.estimatedMinutes} min · {spaced.due} due memory</small>
         </button>
 
         <button type="button" onClick={() => onJump('coach-weakness-profile')}>
@@ -102,16 +111,24 @@ export function PersonalCoachDashboard({
           <small>{topWeakness ? `${topWeakness.occurrences} occurrences · ${Math.round(topWeakness.averageLossCp)} cp avg` : 'No recurring issue yet'}</small>
         </button>
 
-        <button type="button" onClick={() => onJump('coach-weekly-report')}>
-          <span>This week</span>
-          <strong>{weeklyReport.current.attempts ? pct(weeklyReport.current.accuracy) : '—'}</strong>
-          <small>{weeklyReport.current.attempts} attempts · {weeklyReport.previous.attempts ? deltaText(weeklyReport.overallDeltaAccuracy) : 'no comparison yet'}</small>
+        <button type="button" onClick={() => onJump('coach-intervention-history')}>
+          <span>Most effective method</span>
+          <strong>{effectiveMethod?.label ?? 'Collecting evidence'}</strong>
+          <small>{effectiveMethod?.avgCplImprovement !== null && effectiveMethod?.avgCplImprovement !== undefined
+            ? `+${effectiveMethod.avgCplImprovement.toFixed(1)} cp · ${effectiveMethod.confidence}`
+            : 'Complete interventions to measure this'}</small>
         </button>
 
-        <button type="button" onClick={() => onJump('coach-opening-memory')}>
-          <span>Repertoire</span>
-          <strong>{repertoire.positions}</strong>
-          <small>{repertoire.deviations} deviations · {repertoire.practiceAttempts} practices</small>
+        <button type="button" onClick={() => onJump('coach-game-analytics')}>
+          <span>Recent game quality</span>
+          <strong>{recentQuality.avgCpl === null ? '—' : `${Math.round(recentQuality.avgCpl)} CPL`}</strong>
+          <small>{recentQuality.games} reviewed games · {recentQuality.blundersPerGame === null ? 'no blunder data' : `${recentQuality.blundersPerGame.toFixed(1)} blunders/game`}</small>
+        </button>
+
+        <button type="button" onClick={() => onJump('coach-recommendation-outcomes')}>
+          <span>Current intervention outcome</span>
+          <strong>{latestOutcome ? latestOutcome.verdict : 'Collecting'}</strong>
+          <small>{latestOutcome ? `${latestOutcome.trainingTypeLabel} · ${latestOutcome.checkpointGames}-game check` : `${interventionAnalytics.collectingInterventions} awaiting evidence`}</small>
         </button>
 
         <button type="button" onClick={() => onJump('coach-goal-plan')}>
@@ -120,17 +137,22 @@ export function PersonalCoachDashboard({
           <small>{goal ? `${goal.title} · ${goalProgress?.pace ?? 'insufficient'}` : 'No 4–8 week goal'}</small>
         </button>
 
-        <button type="button" onClick={() => onJump('coach-training-analytics')}>
-          <span>Last session</span>
-          <strong>{latestDailyReport ? `${Math.round(latestDailyReport.accuracy * 100)}%` : '—'}</strong>
-          <small>{latestDailyReport ? `${latestDailyReport.solvedPositions}/${latestDailyReport.attemptedPositions} solved` : 'No completed Daily Study yet'}</small>
+        <button type="button" onClick={() => onJump('coach-weekly-report')}>
+          <span>Training this week</span>
+          <strong>{weeklyReport.current.attempts ? pct(weeklyReport.current.accuracy) : '—'}</strong>
+          <small>{weeklyReport.current.attempts} attempts · {weeklyReport.previous.attempts ? deltaText(weeklyReport.overallDeltaAccuracy) : 'no comparison yet'}</small>
         </button>
       </div>
 
       <div className="coach-dashboard-footer">
-        <button type="button" onClick={() => onJump('coach-daily-study')}>Open daily planner</button>
-        <button type="button" onClick={() => onJump('coach-training-analytics')}>Open analytics</button>
-        <button type="button" onClick={() => onJump('coach-data-backup')}>Backup data</button>
+        <button type="button" onClick={() => onJump('coach-recommendations')}>Coach actions</button>
+        <button type="button" onClick={() => onJump('coach-recommendation-outcomes')}>Outcomes</button>
+        <button type="button" onClick={() => onJump('coach-intervention-history')}>What works</button>
+        <button type="button" onClick={() => onJump('coach-game-library')}>Game library</button>
+        <button type="button" onClick={() => onJump('coach-game-analytics')}>Game analytics</button>
+        <button type="button" onClick={() => onJump('coach-daily-study')}>Daily planner</button>
+        <button type="button" onClick={() => onJump('coach-training-analytics')}>Training analytics</button>
+        <button type="button" onClick={() => onJump('coach-data-backup')}>Backup</button>
       </div>
     </section>
   );

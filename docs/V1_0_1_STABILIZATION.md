@@ -60,3 +60,10 @@ v1.0.1 does not change:
 - backup schema version.
 
 This keeps the patch appropriate for the first stable 1.0.x line.
+
+
+## v1.0.2 text-size refinement
+
+User testing showed that all three presets were still slightly too small. v1.0.2 adds **1.6 CSS px** (about **1.2 typographic points**) to normal interface font declarations in Small, Regular, and Large modes while preserving the same relative 90% / 100% / 112% scaling.
+
+Chess-piece sizing remains independent and unchanged.

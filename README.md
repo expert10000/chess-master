@@ -32,7 +32,7 @@ It already supports:
 
 The project is configured for Electron 43, React 19.2, Vite 8, and Stockfish 18.
 
-## v1.0.1 — Interactive board explanations
+## v1.0.3 — Interactive board explanations
 
 - Enter **Inspect ideas** mode without changing the game.
 - Click a highlighted tactical/positional square to get a dedicated coach explanation.
@@ -577,3 +577,83 @@ The first stable-line patch focuses on everyday usability rather than another la
 - The text-size preference is included in local JSON backup/restore.
 
 The chessboard geometry, Stockfish evaluation, training grading, scheduler, weekly coach, and long-term goal algorithms are unchanged.
+
+
+## v1.0.2 — Persistent Local Game Library
+
+Played and imported games now become searchable persistent local objects and are updated automatically as Stockfish reviews arrive.
+
+Each saved game carries PGN/moves, result, opening/ECO, review status, average CPL, issue count and per-game weakness labels. The Game Library can search these fields and provides direct **Open**, **Review / Review missing**, and **Train mistakes** actions.
+
+The same live game is updated in place, while re-importing an identical completed move sequence is deduplicated by starting FEN + UCI sequence. The library is included in JSON Backup/Restore.
+
+Small / Regular / Large UI text is also approximately **1.2 pt larger** than in v1.0.1, while chess-piece sizing stays unchanged.
+
+
+## v1.0.3 — Game-Level Analytics + Phase Statistics + Board Themes
+
+The persistent local game library now powers a dedicated analytics panel over the last 10 / 20 / 50 reviewed games. It reports average CPL, blunders/game, issues/game, White vs Black performance, opening performance, and especially Opening / Middlegame / Endgame strengths and trends.
+
+Phase trends are compared against the previous window of the same size whenever enough history exists. Opening performance highlights the most frequent openings in the selected window with ECO, games, reviewed moves, average CPL and blunders/game.
+
+The board now supports three checkerboard themes:
+
+- Current
+- Brown
+- Green
+
+The selected board theme persists locally and is included in JSON backup/restore.
+
+
+## v1.0.3.3 — Review Layout Polish
+
+Review mode now offers **Board / Balanced / Details** layout presets, **pin/unpin board**, **compact headers**, and **follow selection**. These controls live in Position Tools and persist locally. The review-layout preference is also included in JSON Backup/Restore.
+
+
+## v1.0.8 — Saved Game Organization
+
+The persistent Game Library now supports user tags, free-form notes, ★ pinned favorites, model-game marking, reversible archive and permanent delete. Advanced filtering covers your side, result, source, review state, opening, weakness, CPL range and date range, with sorting by newest, worst CPL, most issues or opening.
+
+Search now includes tags and notes, so a model game can be organized as, for example, `#tactics #King's Indian #study again` with a note such as `Study ...e5 break`. Pinned and model-game status are separate: pinned means important to you, while model game means a reference game to study/imitate. Model and archived games are excluded from personal performance analytics so they do not distort CPL or phase trends.
+
+
+## v1.0.5 — Analytics → Games Drill-Down + Comparison Explorer
+
+Game-Level Analytics is now interactive. Every primary metric can be clicked to show the exact persistent games and reviewed moves that produced it. A `Middlegame · 91 cp` result can therefore be traced directly to the responsible moves and opened at the exact historical ply.
+
+The new Comparison Explorer supports **Last 10/20/50 vs previous**, **White vs Black**, **opening vs opening** (for example French vs Sicilian), and **Opening / Middlegame / Endgame**. Comparison metrics are also clickable and use the same evidence drill-down. Blunder evidence can be regrouped into **games containing these blunders**.
+
+
+## v1.0.6 — Personal Coach Recommendations from Game History
+
+Game-Level Analytics now produces ranked deterministic coaching actions from repeated patterns in the persistent Game Library. The coach detects costly phase gaps, declining phases, White/Black differences, high-CPL openings, outright blunder rate, and overall deterioration over the selected last 10 / 20 / 50 reviewed games.
+
+Every action provides **Why?**, **Show evidence**, and **Train now**. Train now builds up to seven exact saved positions from the diagnostic scope and sends them to a dedicated **Coach recommendation** Training source while preserving the original Stockfish review evidence.
+
+
+## v1.0.7 — Recommendation Outcome Tracking
+
+Game-history coaching now closes the loop from **diagnosis → intervention → measured future-game result**.
+
+After using **Train now** on a recommendation, complete the targeted recommendation session with **Complete & track outcome**. Stockfish Coach freezes the recommendation's scoped baseline and then measures the first 10 and first 20 newly reviewed relevant personal games.
+
+For example, after a middlegame recommendation the outcome panel can report whether middlegame CPL and blunders/game improved, stayed stable, became mixed, or worsened. Opening recommendations wait for future games in that opening; color recommendations measure future games on that color.
+
+Every outcome retains the training completion summary, baseline, 10-game checkpoint, 20-game outcome, and direct links to post-training issue positions.
+
+Outcome tracking is observational rather than a causal scientific experiment; the UI states this explicitly.
+
+
+## v1.0.8 — Intervention History Analytics + Fast Play
+
+Completed recommendation outcomes are now aggregated by intervention type so the coach can answer **which training methods have actually tended to work best for you**.
+
+The panel ranks Phase training, Opening repair, White/Black side training, Blunder drills, and Overall performance using transparent average measured improvement: CPL improvement first, then blunder reduction, improved-outcome rate, and sample count. Small samples are clearly marked Provisional.
+
+v1.0.8 also adds a Play **Pace** selector. **Fast — play first** shortens Stockfish move time and defers automatic per-move review; **Coach — auto review** preserves the existing fully coached workflow. This addresses the long pause caused mainly by the two 700 ms review searches after each human move.
+
+## v1.0.9 — Intervention-Aware Adaptive Planning
+
+The Daily Planner now acts on personal intervention-history evidence. After at least two measured outcomes and a 10 cp mean improvement, it shifts about 20% of eligible positions toward the effective method: Phase training emphasizes recurring weaknesses, while Opening repair emphasizes opening/repertoire work.
+
+At least 20% remains a protected exploration reserve for other approaches, and overdue repertoire is never displaced. The planner shows the measured average, evidence count, boost, and reserve.

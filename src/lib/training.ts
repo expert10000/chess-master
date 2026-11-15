@@ -2,7 +2,7 @@ import { Chess, type Square } from 'chess.js';
 import { analyzeMoveConcepts } from './chessConcepts';
 import type { MoveReview, Verdict } from './chessCoach';
 
-export type TrainingSource = 'mistakes' | 'reviewed' | 'opening' | 'weakness' | 'due' | 'daily';
+export type TrainingSource = 'mistakes' | 'reviewed' | 'opening' | 'weakness' | 'due' | 'daily' | 'coach';
 
 export interface TrainingExercise {
   key: string;
@@ -26,6 +26,9 @@ export interface TrainingExercise {
   dailySource?: 'due-repertoire' | 'weakest-area' | 'recent-mistake' | 'new-material';
   dailySourceLabel?: string;
   dailyReason?: string;
+  coachRecommendationId?: string;
+  coachRecommendationTitle?: string;
+  coachReason?: string;
 }
 
 export interface TrainingAttempt {

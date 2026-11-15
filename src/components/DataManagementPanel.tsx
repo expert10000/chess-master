@@ -41,7 +41,7 @@ export function DataManagementPanel({
         <div>
           <span>Backup contains</span>
           <strong>Training history + coach memory</strong>
-          <small>Weaknesses, repertoire, spaced repetition, analytics, daily/weekly reports, goals and Ollama preferences.</small>
+          <small>Game library, board/text/play-speed preferences, recommendation outcomes, intervention analytics inputs, weaknesses, repertoire, spaced repetition, analytics, daily/weekly reports, goals and Ollama preferences.</small>
         </div>
         <div>
           <span>Last export</span>

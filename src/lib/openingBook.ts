@@ -399,7 +399,10 @@ export function recognizeOpening(uciMoves: string[]): OpeningRecognition {
   const matchedKey = prefixKey(uciMoves.slice(0, matchedPly));
   const node = BOOK_INDEX.get(matchedKey) ?? BOOK_INDEX.get('');
   const replayed = replayActual(uciMoves, matchedPly);
-  const recognition = node?.recognition;
+  let recognition = node?.recognition;
+  for (let ply = matchedPly - 1; !recognition && ply >= 0; ply -= 1) {
+    recognition = BOOK_INDEX.get(prefixKey(uciMoves.slice(0, ply)))?.recognition;
+  }
   const alternatives = alternativesFor(node);
   const withinBook = matchedPly === uciMoves.length;
   const deviationPly = withinBook ? null : matchedPly + 1;

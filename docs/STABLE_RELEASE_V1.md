@@ -20,6 +20,7 @@ The release now supports one continuous local coaching loop:
    - positional before/after comparison.
 
 3. **Personal memory**
+   - persistent local game library;
    - repertoire choices;
    - opening deviations;
    - weakness aggregation across reviewed games.
@@ -71,3 +72,10 @@ v1.0.0 is designed as a direct overlay from v0.9.9. Existing local-storage keys 
 ## Version history
 
 The release-by-release development history is maintained in [`../VERSIONS.md`](../VERSIONS.md).
+
+- game-level analytics and phase statistics;
+- selectable Current / Brown / Green checkerboard themes.
+
+- ranked game-history recommendations with Why?, exact evidence, and direct Train now actions.
+
+- recommendation outcome tracking across the next 10/20 relevant reviewed games;

@@ -1,0 +1,13 @@
+import type { GameLibraryMemory } from './gameLibrary';
+export const SEASON_CYCLE_STORAGE_KEY='stockfish-coach.season-cycle.v1';
+export type SeasonPhase='preparation'|'competition'|'post-event-analysis'|'consolidation';
+export interface TournamentGoal{id:string;label:string;focus:string;createdAt:number}
+export interface SeasonCycle{id:string;name:string;eventMatch:string;phase:SeasonPhase;startedAt:number;goals:TournamentGoal[]}
+export interface SeasonCycleMemory{version:1;active:SeasonCycle|null}
+export function emptySeasonCycleMemory():SeasonCycleMemory{return{version:1,active:null}}
+export function loadSeasonCycleMemory(raw:string|null|undefined):SeasonCycleMemory{try{const x=raw?JSON.parse(raw):null;return x?.version===1&&(!x.active||typeof x.active.name==='string'&&Array.isArray(x.active.goals))?{version:1,active:x.active}:emptySeasonCycleMemory()}catch{return emptySeasonCycleMemory()}}
+export function serializeSeasonCycleMemory(memory:SeasonCycleMemory):string{return JSON.stringify(memory)}
+export function createSeasonCycle(name:string,eventMatch:string,now=Date.now()):SeasonCycleMemory{return{version:1,active:{id:`season:${now}`,name:name.trim(),eventMatch:eventMatch.trim(),phase:'preparation',startedAt:now,goals:[]}}}
+export function setSeasonPhase(memory:SeasonCycleMemory,phase:SeasonPhase):SeasonCycleMemory{return memory.active?{...memory,active:{...memory.active,phase}}:memory}
+export function addSeasonGoal(memory:SeasonCycleMemory,label:string,focus:string,now=Date.now()):SeasonCycleMemory{return memory.active&&label.trim()?{...memory,active:{...memory.active,goals:[...memory.active.goals,{id:`season-goal:${now}`,label:label.trim(),focus:focus.trim().toLowerCase(),createdAt:now}].slice(0,12)}}:memory}
+export function seasonReport(cycle:SeasonCycle, games:GameLibraryMemory){const played=games.entries.filter(g=>!g.archived&&!g.modelGame&&g.createdAt>=cycle.startedAt&&(!cycle.eventMatch||`${g.event??''} ${g.white} ${g.black}`.toLowerCase().includes(cycle.eventMatch.toLowerCase())));const outcomes={wins:0,draws:0,losses:0};for(const g of played){if(g.result==='1/2-1/2')outcomes.draws++;else if((g.result==='1-0')=== (g.humanColor==='w'))outcomes.wins++;else if(g.result==='1-0'||g.result==='0-1')outcomes.losses++}const prep=cycle.goals.map(goal=>{const hits=played.filter(g=>`${g.opening?.name??''} ${g.opening?.variation??''} ${g.weaknesses.map(x=>x.label).join(' ')}`.toLowerCase().includes(goal.focus)).length;return{...goal,hits}});const reviewed=played.filter(g=>g.averageCpl!==null);const avgCpl=reviewed.length?reviewed.reduce((s,g)=>s+(g.averageCpl??0),0)/reviewed.length:null;return{played,outcomes,prep,avgCpl}}

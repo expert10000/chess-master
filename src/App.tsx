@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chess, type Move, type Square } from 'chess.js';
 import { ChessBoard } from './components/ChessBoard';
 import { CoachPanel } from './components/CoachPanel';
-import { MoveList, type PlyRecord } from './components/MoveList';
+import { MoveList, type PlyRecord, type ReplaySpeed } from './components/MoveList';
 import { PromotionDialog } from './components/PromotionDialog';
 import { TrainingPanel } from './components/TrainingPanel';
 import { ImportGameDialog } from './components/ImportGameDialog';
@@ -20,7 +20,50 @@ import { GoalBasedTrainingPanel } from './components/GoalBasedTrainingPanel';
 import { PersonalCoachDashboard } from './components/PersonalCoachDashboard';
 import { DataManagementPanel } from './components/DataManagementPanel';
 import { UiTextSizeControl } from './components/UiTextSizeControl';
+import { BoardThemeControl } from './components/BoardThemeControl';
+import { ReviewLayoutControl } from './components/ReviewLayoutControl';
 import { ReviewProgressPanel } from './components/ReviewProgressPanel';
+import { GameLibraryPanel } from './components/GameLibraryPanel';
+import { GameLevelAnalyticsPanel } from './components/GameLevelAnalyticsPanel';
+import { PersonalCoachRecommendationsPanel } from './components/PersonalCoachRecommendationsPanel';
+import { RecommendationOutcomePanel } from './components/RecommendationOutcomePanel';
+import { InterventionHistoryAnalyticsPanel } from './components/InterventionHistoryAnalyticsPanel';
+import { SkillMapPanel } from './components/SkillMapPanel';
+import { RepertoireBuilderPanel } from './components/RepertoireBuilderPanel';
+import { OpeningPreparationPanel } from './components/OpeningPreparationPanel';
+import { EndgameCurriculumPanel } from './components/EndgameCurriculumPanel';
+import { EndgameOutcomePanel } from './components/EndgameOutcomePanel';
+import { OpponentPreparationPanel } from './components/OpponentPreparationPanel';
+import { TimeControlPanel } from './components/TimeControlPanel';
+import { StrengthModelPanel } from './components/StrengthModelPanel';
+import { PatternMiningPanel } from './components/PatternMiningPanel';
+import { CurriculumGraphPanel } from './components/CurriculumGraphPanel';
+import { TrainingExperimentPanel } from './components/TrainingExperimentPanel';
+import { PreMoveRiskCoachPanel } from './components/PreMoveRiskCoachPanel';
+import { ModelGameComparisonPanel } from './components/ModelGameComparisonPanel';
+import { SeasonCyclePanel } from './components/SeasonCyclePanel';
+import { SEASON_CYCLE_STORAGE_KEY, addSeasonGoal, createSeasonCycle, emptySeasonCycleMemory, loadSeasonCycleMemory, serializeSeasonCycleMemory, setSeasonPhase, type SeasonCycleMemory, type SeasonPhase } from './lib/seasonCycle';
+import { answerWholeProfileQuestion } from './lib/personalModelConversation';
+import { buildInterventionHistoryAnalytics } from './lib/interventionHistoryAnalytics';
+import { buildGameAnalyticsSummary } from './lib/gameAnalytics';
+import {
+  SKILL_MAP_STORAGE_KEY,
+  loadSkillMapMemory,
+  serializeSkillMapMemory,
+  syncSkillMap,
+  type SkillMapMemory,
+} from './lib/skillMap';
+import { repertoireBranchExercises } from './lib/repertoireTree';
+import { buildOpeningPreparationPack, type PreparationTarget } from './lib/openingPreparation';
+import { automaticEndgameExercises, endgameCurriculum } from './lib/endgameCurriculum';
+import { lookupSyzygy, type TablebaseResult } from './lib/tablebase';
+import { ENDGAME_OUTCOME_STORAGE_KEY, evaluateEndgameOutcomes, loadEndgameOutcomeMemory, serializeEndgameOutcomeMemory, startEndgameOutcome, type EndgameOutcomeMemory } from './lib/endgameOutcomes';
+import type { EndgameModuleId } from './lib/endgameCurriculum';
+import { OPPONENT_PREP_STORAGE_KEY, importOpponentPgns, loadOpponentPrepMemory, serializeOpponentPrepMemory, toggleOpponentModel, type OpponentPrepMemory } from './lib/opponentPreparation';
+import { timeControlProfiles, timeControlRecommendation } from './lib/timeControlAnalytics';
+import { monthlyStrengthHistory, strengthModel } from './lib/strengthModel';
+import { mineRecurringPatterns, patternExercises, type RecurringPattern } from './lib/patternMining';
+import { buildCurriculumGraph, prerequisiteAdvice } from './lib/curriculumGraph';
 import {
   buildAnalysisBoardIdeas,
   buildReviewBoardIdeas,
@@ -162,11 +205,51 @@ import {
   serializeCoachBackup,
 } from './lib/dataBackup';
 import {
+  UI_BOARD_THEME_STORAGE_KEY,
   UI_FONT_SIZE_STORAGE_KEY,
+  UI_PLAY_PACE_STORAGE_KEY,
+  UI_REVIEW_LAYOUT_STORAGE_KEY,
+  loadUiBoardTheme,
   loadUiFontSize,
+  loadUiPlayPace,
+  loadUiReviewLayout,
+  serializeUiBoardTheme,
   serializeUiFontSize,
+  serializeUiPlayPace,
+  serializeUiReviewLayout,
+  type UiBoardTheme,
   type UiFontSize,
+  type UiPlayPace,
+  type UiReviewLayoutPreferences,
 } from './lib/uiPreferences';
+import {
+  GAME_LIBRARY_STORAGE_KEY,
+  captureGameLibraryEntry,
+  emptyGameLibraryMemory,
+  hydrateGameLibraryEntry,
+  loadGameLibraryMemory,
+  deleteGameLibraryEntry,
+  updateGameLibraryEntryMetadata,
+  newGameLibraryId,
+  serializeGameLibraryMemory,
+  upsertGameLibraryEntry,
+  type GameLibraryEntry,
+  type GameLibraryMemory,
+  type GameLibrarySource,
+  type GameLibraryUserMetadataPatch,
+} from './lib/gameLibrary';
+import {
+  recommendationTrainingExercises,
+  type PersonalCoachRecommendation,
+} from './lib/personalCoachRecommendations';
+import {
+  RECOMMENDATION_OUTCOME_STORAGE_KEY,
+  loadRecommendationOutcomeMemory,
+  recordCompletedRecommendationIntervention,
+  removeRecommendationIntervention,
+  serializeRecommendationOutcomeMemory,
+  type RecommendationOutcomeMemory,
+} from './lib/recommendationOutcomes';
 import type { AnalyseResult, EngineStatus, EngineStrength } from './types/engine';
 import type { OllamaStatus } from './types/ollama';
 
@@ -184,6 +267,7 @@ type GamePhase =
   | 'engine-missing'
   | 'player-turn'
   | 'engine-thinking'
+  | 'engine-error'
   | 'promotion'
   | 'reviewing'
   | 'game-over';
@@ -195,6 +279,24 @@ const difficulties: Difficulty[] = [
   { id: 'master', label: 'Master', description: 'Approx. 2400', movetimeMs: 950, strength: { limit: true, elo: 2400 } },
   { id: 'maximum', label: 'Maximum', description: 'Unrestricted', movetimeMs: 1300, strength: { limit: false } },
 ];
+
+// A rating setting needs enough calculation to be credible. The old 50/100 ms
+// pace values overrode this completely, which made an Expert-limited engine
+// occasionally play below its advertised level. These are calculation floors;
+// they do not include the short visual move transition.
+const RAPID_PLAY_TIME_FLOORS: Record<string, { veryFast: number; fast: number }> = {
+  beginner: { veryFast: 100, fast: 140 },
+  club: { veryFast: 180, fast: 260 },
+  expert: { veryFast: 350, fast: 500 },
+  master: { veryFast: 550, fast: 750 },
+  maximum: { veryFast: 700, fast: 900 },
+};
+
+function playMoveTimeMs(difficulty: Difficulty, pace: UiPlayPace): number {
+  if (pace === 'coach') return difficulty.movetimeMs;
+  const floor = RAPID_PLAY_TIME_FLOORS[difficulty.id] ?? RAPID_PLAY_TIME_FLOORS.expert;
+  return pace === 'very-fast' ? floor.veryFast : floor.fast;
+}
 
 function moveToUci(move: Move): string {
   return `${move.from}${move.to}${move.promotion ?? ''}`;
@@ -249,6 +351,14 @@ function gameMessage(game: Chess): string {
   return `${game.turn() === 'w' ? 'White' : 'Black'} to move${game.isCheck() ? ' — check' : ''}`;
 }
 
+function gameResultToken(game: Chess): string {
+  const headers = game.getHeaders() as Record<string, string>;
+  if (headers.Result) return headers.Result;
+  if (game.isCheckmate()) return game.turn() === 'w' ? '0-1' : '1-0';
+  if (game.isDraw()) return '1/2-1/2';
+  return '*';
+}
+
 function replayRecords(records: PlyRecord[], startFen: string = DEFAULT_START_FEN): Chess {
   const rebuilt = new Chess(startFen);
   for (const record of records) {
@@ -273,12 +383,15 @@ export default function App() {
   const nextRecordId = useRef(1);
   const sessionRef = useRef(1);
   const analysisRequestRef = useRef(0);
+  const historyInteractionDuringReviewRef = useRef(false);
   const nextLineId = useRef(2);
   const nextVariationNumber = useRef(1);
   const nextChatId = useRef(1);
   const observedOpeningDeviationsRef = useRef(new Set<string>());
   const observedWeaknessReviewsRef = useRef(new Set<string>());
   const weaknessGameSessionRef = useRef(1);
+  const currentLibraryGameIdRef = useRef(newGameLibraryId());
+  const currentLibrarySourceRef = useRef<GameLibrarySource>('played');
   const [revision, setRevision] = useState(0);
   const [trainingRevision, setTrainingRevision] = useState(0);
   const [pvRevision, setPvRevision] = useState(0);
@@ -290,6 +403,9 @@ export default function App() {
   const [inspectedSquare, setInspectedSquare] = useState<Square | null>(null);
   const [inspectionOverlayMode, setInspectionOverlayMode] = useState<InspectionOverlayMode>('all');
   const [appMode, setAppMode] = useState<AppMode>('play');
+  // Keep the live board lean. The detailed workspace has several data-heavy panels
+  // and should only mount when the player explicitly opens it.
+  const [showCoachWorkspace, setShowCoachWorkspace] = useState(false);
   const [trainingSource, setTrainingSource] = useState<TrainingSource>('mistakes');
   const [trainingIndex, setTrainingIndex] = useState(0);
   const [trainingSelected, setTrainingSelected] = useState<Square | null>(null);
@@ -316,6 +432,12 @@ export default function App() {
   });
   const [spacedTrainingExercises, setSpacedTrainingExercises] = useState<TrainingExercise[]>([]);
   const [dailyTrainingExercises, setDailyTrainingExercises] = useState<TrainingExercise[]>([]);
+  const [coachTrainingExercises, setCoachTrainingExercises] = useState<TrainingExercise[]>([]);
+  const [activeCoachRecommendation, setActiveCoachRecommendation] = useState<PersonalCoachRecommendation | null>(null);
+  const [recommendationOutcomeMemory, setRecommendationOutcomeMemory] = useState<RecommendationOutcomeMemory>(() => {
+    if (typeof window === 'undefined') return loadRecommendationOutcomeMemory(null);
+    return loadRecommendationOutcomeMemory(window.localStorage.getItem(RECOMMENDATION_OUTCOME_STORAGE_KEY));
+  });
   const [dailyStudyDuration, setDailyStudyDuration] = useState<DailyStudyDuration>(20);
   const [activeDailySession, setActiveDailySession] = useState<ActiveDailyStudySession | null>(null);
   const [dailySessionReports, setDailySessionReports] = useState<DailySessionReportMemory>(() => {
@@ -330,6 +452,22 @@ export default function App() {
     if (typeof window === 'undefined') return emptyGoalPlanMemory();
     return loadGoalPlanMemory(window.localStorage.getItem(GOAL_PLAN_STORAGE_KEY));
   });
+  const [seasonCycleMemory, setSeasonCycleMemory] = useState<SeasonCycleMemory>(() => typeof window === 'undefined' ? emptySeasonCycleMemory() : loadSeasonCycleMemory(window.localStorage.getItem(SEASON_CYCLE_STORAGE_KEY)));
+  const [gameLibraryMemory, setGameLibraryMemory] = useState<GameLibraryMemory>(() => {
+    if (typeof window === 'undefined') return emptyGameLibraryMemory();
+    return loadGameLibraryMemory(window.localStorage.getItem(GAME_LIBRARY_STORAGE_KEY));
+  });
+  const [gameLibraryStorageError, setGameLibraryStorageError] = useState<string | null>(null);
+  const [tablebaseResult, setTablebaseResult] = useState<TablebaseResult | null>(null);
+  const [tablebaseLoading, setTablebaseLoading] = useState(false);
+  const [tablebaseError, setTablebaseError] = useState<string | null>(null);
+  const [endgameOutcomeMemory, setEndgameOutcomeMemory] = useState<EndgameOutcomeMemory>(() => typeof window === 'undefined' ? loadEndgameOutcomeMemory(null) : loadEndgameOutcomeMemory(window.localStorage.getItem(ENDGAME_OUTCOME_STORAGE_KEY)));
+  const [opponentPrepMemory, setOpponentPrepMemory] = useState<OpponentPrepMemory>(() => typeof window === 'undefined' ? loadOpponentPrepMemory(null) : loadOpponentPrepMemory(window.localStorage.getItem(OPPONENT_PREP_STORAGE_KEY)));
+  const [skillMapMemory, setSkillMapMemory] = useState<SkillMapMemory>(() => {
+    if (typeof window === 'undefined') return loadSkillMapMemory(null);
+    return loadSkillMapMemory(window.localStorage.getItem(SKILL_MAP_STORAGE_KEY));
+  });
+  const [currentLibraryGameId, setCurrentLibraryGameId] = useState<string | null>(null);
   const [schedulerNow, setSchedulerNow] = useState(() => Date.now());
   const [lastBackupAt, setLastBackupAt] = useState<number | null>(null);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
@@ -344,6 +482,9 @@ export default function App() {
   const [currentLine, setCurrentLine] = useState<LineMeta>({ id: 1, name: 'Main line', originPly: null });
   const [inactiveLines, setInactiveLines] = useState<LineSnapshot[]>([]);
   const [historyCursor, setHistoryCursor] = useState<number | null>(null);
+  const [historyPlayback, setHistoryPlayback] = useState(false);
+  const [historyPlaybackSpeed, setHistoryPlaybackSpeed] = useState<ReplaySpeed>(1);
+  const [replayFocus, setReplayFocus] = useState(false);
   const [selected, setSelected] = useState<Square | null>(null);
   const [orientation, setOrientation] = useState<'white' | 'black'>('white');
   const [humanColor, setHumanColor] = useState<'w' | 'b'>('w');
@@ -355,6 +496,18 @@ export default function App() {
   const [uiFontSize, setUiFontSize] = useState<UiFontSize>(() => {
     if (typeof window === 'undefined') return 'regular';
     return loadUiFontSize(window.localStorage.getItem(UI_FONT_SIZE_STORAGE_KEY));
+  });
+  const [uiBoardTheme, setUiBoardTheme] = useState<UiBoardTheme>(() => {
+    if (typeof window === 'undefined') return 'current';
+    return loadUiBoardTheme(window.localStorage.getItem(UI_BOARD_THEME_STORAGE_KEY));
+  });
+  const [uiPlayPace, setUiPlayPace] = useState<UiPlayPace>(() => {
+    if (typeof window === 'undefined') return 'coach';
+    return loadUiPlayPace(window.localStorage.getItem(UI_PLAY_PACE_STORAGE_KEY));
+  });
+  const [uiReviewLayout, setUiReviewLayout] = useState<UiReviewLayoutPreferences>(() => {
+    if (typeof window === 'undefined') return loadUiReviewLayout(null);
+    return loadUiReviewLayout(window.localStorage.getItem(UI_REVIEW_LAYOUT_STORAGE_KEY));
   });
   const [review, setReview] = useState<MoveReview | null>(null);
   const [activeReviewId, setActiveReviewId] = useState<number | null>(null);
@@ -385,6 +538,7 @@ export default function App() {
     if (trainingSource === 'weakness') return weaknessTrainingExercises;
     if (trainingSource === 'due') return spacedTrainingExercises;
     if (trainingSource === 'daily') return dailyTrainingExercises;
+    if (trainingSource === 'coach') return coachTrainingExercises;
 
     return records.flatMap((record) => {
       const moveReview = record.review;
@@ -404,13 +558,14 @@ export default function App() {
         kind: 'review' as const,
       }];
     });
-  }, [records, humanColor, trainingSource, currentLine.id, openingTrainingExercise, weaknessTrainingExercises, spacedTrainingExercises, dailyTrainingExercises]);
+  }, [records, humanColor, trainingSource, currentLine.id, openingTrainingExercise, weaknessTrainingExercises, spacedTrainingExercises, dailyTrainingExercises, coachTrainingExercises]);
   const trainingExerciseIndex = trainingExercises.length ? Math.min(trainingIndex, trainingExercises.length - 1) : 0;
   const trainingExercise = trainingExercises[trainingExerciseIndex] ?? null;
   const trainingMistakeCount = records.filter((record) => record.color === humanColor && isTrainingIssue(record.review) && record.review?.bestMoveUci).length;
   const trainingReviewedCount = records.filter((record) => record.color === humanColor && record.review?.bestMoveUci).length;
   const trainingOpeningCount = openingTrainingExercise ? 1 : 0;
   const trainingWeaknessCount = weaknessTrainingExercises.length;
+  const trainingCoachCount = coachTrainingExercises.length;
   const spacedDueItems = useMemo(
     () => dueSpacedItems(spacedMemory, schedulerNow, 20),
     [spacedMemory, schedulerNow],
@@ -459,9 +614,32 @@ export default function App() {
       weeklyPriorityReasons: activeWeeklyPriorities.reasons,
       goalPriorityMultipliers: activeGoalPriorities.multipliers,
       goalPriorityReasons: activeGoalPriorities.reasons,
+      interventionEvidence: buildInterventionHistoryAnalytics(recommendationOutcomeMemory, gameLibraryMemory).rows,
     }),
-    [dailyStudyDuration, schedulerNow, spacedMemory, weaknessMemory, records, humanColor, activeWeeklyPriorities, activeGoalPriorities],
+    [dailyStudyDuration, schedulerNow, spacedMemory, weaknessMemory, records, humanColor, activeWeeklyPriorities, activeGoalPriorities, recommendationOutcomeMemory, gameLibraryMemory],
   );
+  const dashboardInterventionAnalytics = useMemo(
+    () => buildInterventionHistoryAnalytics(recommendationOutcomeMemory, gameLibraryMemory),
+    [recommendationOutcomeMemory, gameLibraryMemory],
+  );
+  const dashboardGameAnalytics = useMemo(
+    () => buildGameAnalyticsSummary(gameLibraryMemory, 10),
+    [gameLibraryMemory],
+  );
+  const endgameModules = useMemo(() => endgameCurriculum(gameLibraryMemory), [gameLibraryMemory]);
+  const generatedEndgameExercises = useMemo(() => automaticEndgameExercises(gameLibraryMemory), [gameLibraryMemory]);
+  const timeProfiles = useMemo(() => timeControlProfiles(gameLibraryMemory), [gameLibraryMemory]);
+  const timeRecommendation = useMemo(() => timeControlRecommendation(timeProfiles), [timeProfiles]);
+  const synchronizedSkillMap = useMemo(
+    () => syncSkillMap(skillMapMemory, weaknessMemory, dashboardGameAnalytics, schedulerNow),
+    [skillMapMemory, weaknessMemory, dashboardGameAnalytics, schedulerNow],
+  );
+  const strengthEstimates = useMemo(() => strengthModel(synchronizedSkillMap, dashboardGameAnalytics), [synchronizedSkillMap, dashboardGameAnalytics]);
+  const strengthHistory = useMemo(() => monthlyStrengthHistory(gameLibraryMemory), [gameLibraryMemory]);
+  const recurringPatterns = useMemo(() => mineRecurringPatterns(gameLibraryMemory), [gameLibraryMemory]);
+  const curriculumNodes = useMemo(() => buildCurriculumGraph(strengthEstimates, recurringPatterns), [strengthEstimates, recurringPatterns]);
+  const curriculumAdvice = useMemo(() => prerequisiteAdvice(curriculumNodes), [curriculumNodes]);
+  const endgameOutcomeEvaluations = useMemo(() => evaluateEndgameOutcomes(endgameOutcomeMemory, gameLibraryMemory), [endgameOutcomeMemory, gameLibraryMemory]);
   const trainingDailyCount = dailyTrainingExercises.length || dailyStudyPlan.items.length;
   const dailyAttemptedCount = dailySessionAttemptedCount(activeDailySession);
   const latestDailyReport = latestDailySessionReport(dailySessionReports);
@@ -575,12 +753,76 @@ export default function App() {
   }
 
   useEffect(() => {
+    try {
+      window.localStorage.setItem(GAME_LIBRARY_STORAGE_KEY, serializeGameLibraryMemory(gameLibraryMemory));
+      setGameLibraryStorageError(null);
+    } catch (error) {
+      setGameLibraryStorageError(
+        `Game library could not be persisted locally: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }, [gameLibraryMemory]);
+
+  useEffect(() => {
+    if (synchronizedSkillMap !== skillMapMemory) setSkillMapMemory(synchronizedSkillMap);
+  }, [synchronizedSkillMap, skillMapMemory]);
+
+  useEffect(() => {
+    window.localStorage.setItem(SKILL_MAP_STORAGE_KEY, serializeSkillMapMemory(skillMapMemory));
+  }, [skillMapMemory]);
+  useEffect(() => { window.localStorage.setItem(ENDGAME_OUTCOME_STORAGE_KEY, serializeEndgameOutcomeMemory(endgameOutcomeMemory)); }, [endgameOutcomeMemory]);
+  useEffect(() => { window.localStorage.setItem(OPPONENT_PREP_STORAGE_KEY, serializeOpponentPrepMemory(opponentPrepMemory)); }, [opponentPrepMemory]);
+
+  useEffect(() => {
+    if (records.length === 0) {
+      setCurrentLibraryGameId(null);
+      return;
+    }
+
+    const now = Date.now();
+    const headers = gameRef.current.getHeaders() as Record<string, string>;
+    const opponent = `${difficulty.label} Stockfish`;
+    const snapshot = captureGameLibraryEntry({
+      id: currentLibraryGameIdRef.current,
+      source: currentLibrarySourceRef.current,
+      records,
+      startFen: currentStartFen,
+      pgn: gameRef.current.pgn(),
+      headers,
+      humanColor,
+      whiteFallback: humanColor === 'w' ? 'Student' : opponent,
+      blackFallback: humanColor === 'b' ? 'Student' : opponent,
+      result: gameResultToken(gameRef.current),
+      now,
+    });
+
+    setGameLibraryMemory((current) => {
+      const saved = upsertGameLibraryEntry(current, snapshot);
+      currentLibraryGameIdRef.current = saved.entry.id;
+      setCurrentLibraryGameId(saved.entry.id);
+      return saved.memory;
+    });
+  }, [records, currentStartFen, humanColor, difficulty.id]);
+
+  useEffect(() => {
     window.localStorage.setItem(REPERTOIRE_STORAGE_KEY, serializeRepertoireMemory(repertoireMemory));
   }, [repertoireMemory]);
 
   useEffect(() => {
     window.localStorage.setItem(UI_FONT_SIZE_STORAGE_KEY, serializeUiFontSize(uiFontSize));
   }, [uiFontSize]);
+
+  useEffect(() => {
+    window.localStorage.setItem(UI_BOARD_THEME_STORAGE_KEY, serializeUiBoardTheme(uiBoardTheme));
+  }, [uiBoardTheme]);
+
+  useEffect(() => {
+    window.localStorage.setItem(UI_PLAY_PACE_STORAGE_KEY, serializeUiPlayPace(uiPlayPace));
+  }, [uiPlayPace]);
+
+  useEffect(() => {
+    window.localStorage.setItem(UI_REVIEW_LAYOUT_STORAGE_KEY, serializeUiReviewLayout(uiReviewLayout));
+  }, [uiReviewLayout]);
 
   useEffect(() => {
     window.localStorage.setItem(WEAKNESS_STORAGE_KEY, serializeWeaknessMemory(weaknessMemory));
@@ -606,6 +848,10 @@ export default function App() {
   }, [trainingAnalytics]);
 
   useEffect(() => {
+    window.localStorage.setItem(RECOMMENDATION_OUTCOME_STORAGE_KEY, serializeRecommendationOutcomeMemory(recommendationOutcomeMemory));
+  }, [recommendationOutcomeMemory]);
+
+  useEffect(() => {
     window.localStorage.setItem(DAILY_SESSION_REPORT_STORAGE_KEY, serializeDailySessionReportMemory(dailySessionReports));
   }, [dailySessionReports]);
 
@@ -620,6 +866,7 @@ export default function App() {
   useEffect(() => {
     window.localStorage.setItem(GOAL_PLAN_STORAGE_KEY, serializeGoalPlanMemory(goalPlanMemory));
   }, [goalPlanMemory]);
+  useEffect(() => { window.localStorage.setItem(SEASON_CYCLE_STORAGE_KEY, serializeSeasonCycleMemory(seasonCycleMemory)); }, [seasonCycleMemory]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setSchedulerNow(Date.now()), 60_000);
@@ -798,6 +1045,8 @@ export default function App() {
 
   function beginNewSession(): number {
     sessionRef.current += 1;
+    setHistoryPlayback(false);
+    setReplayFocus(false);
     return sessionRef.current;
   }
 
@@ -973,6 +1222,31 @@ export default function App() {
     };
   }, [pvPreview]);
 
+  useEffect(() => {
+    if (!historyPlayback) return;
+    if (historyCursor === null || historyCursor >= records.length) {
+      setHistoryPlayback(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const nextPly = historyCursor + 1;
+      const nextRecord = records[nextPly - 1];
+      setHistoryCursor(nextPly);
+      setReview(nextRecord?.review ?? null);
+      setActiveReviewId(nextRecord?.review ? nextRecord.id : null);
+      setBoardIdeaExplanation(null);
+      if (nextPly >= records.length) setHistoryPlayback(false);
+    }, 800 / historyPlaybackSpeed);
+    return () => window.clearTimeout(timer);
+  }, [historyPlayback, historyCursor, historyPlaybackSpeed, records.length]);
+
+  useEffect(() => {
+    if (!batchReviewing || historyCursor === null) return;
+    const record = historyCursor > 0 ? records[historyCursor - 1] : null;
+    setReview(record?.review ?? null);
+    setActiveReviewId(record?.review ? record.id : null);
+  }, [batchReviewing, historyCursor, records]);
+
   function syncPhaseFromBoard(session: number, playerColor: 'w' | 'b' = humanColor): void {
     if (!isCurrentSession(session)) return;
     if (gameRef.current.isGameOver()) {
@@ -1126,9 +1400,16 @@ export default function App() {
 
   async function askConversationalCoach(rawQuestion: string): Promise<void> {
     const question = rawQuestion.trim();
-    if (!question || !engineStatus?.configured || chatLoading || batchReviewing || phase === 'promotion' || phase === 'engine-thinking') return;
+    if (!question || chatLoading || batchReviewing || phase === 'promotion' || phase === 'engine-thinking') return;
 
     const turnId = addChatTurn(question);
+    const wholeProfileAnswer = answerWholeProfileQuestion(question, gameLibraryMemory, dashboardInterventionAnalytics, recurringPatterns, seasonCycleMemory);
+    if (wholeProfileAnswer) {
+      finishChatTurn(turnId, wholeProfileAnswer);
+      setStatusText('Coach answered from your whole personal model');
+      return;
+    }
+    if (!engineStatus?.configured) { finishChatTurn(turnId, null, 'Connect Stockfish to ask a position-specific question.'); return; }
     const selectedRecord = activeReviewId !== null
       ? records.find((candidate) => candidate.id === activeReviewId) ?? null
       : null;
@@ -1259,27 +1540,32 @@ export default function App() {
     playerColor: 'w' | 'b' = humanColor,
     request: number = nextAnalysisRequest(),
     force = false,
+    background = false,
   ): Promise<void> {
     if (!isCurrentSession(session) || !isCurrentAnalysisRequest(request)) return;
-    clearInteractiveCoachState();
+    if (!background) clearInteractiveCoachState();
 
     if (record.review && !force) {
-      setReview(record.review);
-      setActiveReviewId(record.id);
-      setCoachLoading(false);
-      setCoachError(null);
-      setCurrentAnalysis(null);
-      setCurrentAnalysisFen(null);
-      syncPhaseFromBoard(session, playerColor);
+      if (!background) {
+        setReview(record.review);
+        setActiveReviewId(record.id);
+        setCoachLoading(false);
+        setCoachError(null);
+        setCurrentAnalysis(null);
+        setCurrentAnalysisFen(null);
+        syncPhaseFromBoard(session, playerColor);
+      }
       return;
     }
 
-    setPhase('reviewing');
-    setCoachLoading(true);
-    setCoachError(null);
-    setActiveReviewId(record.id);
-    setCurrentAnalysis(null);
-    setCurrentAnalysisFen(null);
+    if (!background) {
+      setPhase('reviewing');
+      setCoachLoading(true);
+      setCoachError(null);
+      setActiveReviewId(record.id);
+      setCurrentAnalysis(null);
+      setCurrentAnalysisFen(null);
+    }
 
     try {
       const best = await engineApi.analyse({
@@ -1306,13 +1592,13 @@ export default function App() {
         best,
         played,
       });
-      setReview(moveReview);
+      if (!background) setReview(moveReview);
       updateRecordReview(record.id, moveReview);
     } catch (error) {
       if (!isCurrentSession(session) || !isCurrentAnalysisRequest(request)) return;
-      setCoachError(error instanceof Error ? error.message : String(error));
+      if (!background) setCoachError(error instanceof Error ? error.message : String(error));
     } finally {
-      if (isCurrentSession(session) && isCurrentAnalysisRequest(request)) {
+      if (!background && isCurrentSession(session) && isCurrentAnalysisRequest(request)) {
         setCoachLoading(false);
         syncPhaseFromBoard(session, playerColor);
       }
@@ -1326,26 +1612,29 @@ export default function App() {
     if (!isCurrentSession(session) || gameRef.current.isGameOver()) return null;
 
     setPhase('engine-thinking');
-    setStatusText(`${difficulty.label} Stockfish is thinking…`);
+    setStatusText(uiPlayPace === 'very-fast' ? 'Very fast Stockfish calculating…' : uiPlayPace === 'fast' ? 'Fast Stockfish calculating…' : `${difficulty.label} Stockfish is thinking…`);
+    const beforeFen = gameRef.current.fen();
 
     try {
-      const beforeFen = gameRef.current.fen();
       const result = await engineApi.analyse({
         fen: beforeFen,
-        movetimeMs: difficulty.movetimeMs,
+        movetimeMs: playMoveTimeMs(difficulty, uiPlayPace),
         multiPv: 1,
         strength: difficulty.strength,
       });
-      if (!isCurrentSession(session) || !result.bestMove) return null;
+      if (!isCurrentSession(session)) return null;
+      if (!result.bestMove) throw new Error('Stockfish returned no move. Please retry.');
 
       const from = result.bestMove.slice(0, 2) as Square;
       const to = result.bestMove.slice(2, 4) as Square;
       const movingPiece = gameRef.current.get(from);
 
       if (movingPiece) {
-        const durationMs = 220;
+        // A little more visual time makes the move readable, while still keeping
+        // the engine response path effectively immediate.
+        const durationMs = uiPlayPace === 'very-fast' ? 95 : uiPlayPace === 'fast' ? 170 : 250;
         setEngineMoveAnimation({ from, to, durationMs });
-        await wait(durationMs + 30);
+        await wait(durationMs + (uiPlayPace === 'very-fast' ? 14 : 24));
         if (!isCurrentSession(session)) return null;
       }
 
@@ -1363,6 +1652,20 @@ export default function App() {
       return record;
     } catch (error) {
       if (!isCurrentSession(session)) return null;
+      // Never substitute a tactical-looking legal move for an Expert/Master
+      // engine result: that made a stalled engine appear to have played weakly.
+      // The beginner setting retains a casual fallback so it can keep a game moving.
+      if (uiPlayPace !== 'coach' && difficulty.id === 'beginner') {
+        const fallback = gameRef.current.moves({ verbose: true })
+          .sort((a, b) => Number(Boolean(b.captured)) - Number(Boolean(a.captured)) || Number(b.san.includes('+')) - Number(a.san.includes('+')))[0];
+        if (fallback) {
+          const move = gameRef.current.move({ from: fallback.from, to: fallback.to, promotion: fallback.promotion ?? 'q' });
+          const record = appendMove(beforeFen, move);
+          setStatusText('Fast fallback move · Stockfish restarted for the next turn');
+          syncPhaseFromBoard(session, playerColor);
+          return record;
+        }
+      }
       throw error;
     } finally {
       if (isCurrentSession(session)) setEngineMoveAnimation(null);
@@ -1408,14 +1711,40 @@ export default function App() {
         await makeEngineMove(session, playerColor);
         if (!isCurrentSession(session)) return;
       }
-      await runMoveReview(humanRecord, session, playerColor);
-      if (isCurrentSession(session)) setStatusText(gameMessage(gameRef.current));
+      if (uiPlayPace === 'coach') {
+        await runMoveReview(humanRecord, session, playerColor);
+        if (isCurrentSession(session)) setStatusText(gameMessage(gameRef.current));
+      } else if (isCurrentSession(session)) {
+        setStatusText(uiPlayPace === 'very-fast' ? 'Very fast play · automatic review deferred' : 'Fast play · automatic review deferred · use Review all moves when ready');
+        syncPhaseFromBoard(session, playerColor);
+      }
     } catch (error) {
       if (!isCurrentSession(session)) return;
       const message = error instanceof Error ? error.message : String(error);
       setCoachError(message);
-      setStatusText('Engine error');
-      syncPhaseFromBoard(session, playerColor);
+      setStatusText('Stockfish reply failed · retry from the board');
+      setPhase(gameRef.current.turn() === playerColor ? 'player-turn' : 'engine-error');
+    }
+  }
+
+  async function retryEngineTurn(): Promise<void> {
+    if (phase !== 'engine-error' || !engineStatus?.configured || gameRef.current.turn() === humanColor) return;
+    const session = sessionRef.current;
+    setCoachError(null);
+    try {
+      const reply = await makeEngineMove(session, humanColor);
+      if (!isCurrentSession(session) || !reply) return;
+      if (uiPlayPace === 'coach') {
+        const humanRecord = [...records].reverse().find((record) => record.color === humanColor && !record.review);
+        if (humanRecord) await runMoveReview(humanRecord, session, humanColor);
+      } else {
+        setStatusText('Stockfish replied · automatic review deferred');
+      }
+    } catch (error) {
+      if (!isCurrentSession(session)) return;
+      setCoachError(error instanceof Error ? error.message : String(error));
+      setStatusText('Stockfish reply failed · retry from the board');
+      setPhase('engine-error');
     }
   }
 
@@ -1735,6 +2064,51 @@ export default function App() {
     await switchAppMode('training');
   }
 
+  async function trainRepertoireBranch(rootKey: string): Promise<void> {
+    const exercises = repertoireBranchExercises(repertoireMemory, rootKey);
+    if (!exercises.length) return;
+    setDailyTrainingExercises(exercises);
+    setTrainingSource('daily');
+    setTrainingIndex(0);
+    setTrainingAttempt(null);
+    setTrainingHintLevel(0);
+    setTrainingSelected(null);
+    setTrainingPromotion(null);
+    setActiveDailySession(null);
+    setStatusText(`Repertoire branch training · ${exercises.length} position${exercises.length === 1 ? '' : 's'}`);
+    await switchAppMode('training');
+  }
+
+  async function startOpeningPreparationPack(target: PreparationTarget): Promise<void> {
+    const pack = buildOpeningPreparationPack(repertoireMemory, target);
+    if (!pack.exercises.length) return;
+    setDailyTrainingExercises(pack.exercises);
+    setTrainingSource('daily');
+    setTrainingIndex(0);
+    setTrainingAttempt(null);
+    setTrainingHintLevel(0);
+    setTrainingSelected(null);
+    setTrainingPromotion(null);
+    setActiveDailySession(null);
+    setStatusText(`${pack.title} · ${pack.exercises.length} positions`);
+    await switchAppMode('training');
+  }
+
+  async function lookupCurrentTablebase(): Promise<void> {
+    setTablebaseLoading(true); setTablebaseError(null); setTablebaseResult(null);
+    try { setTablebaseResult(await lookupSyzygy(game.fen())); }
+    catch (error) { setTablebaseError(error instanceof Error ? error.message : String(error)); }
+    finally { setTablebaseLoading(false); }
+  }
+
+  async function trainGeneratedEndgames(): Promise<void> {
+    if (!generatedEndgameExercises.length) return;
+    setDailyTrainingExercises(generatedEndgameExercises); setTrainingSource('daily'); setTrainingIndex(0); setTrainingAttempt(null); setTrainingHintLevel(0); setTrainingSelected(null); setTrainingPromotion(null); setActiveDailySession(null); setStatusText(`Endgame curriculum · ${generatedEndgameExercises.length} positions`); await switchAppMode('training');
+  }
+  function startEndgameModuleTracking(module: EndgameModuleId): void { setEndgameOutcomeMemory((current) => startEndgameOutcome(current, gameLibraryMemory, module)); setStatusText(`Endgame tracking started · ${module}`); }
+  function importOpponentGames(opponent:string,pgn:string):void { try { setOpponentPrepMemory(current=>importOpponentPgns(current,opponent,pgn)); setStatusText(`Opponent PGNs imported · ${opponent}`); } catch(error) { setStatusText(error instanceof Error?error.message:String(error)); } }
+  async function trainRecurringPattern(pattern: RecurringPattern): Promise<void> { const exercises=patternExercises(pattern); if(!exercises.length)return; setDailyTrainingExercises(exercises);setTrainingSource('daily');setTrainingIndex(0);setTrainingAttempt(null);setTrainingHintLevel(0);setTrainingSelected(null);setTrainingPromotion(null);setActiveDailySession(null);setStatusText(`Motif training · ${pattern.label}`);await switchAppMode('training'); }
+
   function buildStoredDeviationTrainingExercise(entry: OpeningDeviationMemory): TrainingExercise | null {
     const top = entry.alternatives[0];
     if (!top) return null;
@@ -1860,6 +2234,51 @@ export default function App() {
     await trainWeaknessCategory(weakest.id);
   }
 
+  async function trainCoachRecommendation(recommendation: PersonalCoachRecommendation): Promise<void> {
+    const exercises = recommendationTrainingExercises(gameLibraryMemory, recommendation, 7);
+    if (!exercises.length) {
+      setStatusText('Coach recommendation · no trainable reviewed positions available');
+      return;
+    }
+    setCoachTrainingExercises(exercises);
+    setActiveCoachRecommendation(recommendation);
+    setTrainingSource('coach');
+    setTrainingIndex(0);
+    setTrainingAttempt(null);
+    setTrainingHintLevel(0);
+    setTrainingSelected(null);
+    setTrainingPromotion(null);
+    setTrainingAttempts(0);
+    setTrainingSolvedKeys([]);
+    setTrainingBestScores({});
+    setStatusText(`Coach recommendation · ${recommendation.title} · ${exercises.length} positions`);
+    await switchAppMode('training');
+  }
+
+  async function finishCoachRecommendationIntervention(): Promise<void> {
+    if (!activeCoachRecommendation || !coachTrainingExercises.length || trainingAttempts === 0) return;
+
+    const completedAt = Date.now();
+    setRecommendationOutcomeMemory((current) => recordCompletedRecommendationIntervention(
+      current,
+      activeCoachRecommendation,
+      gameLibraryMemory,
+      {
+        plannedPositions: coachTrainingExercises.length,
+        attemptedPositions: Object.keys(trainingBestScores).length,
+        solvedPositions: trainingSolvedKeys.length,
+        completedAt,
+      },
+    ));
+    setSchedulerNow(completedAt);
+    setStatusText(`Outcome tracking started · ${activeCoachRecommendation.title} · next 10/20 relevant reviewed games`);
+    setActiveCoachRecommendation(null);
+    setCoachTrainingExercises([]);
+    setTrainingSource('mistakes');
+    await switchAppMode('play');
+    window.requestAnimationFrame(() => jumpToCoachSection('coach-recommendation-outcomes'));
+  }
+
   function createLongTermGoal(input: GoalPlanCreateInput): void {
     const now = Date.now();
     setGoalPlanMemory((current) => createGoalPlan(
@@ -1900,6 +2319,7 @@ export default function App() {
       weeklyPriorityReasons: activeWeeklyPriorities.reasons,
       goalPriorityMultipliers: activeGoalPriorities.multipliers,
       goalPriorityReasons: activeGoalPriorities.reasons,
+      interventionEvidence: buildInterventionHistoryAnalytics(recommendationOutcomeMemory, gameLibraryMemory).rows,
     }).items.map((item) => item.exercise);
   }
 
@@ -1916,6 +2336,7 @@ export default function App() {
       weeklyPriorityReasons: activeWeeklyPriorities.reasons,
       goalPriorityMultipliers: activeGoalPriorities.multipliers,
       goalPriorityReasons: activeGoalPriorities.reasons,
+      interventionEvidence: buildInterventionHistoryAnalytics(recommendationOutcomeMemory, gameLibraryMemory).rows,
     });
     const exercises = plan.items.map((item) => item.exercise);
     if (!exercises.length) {
@@ -1972,6 +2393,10 @@ export default function App() {
   }
 
   function changeTrainingSource(source: TrainingSource): void {
+    if (source !== 'coach') {
+      setActiveCoachRecommendation(null);
+      setCoachTrainingExercises([]);
+    }
     if (source === 'due') setSpacedTrainingExercises(buildDueTrainingSet());
     if (source === 'daily') {
       const now = Date.now();
@@ -1986,6 +2411,7 @@ export default function App() {
         weeklyPriorityReasons: activeWeeklyPriorities.reasons,
         goalPriorityMultipliers: activeGoalPriorities.multipliers,
         goalPriorityReasons: activeGoalPriorities.reasons,
+        interventionEvidence: buildInterventionHistoryAnalytics(recommendationOutcomeMemory, gameLibraryMemory).rows,
       });
       setDailyTrainingExercises(plan.items.map((item) => item.exercise));
       setActiveDailySession(beginDailyStudySession(plan, spacedMemory, now));
@@ -2045,6 +2471,9 @@ export default function App() {
     if (!isCurrentSession(session)) return;
 
     gameRef.current = new Chess();
+    currentLibraryGameIdRef.current = newGameLibraryId();
+    currentLibrarySourceRef.current = 'played';
+    setCurrentLibraryGameId(null);
     observedOpeningDeviationsRef.current.clear();
     observedWeaknessReviewsRef.current.clear();
     weaknessGameSessionRef.current += 1;
@@ -2053,6 +2482,7 @@ export default function App() {
     nextLineId.current = 2;
     nextVariationNumber.current = 1;
     setRecords([]);
+    setShowCoachWorkspace(false);
     setTrainingIndex(0);
     setTrainingAttempt(null);
     setTrainingHintLevel(0);
@@ -2063,6 +2493,7 @@ export default function App() {
     setWeaknessTrainingExercises([]);
     setSpacedTrainingExercises([]);
     setDailyTrainingExercises([]);
+    setCoachTrainingExercises([]);
     setActiveDailySession(null);
     setCurrentLine({ id: 1, name: 'Main line', originPly: null });
     setInactiveLines([]);
@@ -2088,6 +2519,7 @@ export default function App() {
     setOrientation(color === 'w' ? 'white' : 'black');
     refresh();
     setStatusText('New game');
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 
     if (!engineStatus?.configured) {
       setPhase('engine-missing');
@@ -2143,55 +2575,66 @@ export default function App() {
     refresh();
   }
 
-  async function navigateHistory(targetPly: number | null): Promise<void> {
+  function navigateHistory(targetPly: number | null): void {
     if (phase === 'engine-thinking' || phase === 'promotion' || records.length === 0) return;
+    if (batchReviewing) historyInteractionDuringReviewRef.current = true;
 
     const normalized = targetPly === null
       ? null
       : Math.max(0, Math.min(targetPly, records.length));
-    const request = nextAnalysisRequest();
+    const record = normalized === null || normalized === 0 ? null : records[normalized - 1] ?? null;
 
+    setHistoryPlayback(false);
     setHistoryCursor(normalized);
     setSelected(null);
     setBoardIdeaExplanation(null);
     setPromotion(null);
     setEngineMoveAnimation(null);
-    setReview(null);
-    setActiveReviewId(null);
+    setReview(record?.review ?? null);
+    setActiveReviewId(record?.review ? record.id : null);
     setCurrentAnalysis(null);
     setCurrentAnalysisFen(null);
     setCoachLoading(false);
     setCoachError(null);
     clearInteractiveCoachState();
 
-    if (normalized === null) setStatusText('Returned to live position');
-    else if (normalized === 0) setStatusText('Viewing starting position');
-    else {
-      const record = records[normalized - 1];
-      if (record) setStatusText(`Viewing move ${normalized} of ${records.length}: ${record.san}`);
+    if (!batchReviewing) {
+      if (normalized === null) setStatusText('Returned to live position');
+      else if (normalized === 0) setStatusText('Viewing starting position');
+      else if (record) setStatusText(`Viewing move ${normalized} of ${records.length}: ${record.san}`);
+      syncPhaseFromBoard(sessionRef.current, humanColor);
     }
 
-    await cancelEngineWork();
-    if (!isCurrentAnalysisRequest(request)) return;
+    if (uiReviewLayout.autoFocusBoard) focusReviewBoard();
+  }
 
-    const session = sessionRef.current;
-    if (normalized === null || normalized === 0) {
-      syncPhaseFromBoard(session, humanColor);
+  function toggleHistoryPlayback(): void {
+    if (batchReviewing) historyInteractionDuringReviewRef.current = true;
+    if (historyPlayback) {
+      setHistoryPlayback(false);
       return;
     }
-
-    const record = records[normalized - 1];
-    if (!record) return;
-
-    if (record.review) {
-      setReview(record.review);
-      setActiveReviewId(record.id);
-      syncPhaseFromBoard(session, humanColor);
-    } else if (engineStatus?.configured) {
-      await runMoveReview(record, session, humanColor, request);
-    } else {
-      syncPhaseFromBoard(session, humanColor);
+    if (!records.length) return;
+    if (historyCursor === null || historyCursor >= records.length) {
+      setHistoryCursor(0);
+      setReview(null);
+      setActiveReviewId(null);
     }
+    setHistoryPlayback(true);
+  }
+
+  function replayHistory(): void {
+    if (!records.length) return;
+    if (batchReviewing) historyInteractionDuringReviewRef.current = true;
+    setHistoryCursor(0);
+    setReview(null);
+    setActiveReviewId(null);
+    setHistoryPlayback(true);
+  }
+
+  function toggleReplayFocus(): void {
+    if (records.length === 0) return;
+    setReplayFocus((focused) => !focused);
   }
 
   function navigateHistoryBy(delta: number): void {
@@ -2234,14 +2677,17 @@ export default function App() {
   }
 
   function jumpToCoachSection(id: string): void {
+    setShowCoachWorkspace(true);
     window.requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.requestAnimationFrame(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
     });
   }
 
   function exportCoachData(): void {
     const now = Date.now();
-    const backup = createCoachBackup(window.localStorage, '1.0.1', now);
+    const backup = createCoachBackup(window.localStorage, '1.0.8', now);
     const blob = new Blob([serializeCoachBackup(backup)], { type: 'application/json;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -2287,10 +2733,22 @@ export default function App() {
     });
   }
 
+  function focusReviewBoard(): void {
+    window.requestAnimationFrame(() => {
+      const boardColumn = document.getElementById('review-board-column');
+      if (uiReviewLayout.boardPinned) boardColumn?.scrollTo({ top: 0, behavior: 'smooth' });
+      const board = document.getElementById('review-checkerboard-anchor');
+      if (!uiReviewLayout.boardPinned) board?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
   async function reviewRecordBatch(list: PlyRecord[], label = 'Review complete'): Promise<void> {
     if (!engineStatus?.configured || phase === 'promotion' || list.length === 0) return;
     const session = sessionRef.current;
+    historyInteractionDuringReviewRef.current = false;
+    setHistoryPlayback(false);
     setBatchReviewing(true);
+    setPhase('reviewing');
     setBatchReviewProgress({ current: 0, total: list.length, san: '' });
     setHistoryCursor(null);
     setSelected(null);
@@ -2302,11 +2760,11 @@ export default function App() {
         setBatchReviewProgress({ current: index + 1, total: list.length, san: record.san });
         setStatusText(`Reviewing ${index + 1}/${list.length}: ${record.san}`);
         const request = nextAnalysisRequest();
-        await runMoveReview(record, session, humanColor, request, Boolean(record.review));
+        await runMoveReview(record, session, humanColor, request, Boolean(record.review), true);
       }
       if (isCurrentSession(session)) {
         setStatusText(`${label} · ${list.length} moves analyzed`);
-        scrollReviewSection('game-review-dashboard');
+        if (!historyInteractionDuringReviewRef.current) scrollReviewSection('game-review-dashboard');
       }
     } finally {
       setBatchReviewing(false);
@@ -2340,6 +2798,9 @@ export default function App() {
       if (!isCurrentSession(session)) return;
 
       gameRef.current = imported.game;
+      currentLibraryGameIdRef.current = newGameLibraryId();
+      currentLibrarySourceRef.current = 'imported';
+      setCurrentLibraryGameId(null);
       observedOpeningDeviationsRef.current.clear();
       observedWeaknessReviewsRef.current.clear();
       weaknessGameSessionRef.current += 1;
@@ -2378,6 +2839,7 @@ export default function App() {
       setWeaknessTrainingExercises([]);
       setSpacedTrainingExercises([]);
       setDailyTrainingExercises([]);
+      setCoachTrainingExercises([]);
       setActiveDailySession(null);
       setAppMode('play');
       refresh();
@@ -2387,10 +2849,14 @@ export default function App() {
       setStatusText(`Imported ${white} – ${black} · ${imported.records.length} plies`);
       setPhase(engineStatus?.configured ? (gameRef.current.isGameOver() ? 'game-over' : 'player-turn') : 'engine-missing');
       setImportDialogOpen(false);
+      setShowCoachWorkspace(true);
 
       if (analyze && engineStatus?.configured) {
         await wait(20);
         await reviewRecordBatch(imported.records, 'Imported game review complete');
+        if (isCurrentSession(session) && !historyInteractionDuringReviewRef.current) jumpToCoachSection('game-review-dashboard');
+      } else if (isCurrentSession(session)) {
+        jumpToCoachSection('move-history-panel');
       }
     } finally {
       setImportBusy(false);
@@ -2409,6 +2875,9 @@ export default function App() {
 
       const startFen = imported.fen();
       gameRef.current = imported;
+      currentLibraryGameIdRef.current = newGameLibraryId();
+      currentLibrarySourceRef.current = 'played';
+      setCurrentLibraryGameId(null);
       observedOpeningDeviationsRef.current.clear();
       observedWeaknessReviewsRef.current.clear();
       weaknessGameSessionRef.current += 1;
@@ -2445,6 +2914,7 @@ export default function App() {
       setWeaknessTrainingExercises([]);
       setSpacedTrainingExercises([]);
       setDailyTrainingExercises([]);
+      setCoachTrainingExercises([]);
       setActiveDailySession(null);
       setAppMode('play');
       refresh();
@@ -2456,8 +2926,150 @@ export default function App() {
     }
   }
 
+  function updateSavedGameMetadata(entryId: string, patch: GameLibraryUserMetadataPatch): void {
+    setGameLibraryMemory((current) => updateGameLibraryEntryMetadata(current, entryId, patch, Date.now()));
+    if (patch.archived === true) setStatusText('Game archived · excluded from normal library views and personal analytics');
+    else if (patch.archived === false) setStatusText('Game restored from archive');
+    else if (patch.modelGame !== undefined) setStatusText(patch.modelGame ? 'Marked as model game · excluded from personal performance analytics' : 'Model-game mark removed');
+    else if (patch.pinned !== undefined) setStatusText(patch.pinned ? 'Game pinned to favorites' : 'Game unpinned');
+    else setStatusText('Saved game tags/note updated');
+  }
+
+  function deleteSavedGame(entry: GameLibraryEntry): void {
+    if (entry.id === currentLibraryGameId) {
+      setStatusText('Open another game before deleting the active autosaved game');
+      return;
+    }
+    const confirmed = window.confirm(
+      `Delete ${entry.white} – ${entry.black} (${entry.result}) from the local game library?\n\nThis cannot be undone except by restoring an older backup.`
+    );
+    if (!confirmed) return;
+    setGameLibraryMemory((current) => deleteGameLibraryEntry(current, entry.id));
+    setStatusText('Saved game deleted');
+  }
+
+  async function loadGameFromLibrary(entry: GameLibraryEntry, focusPly: number | null = null, destination: 'review' | 'history' = 'review'): Promise<PlyRecord[] | null> {
+    if (analysisBusy || phase === 'promotion') return null;
+
+    const session = beginNewSession();
+    nextAnalysisRequest();
+    await cancelEngineWork();
+    if (!isCurrentSession(session)) return null;
+
+    try {
+      const hydrated = hydrateGameLibraryEntry(entry);
+      gameRef.current = hydrated.game;
+      currentLibraryGameIdRef.current = entry.id;
+      currentLibrarySourceRef.current = entry.source;
+      setCurrentLibraryGameId(entry.id);
+      observedOpeningDeviationsRef.current.clear();
+      observedWeaknessReviewsRef.current.clear();
+      weaknessGameSessionRef.current += 1;
+      setCurrentStartFen(entry.startFen);
+      nextRecordId.current = hydrated.records.length + 1;
+      nextLineId.current = 2;
+      nextVariationNumber.current = 1;
+      setRecords(hydrated.records);
+      setCurrentLine({ id: 1, name: 'Library game', originPly: null });
+      setInactiveLines([]);
+      const normalizedFocusPly = focusPly === null
+        ? null
+        : Math.max(1, Math.min(focusPly, hydrated.records.length));
+      const focusedRecord = normalizedFocusPly === null ? null : hydrated.records[normalizedFocusPly - 1] ?? null;
+      setHistoryCursor(normalizedFocusPly);
+      setHumanColor(entry.humanColor);
+      setOrientation(entry.humanColor === 'w' ? 'white' : 'black');
+      setSelected(null);
+      setIdeaInspection(false);
+      setBoardIdeaExplanation(null);
+      setEngineMoveAnimation(null);
+      setReview(focusedRecord?.review ?? null);
+      setActiveReviewId(focusedRecord?.review ? focusedRecord.id : null);
+      setCurrentAnalysis(null);
+      setCurrentAnalysisFen(null);
+      setCoachLoading(false);
+      setBatchReviewing(false);
+      setBatchReviewProgress(null);
+      setCoachError(null);
+      clearInteractiveCoachState();
+      setChatTurns([]);
+      setChatLoading(false);
+      nextChatId.current = 1;
+      setPromotion(null);
+      setTrainingIndex(0);
+      setTrainingAttempt(null);
+      setTrainingHintLevel(0);
+      setTrainingAttempts(0);
+      setTrainingSolvedKeys([]);
+      setTrainingBestScores({});
+      setOpeningTrainingExercise(null);
+      setWeaknessTrainingExercises([]);
+      setSpacedTrainingExercises([]);
+      setDailyTrainingExercises([]);
+      setCoachTrainingExercises([]);
+      setActiveDailySession(null);
+      setAppMode('play');
+      refresh();
+      setStatusText(focusedRecord
+        ? `Opened analytics evidence · move ${focusedRecord.ply}/${hydrated.records.length}: ${focusedRecord.san}`
+        : `Opened library game · ${entry.white} – ${entry.black} ${entry.result}`);
+      setPhase(engineStatus?.configured
+        ? (gameRef.current.isGameOver() ? 'game-over' : 'player-turn')
+        : 'engine-missing');
+      window.requestAnimationFrame(() => {
+        jumpToCoachSection(destination === 'history' ? 'move-history-panel' : 'game-review-dashboard');
+        if (focusedRecord && uiReviewLayout.autoFocusBoard) focusReviewBoard();
+      });
+      return hydrated.records;
+    } catch (error) {
+      setStatusText(`Could not open library game · ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }
+  }
+
+  async function reviewGameFromLibrary(entry: GameLibraryEntry): Promise<void> {
+    const hydratedRecords = await loadGameFromLibrary(entry);
+    if (!hydratedRecords) return;
+
+    const pending = hydratedRecords.filter((record) => !record.review);
+    if (pending.length === 0) {
+      setStatusText('Saved game is already fully reviewed · opened existing review');
+      window.requestAnimationFrame(() => jumpToCoachSection('game-review-dashboard'));
+      return;
+    }
+    if (!engineStatus?.configured) {
+      setStatusText(`Opened game · ${pending.length} moves still need review, but Stockfish is not configured`);
+      return;
+    }
+
+    await wait(20);
+    await reviewRecordBatch(pending, 'Library game review complete');
+  }
+
+  async function trainGameMistakesFromLibrary(entry: GameLibraryEntry): Promise<void> {
+    const hydratedRecords = await loadGameFromLibrary(entry);
+    if (!hydratedRecords) return;
+    const issues = hydratedRecords.filter((record) =>
+      record.color === entry.humanColor && isMistakeReview(record.review)
+    );
+    if (issues.length === 0) {
+      setStatusText('This saved game has no reviewed mistakes to train');
+      return;
+    }
+
+    setTrainingSource('mistakes');
+    setTrainingIndex(0);
+    setTrainingAttempt(null);
+    setTrainingHintLevel(0);
+    setTrainingAttempts(0);
+    setTrainingSolvedKeys([]);
+    setTrainingBestScores({});
+    setAppMode('training');
+    setStatusText(`Training ${issues.length} mistake${issues.length === 1 ? '' : 's'} from saved game`);
+  }
+
   async function analyseCurrentPosition(): Promise<void> {
-    if (!engineStatus?.configured || analysisBusy || phase === 'promotion') return;
+    if (!engineStatus?.configured || analysisBusy || phase === 'promotion' || phase === 'engine-error') return;
     const session = sessionRef.current;
     const request = nextAnalysisRequest();
     const fen = game.fen();
@@ -2680,7 +3292,9 @@ export default function App() {
           ? `Analyzing history · ${historyLabel}`
           : `History · ${historyLabel}`
         : phase === 'engine-thinking'
-          ? `${difficulty.label} Stockfish thinking…`
+          ? uiPlayPace === 'very-fast' ? 'Very fast Stockfish responding…' : uiPlayPace === 'fast' ? 'Fast Stockfish responding…' : `${difficulty.label} Stockfish thinking…`
+          : phase === 'engine-error'
+            ? 'Stockfish reply failed · retry on the board'
           : phase === 'reviewing'
             ? 'Reviewing your move…'
             : phase === 'promotion'
@@ -2734,7 +3348,7 @@ export default function App() {
         return;
       }
 
-      if (records.length === 0 || batchReviewing || phase === 'engine-thinking' || phase === 'promotion') return;
+      if (records.length === 0 || (analysisBusy && !batchReviewing) || phase === 'engine-thinking' || phase === 'promotion') return;
 
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
@@ -2764,7 +3378,7 @@ export default function App() {
   }, [records, historyCursor, phase, batchReviewing, engineStatus?.configured, appMode, pvPreview]);
 
   return (
-    <main className="app-shell" data-font-size={uiFontSize}>
+    <main className="app-shell" data-font-size={uiFontSize} data-board-theme={uiBoardTheme} data-review-layout={uiReviewLayout.preset} data-board-pinned={uiReviewLayout.boardPinned ? 'true' : 'false'} data-review-compact={uiReviewLayout.compactHeaders ? 'true' : 'false'} data-replay-focus={replayFocus && appMode === 'play' ? 'true' : 'false'}>
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">♞</div>
@@ -2775,6 +3389,7 @@ export default function App() {
         </div>
         <div className="topbar-right">
           <UiTextSizeControl value={uiFontSize} onChange={setUiFontSize} />
+          <BoardThemeControl value={uiBoardTheme} onChange={setUiBoardTheme} />
           <div className="topbar-status">
             <span className={`status-dot ${engineStatus?.configured ? 'online' : ''}`} />
             <div>
@@ -2821,8 +3436,8 @@ export default function App() {
       <div className={`workspace ${appMode === 'training' ? 'training-workspace' : ''}`}>
         {appMode === 'play' ? (
           <>
-        <section className="board-column">
-          <div className="game-toolbar panel">
+        <section id="review-board-column" className={`board-column${records.length > 0 ? ' review-board-column' : ''}${pvPreview ? ' pv-board-column' : ''}`}>
+          <div className="game-toolbar play-toolbar panel">
             <label>
               Opponent
               <select
@@ -2833,6 +3448,20 @@ export default function App() {
                 {difficulties.map((item) => (
                   <option value={item.id} key={item.id}>{item.label} — {item.description}</option>
                 ))}
+              </select>
+            </label>
+
+            <label>
+              Pace
+              <select
+                value={uiPlayPace}
+                disabled={analysisBusy || phase === 'promotion'}
+                onChange={(event) => setUiPlayPace(event.target.value as UiPlayPace)}
+                title="Fast paces use a short, strength-aware calculation floor so the selected opponent rating remains meaningful. Both defer automatic review."
+              >
+                <option value="very-fast">Very fast — strength-aware</option>
+                <option value="fast">Fast — strength-aware</option>
+                <option value="coach">Coach — auto review</option>
               </select>
             </label>
 
@@ -2854,25 +3483,18 @@ export default function App() {
             <button type="button" onClick={() => setOrientation((value) => value === 'white' ? 'black' : 'white')}>Flip</button>
           </div>
 
-          <div className="board-frame">
-            <div className="player-strip opponent-strip">
+          <div className={`board-frame${records.length > 0 ? ' review-board-frame' : ''}${pvPreview ? ' pv-board-frame' : ''}`}>
+            <div className={`player-strip opponent-strip${isHistoryView && !pvPreview ? ' history-opponent-strip' : ''}`}>
               <div className="avatar">SF</div>
-              <div><strong>Stockfish</strong><span>{difficulty.label} · {difficulty.description}</span></div>
-            </div>
-
-            {isHistoryView && !pvPreview && (
-              <div className="history-mode-banner">
-                <div>
-                  <span>History mode</span>
-                  <strong>{historyLabel}</strong>
-                </div>
-                <div className="history-mode-actions">
-                  <button type="button" className="history-variation-button" onClick={() => void createVariationFromHistory()} title="Keep the original line and start playing from this move">Fork &amp; play</button>
-                  <button type="button" className="history-play-button" onClick={() => void playFromHistory()} title="Replace the later moves in this line">Replace continuation</button>
+              {isHistoryView && !pvPreview ? <>
+                <div className="history-opponent-copy"><strong>History mode</strong><span title={historyLabel}>{historyLabel}</span></div>
+                <div className="history-opponent-actions">
+                  <button type="button" className="history-variation-button" onClick={() => void createVariationFromHistory()} disabled={batchReviewing} title="Keep the original line and start playing from this move">Fork &amp; play</button>
+                  <button type="button" className="history-play-button" onClick={() => void playFromHistory()} disabled={batchReviewing} title="Replace the later moves in this line">Replace continuation</button>
                   <button type="button" onClick={() => void navigateHistory(null)}>Return to live</button>
                 </div>
-              </div>
-            )}
+              </> : <div><strong>Stockfish</strong><span>{difficulty.label} · {difficulty.description}{uiPlayPace !== 'coach' ? ' · quality floor active' : ''}</span></div>}
+            </div>
 
             {pvPreview && (
               <div className="pv-preview-banner">
@@ -2921,13 +3543,15 @@ export default function App() {
                 {hintMoves[0] ? <>
                   <strong>Best move: {hintMoves[0]}</strong>
                   <p>{hintMoves[1] ? `${game.turn() === 'w' ? 'Black' : 'White'} replies ${hintMoves[1]} in Stockfish’s searched line${hintMoves[2] ? `; then ${hintMoves[2]}` : ''}.` : 'Stockfish found this move in the current position.'} <small>Depth {hintLine?.depth} · {hintLine ? formatEvaluation(hintLine) : '—'}</small></p>
-                </> : coachLoading && currentAnalysisFen === visibleFen ? <strong>Stockfish is finding a move…</strong>
+                </> : phase === 'engine-error' ? <><strong>Stockfish could not finish its reply.</strong><p>{coachError}</p></>
+                  : phase === 'engine-thinking' ? <strong>Waiting for Stockfish’s reply before the next hint…</strong>
+                  : coachLoading && currentAnalysisFen === visibleFen ? <strong>Stockfish is finding a move…</strong>
                   : coachError && currentAnalysisFen === visibleFen ? <strong>{coachError}</strong>
                     : <strong>Find a move without leaving the board</strong>}
               </div>
               <div className="board-hint-actions">
                 {hintMoves[0] && <button type="button" className="board-hint-details" onClick={() => scrollReviewSection('selected-move-details')}>Full analysis ↓</button>}
-                <button type="button" className="board-hint-button" onClick={() => void analyseCurrentPosition()} disabled={analysisBusy || phase === 'promotion' || !engineStatus?.configured || game.isGameOver()}>{coachLoading && currentAnalysisFen === visibleFen ? 'Finding…' : hintMoves[0] ? 'Refresh hint' : '✦ Show hint'}</button>
+                <button type="button" className="board-hint-button" onClick={() => void (phase === 'engine-error' ? retryEngineTurn() : analyseCurrentPosition())} disabled={(analysisBusy && phase !== 'engine-error') || phase === 'promotion' || !engineStatus?.configured || game.isGameOver()}>{phase === 'engine-error' ? 'Retry Stockfish' : phase === 'engine-thinking' ? 'Waiting for reply…' : coachLoading && currentAnalysisFen === visibleFen ? 'Finding…' : hintMoves[0] ? 'Refresh hint' : '✦ Show hint'}</button>
               </div>
             </div>}
 
@@ -2986,6 +3610,7 @@ export default function App() {
               </div>
             )}
 
+            <div id="review-checkerboard-anchor" className="review-checkerboard-anchor" />
             <ChessBoard
               game={displayGame}
               orientation={orientation}
@@ -3032,7 +3657,7 @@ export default function App() {
                 type="button"
                 className="primary-button"
                 onClick={() => void analyseCurrentPosition()}
-                disabled={analysisBusy || phase === 'promotion' || !engineStatus?.configured}
+                disabled={analysisBusy || phase === 'promotion' || phase === 'engine-error' || !engineStatus?.configured}
               >
                 Analyze position
               </button>
@@ -3044,6 +3669,8 @@ export default function App() {
                 {batchReviewing ? 'Reviewing…' : 'Review all moves'}
               </button>
               <button type="button" onClick={() => setImportDialogOpen(true)} disabled={analysisBusy || phase === 'promotion'}>Import PGN / FEN</button>
+              <button type="button" onClick={() => jumpToCoachSection(records.length ? 'move-history-panel' : 'coach-game-library')} disabled={analysisBusy || phase === 'promotion'}>{records.length ? `Replay moves (${records.length})` : 'Open saved games'}</button>
+              {records.length > 0 && <button type="button" onClick={toggleReplayFocus}>Focus replay</button>}
               <button type="button" onClick={() => void copyPgn()} disabled={records.length === 0}>Copy PGN</button>
               <button type="button" onClick={() => void copyFen()}>Copy FEN</button>
               <button type="button" onClick={() => void chooseEngine()} disabled={analysisBusy || phase === 'promotion'}>Change engine</button>
@@ -3061,8 +3688,18 @@ export default function App() {
               <button type="button" onClick={() => jumpToCoachSection('personal-coach-dashboard')}>Coach</button>
               <button type="button" onClick={() => jumpToCoachSection('game-review-dashboard')} disabled={records.length === 0}>Review</button>
               <button type="button" onClick={() => jumpToCoachSection('move-history-panel')}>History</button>
+              <button type="button" onClick={() => jumpToCoachSection('coach-game-library')}>Games</button>
               <button type="button" onClick={() => jumpToCoachSection('coach-daily-study')}>Study</button>
             </nav>
+
+            {records.length > 0 && (
+              <ReviewLayoutControl
+                value={uiReviewLayout}
+                onChange={setUiReviewLayout}
+                onFocusSelected={focusReviewBoard}
+                disabled={phase === 'promotion'}
+              />
+            )}
           </section>
 
           <PersonalCoachDashboard
@@ -3074,11 +3711,57 @@ export default function App() {
             weeklyReport={liveWeeklyCoachReport}
             dailyPlan={dailyStudyPlan}
             latestDailyReport={latestDailyReport}
+            interventionAnalytics={dashboardInterventionAnalytics}
+            gameAnalytics={dashboardGameAnalytics}
             now={schedulerNow}
             disabled={analysisBusy || phase === 'promotion'}
             onStartDaily={() => void startDailyStudy()}
             onJump={jumpToCoachSection}
           />
+
+          <section className="panel coach-workspace-toggle">
+            <div>
+              <span className="eyebrow">Live play performance</span>
+              <h2>Detailed coach workspace</h2>
+              <p>{showCoachWorkspace
+                ? 'Detailed analytics are open.'
+                : 'History, analytics, and curriculum tools are paused while you play for faster clicks.'}</p>
+            </div>
+            <button type="button" onClick={() => setShowCoachWorkspace((open) => !open)}>
+              {showCoachWorkspace ? 'Hide workspace' : 'Open workspace'}
+            </button>
+          </section>
+
+          {(showCoachWorkspace || replayFocus) && <>
+          {!replayFocus && <>
+          <PersonalCoachRecommendationsPanel
+            memory={gameLibraryMemory}
+            disabled={analysisBusy || phase === 'promotion'}
+            onOpenMove={(entry, ply) => void loadGameFromLibrary(entry, ply)}
+            onTrain={(recommendation) => void trainCoachRecommendation(recommendation)}
+          />
+
+          <RecommendationOutcomePanel
+            memory={recommendationOutcomeMemory}
+            gameLibrary={gameLibraryMemory}
+            disabled={analysisBusy || phase === 'promotion'}
+            onOpenMove={(entry, ply) => void loadGameFromLibrary(entry, ply)}
+            onForget={(interventionId) => setRecommendationOutcomeMemory((current) =>
+              removeRecommendationIntervention(current, interventionId)
+            )}
+          />
+
+          <InterventionHistoryAnalyticsPanel
+            outcomeMemory={recommendationOutcomeMemory}
+            gameLibrary={gameLibraryMemory}
+          />
+
+          <TrainingExperimentPanel
+            outcomeMemory={recommendationOutcomeMemory}
+            gameLibrary={gameLibraryMemory}
+          />
+
+          <SkillMapPanel memory={skillMapMemory} onJump={jumpToCoachSection} />
 
           {records.length > 0 && (
             <>
@@ -3101,6 +3784,7 @@ export default function App() {
               />
             </>
           )}
+          </>}
 
           <section className="panel history-panel" id="move-history-panel">
             <div className="panel-heading compact">
@@ -3170,14 +3854,42 @@ export default function App() {
               records={records}
               activeId={activeReviewId}
               viewedPly={historyCursor}
-              disabled={analysisBusy || phase === 'promotion'}
+              disabled={(analysisBusy && !batchReviewing) || phase === 'promotion'}
               onNavigate={(ply) => void navigateHistory(ply)}
+              playing={historyPlayback}
+              onPlayPause={toggleHistoryPlayback}
+              onReplay={replayHistory}
+              replaySpeed={historyPlaybackSpeed}
+              onReplaySpeedChange={setHistoryPlaybackSpeed}
+              focusMode={replayFocus}
+              onToggleFocus={toggleReplayFocus}
+              onFork={() => void createVariationFromHistory()}
+              forkDisabled={batchReviewing}
               onPreviousMistake={goToPreviousMistake}
               onNextMistake={goToNextMistake}
               previousMistakeAvailable={previousMistake !== null}
               nextMistakeAvailable={nextMistake !== null}
             />
           </section>
+
+          {!replayFocus && <>
+          <GameLibraryPanel
+            memory={gameLibraryMemory}
+            currentGameId={currentLibraryGameId}
+            disabled={analysisBusy || phase === 'promotion'}
+            storageError={gameLibraryStorageError}
+            onOpen={(entry) => void loadGameFromLibrary(entry, null, 'history')}
+            onReview={(entry) => void reviewGameFromLibrary(entry)}
+            onTrainMistakes={(entry) => void trainGameMistakesFromLibrary(entry)}
+            onUpdateMetadata={updateSavedGameMetadata}
+            onDelete={deleteSavedGame}
+          />
+
+          <GameLevelAnalyticsPanel
+            memory={gameLibraryMemory}
+            onOpenGame={(entry) => void loadGameFromLibrary(entry)}
+            onOpenMove={(entry, ply) => void loadGameFromLibrary(entry, ply)}
+          />
 
           <div id="selected-move-details" className="selected-move-details-anchor">
           <CoachPanel
@@ -3246,6 +3958,26 @@ export default function App() {
             }}
           />
 
+          <RepertoireBuilderPanel
+            memory={repertoireMemory}
+            disabled={analysisBusy || phase === 'promotion'}
+            onTrainBranch={(rootKey) => void trainRepertoireBranch(rootKey)}
+          />
+
+          <OpeningPreparationPanel
+            memory={repertoireMemory}
+            disabled={analysisBusy || phase === 'promotion'}
+            onStartPack={(target) => void startOpeningPreparationPack(target)}
+          />
+
+          <EndgameCurriculumPanel modules={endgameModules} generated={generatedEndgameExercises.length} currentFen={game.fen()} tablebase={tablebaseResult} loading={tablebaseLoading} error={tablebaseError} onLookup={() => void lookupCurrentTablebase()} onTrain={() => void trainGeneratedEndgames()} />
+          <EndgameOutcomePanel evaluations={endgameOutcomeEvaluations} onStart={startEndgameModuleTracking} />
+          <OpponentPreparationPanel memory={opponentPrepMemory} onImport={importOpponentGames} onToggleModel={(id)=>setOpponentPrepMemory(current=>toggleOpponentModel(current,id))} />
+          <TimeControlPanel profiles={timeProfiles} recommendation={timeRecommendation} />
+          <StrengthModelPanel estimates={strengthEstimates} history={strengthHistory} />
+          <PatternMiningPanel patterns={recurringPatterns} onTrain={(pattern)=>void trainRecurringPattern(pattern)} />
+          <CurriculumGraphPanel nodes={curriculumNodes} advice={curriculumAdvice} />
+
           <WeaknessProfilePanel
             memory={weaknessMemory}
             disabled={analysisBusy || phase === 'promotion'}
@@ -3279,6 +4011,7 @@ export default function App() {
             onComplete={completeLongTermGoal}
             onResume={resumeLongTermGoal}
           />
+          <SeasonCyclePanel memory={seasonCycleMemory} games={gameLibraryMemory} onCreate={(name,event)=>setSeasonCycleMemory(createSeasonCycle(name,event))} onPhase={(phase:SeasonPhase)=>setSeasonCycleMemory(current=>setSeasonPhase(current,phase))} onGoal={(label,focus)=>setSeasonCycleMemory(current=>addSeasonGoal(current,label,focus))}/>
 
           <DailyStudyPlannerPanel
             plan={dailyStudyPlan}
@@ -3304,6 +4037,8 @@ export default function App() {
             onExport={exportCoachData}
             onImport={(file) => void importCoachData(file)}
           />
+          </>}
+          </>}
         </aside>
           </>
         ) : (
@@ -3323,6 +4058,7 @@ export default function App() {
                     <option value="weakness">Targeted weakness — {trainingWeaknessCount}</option>
                     <option value="due">Due review — {trainingDueCount}</option>
                     <option value="daily">Daily study — {trainingDailyCount}</option>
+                    <option value="coach">Coach recommendation — {trainingCoachCount}</option>
                   </select>
                 </label>
                 <button type="button" onClick={() => moveTrainingExercise(-1)} disabled={trainingLoading || trainingExercises.length < 2}>‹ Previous</button>
@@ -3384,6 +4120,7 @@ export default function App() {
                 weaknessCount={trainingWeaknessCount}
                 dueCount={trainingDueCount}
                 dailyCount={trainingDailyCount}
+                coachCount={trainingCoachCount}
                 dailyAttemptedCount={dailyAttemptedCount}
                 exercise={trainingExercise}
                 exerciseIndex={trainingExerciseIndex}
@@ -3401,6 +4138,24 @@ export default function App() {
                 onPrevious={() => moveTrainingExercise(-1)}
                 onNext={() => moveTrainingExercise(1)}
                 onFinishDaily={finishDailyStudySession}
+                onFinishCoach={() => void finishCoachRecommendationIntervention()}
+              />
+
+              <PreMoveRiskCoachPanel
+                memory={gameLibraryMemory}
+                fen={trainingExercise?.beforeFen ?? null}
+                ply={trainingExercise?.ply ?? 0}
+                humanColor={humanColor}
+                onOpenMove={(entry, ply) => void loadGameFromLibrary(entry, ply)}
+              />
+
+              <ModelGameComparisonPanel
+                memory={gameLibraryMemory}
+                fen={trainingExercise?.beforeFen ?? null}
+                ply={trainingExercise?.ply ?? 0}
+                humanColor={humanColor}
+                stockfishMove={trainingExercise?.bestMoveSan ?? null}
+                onOpenMove={(entry, ply) => void loadGameFromLibrary(entry, ply)}
               />
 
               {latestDailyReport && trainingSource === 'daily' && !activeDailySession && (
@@ -3411,7 +4166,7 @@ export default function App() {
                 <span className="eyebrow">How it works</span>
                 <h2>Your games become exercises</h2>
                 <p>Training never changes the live game. Switch back to Play & Coach at any time and your board, history, saved variations and coaching remain exactly where you left them.</p>
-                <p><strong>Best / Excellent</strong> counts as solved. Opening exercises also accept recognized book continuations. Daily Study automatically mixes due repertoire, weakest areas, recent mistakes, and a small amount of new material into a 15–30 minute session. Spaced cards still reschedule from the result.</p>
+                <p><strong>Best / Excellent</strong> counts as solved. Opening exercises also accept recognized book continuations. Daily Study automatically mixes due repertoire, weakest areas, recent mistakes, and a small amount of new material into a 15–30 minute session. Spaced cards still reschedule from the result. Coach-recommendation sessions can be completed explicitly to start 10/20-game outcome tracking.</p>
               </section>
             </aside>
           </>

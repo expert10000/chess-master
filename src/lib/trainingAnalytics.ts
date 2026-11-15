@@ -17,6 +17,8 @@ export interface TrainingAnalyticsEvent {
   openingName?: string;
   spacedSource?: 'repertoire' | 'weakness';
   spacedItemId?: string;
+  coachRecommendationId?: string;
+  coachRecommendationTitle?: string;
 }
 
 export interface TrainingAnalyticsMemory {
@@ -132,6 +134,8 @@ export function recordTrainingAnalyticsEvent(
     openingName: input.exercise.openingName,
     spacedSource: input.exercise.spacedSource,
     spacedItemId: input.exercise.spacedItemId,
+    coachRecommendationId: input.exercise.coachRecommendationId,
+    coachRecommendationTitle: input.exercise.coachRecommendationTitle,
   };
 
   const events = [...memory.events, event].slice(-MAX_EVENTS);
@@ -230,6 +234,7 @@ export function sourceAccuracy(memory: TrainingAnalyticsMemory): AccuracyRow[] {
     if (event.source === 'reviewed') return 'All reviewed';
     if (event.source === 'due') return 'Due review';
     if (event.source === 'daily') return 'Daily study';
+    if (event.source === 'coach') return 'Coach recommendation';
     return event.source;
   });
 }

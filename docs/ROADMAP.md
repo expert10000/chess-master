@@ -367,3 +367,104 @@ Post-1.0 candidates: installer/packaging, optional persistent game library, clou
 - no changes to engine/training/scheduler algorithms
 
 Next substantial feature candidate: v1.0.2 — persistent local game library.
+
+
+## v1.0.2 — Persistent local game library ✅
+
+- automatic played/imported/reviewed game persistence
+- stable live-game identity + completed-game deduplication
+- PGN/result/opening/ECO/CPL/issues/weakness metadata
+- searchable filters
+- Open / Review / Train mistakes
+- compact saved review snapshots
+- game library included in backup
+- all three UI text presets +~1.2 pt
+
+Next candidate: v1.0.3 — game-level analytics and phase statistics across the persistent library.
+
+
+## v1.0.3 — Game-level analytics + phase statistics ✅
+
+- last 10 / 20 / 50 reviewed-game windows
+- avg CPL / blunders per game / issues per game
+- White vs Black split
+- opening-performance breakdown
+- Opening / Middlegame / Endgame strengths and trends
+- Current / Brown / Green checkerboard themes
+- board-theme preference persisted and backed up
+
+Next candidate: v1.0.4 — search/filter/tag saved games + game notes + pinned model games.
+
+
+## v1.0.3.3 — Review layout polish ✅
+
+- Board / Balanced / Details presets
+- pin/unpin board
+- compact review chrome
+- selection-follow focus
+- persistent review-layout preference + backup
+
+
+## v1.0.4 — Saved game organization ✅
+
+- tags / notes
+- pinned favorites / model games
+- archive / restore / delete
+- advanced filters and sorting
+- search across metadata
+- model/archive exclusion from personal analytics
+
+Next candidate: v1.0.5 — analytics drill-down to exact games and moves, plus comparison explorer.
+
+
+## v1.0.5 — Analytics → games drill-down + comparison explorer ✅
+
+- clickable analytics numbers
+- exact game/move evidence
+- historical Open move integration
+- games containing selected blunders/issues
+- Last N vs previous N
+- White vs Black
+- opening vs opening
+- phase comparison
+
+Next candidate: v1.0.6 — Personal Coach recommendations driven by persistent game history and diagnostic evidence.
+
+
+## v1.0.6 — Personal coach recommendations from game history ✅
+
+- ranked diagnostic actions from Game Library analytics
+- Last 10 / 20 / 50 windows
+- phase, color, opening, blunder and overall-trend recommendations
+- Why? / Show evidence / Train now
+- up to seven exact saved training positions per recommendation
+- Coach recommendation Training source
+
+Next candidate: v1.0.7 — recommendation outcomes and intervention tracking: did a recommended training block actually improve the next 10–20 games?
+
+
+## v1.0.7 — Recommendation outcome tracking ✅
+
+- complete recommendation intervention explicitly
+- freeze pre-intervention scoped baseline
+- next 10 relevant reviewed games = early checkpoint
+- next 20 relevant reviewed games = stable outcome window
+- CPL / blunders-game / issues-game comparison
+- Improved / Mixed / Stable / Worse / Collecting
+- post-training evidence → exact saved move
+- persistent outcome memory + backup
+
+Next strong candidate: v1.0.8 — intervention history analytics: which kinds of training actually tend to work best for this player over multiple interventions.
+
+
+## v1.0.8 — Intervention history analytics + Fast play ✅
+
+- aggregate measured recommendation interventions by training type
+- rank what works best by average CPL improvement
+- secondary blunder reduction / improved-rate / sample-count ranking
+- provisional / developing / established evidence labels
+- expandable intervention history
+- Fast play pace: shorter move search + deferred automatic review
+- Coach pace: existing full auto-review workflow
+
+Next candidate: v1.0.9 — intervention-aware adaptive planning: automatically allocate more future study time to training types that have worked best, while still reserving exploration for under-tested methods.

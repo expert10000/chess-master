@@ -54,6 +54,7 @@ export class StockfishService {
   private engineName: string | null = null;
   private lastError: string | null = null;
   private stdoutBuffer = '';
+  private lastSearchConfig: string | null = null;
 
   constructor(private readonly settings: SettingsStore) {}
 
@@ -84,9 +85,28 @@ export class StockfishService {
     const generation = this.analysisGeneration;
     return this.enqueue(async () => {
       if (generation !== this.analysisGeneration) throw new Error('Stockfish analysis cancelled.');
-      await this.start();
-      if (generation !== this.analysisGeneration) throw new Error('Stockfish analysis cancelled.');
-      const result = await this.runSearch(request);
+      const fastRequest = request.movetimeMs <= 900;
+      let watchdog: ReturnType<typeof setTimeout> | null = null;
+      const requestTask = async () => {
+        await this.start();
+        if (generation !== this.analysisGeneration) throw new Error('Stockfish analysis cancelled.');
+        return this.runSearch(request);
+      };
+      let result: AnalyseResult;
+      try {
+        result = await Promise.race<AnalyseResult>([
+          requestTask(),
+          new Promise<AnalyseResult>((_resolve, reject) => {
+            watchdog = setTimeout(() => {
+              void this.stop().finally(() => reject(new Error('Stockfish did not respond in time; engine restarted. Please retry.')));
+            }, fastRequest
+              ? Math.max(9_000, request.movetimeMs + 8_000)
+              : Math.max(12_000, request.movetimeMs + 9_000));
+          }),
+        ]);
+      } finally {
+        if (watchdog) clearTimeout(watchdog);
+      }
       if (generation !== this.analysisGeneration) throw new Error('Stockfish analysis cancelled.');
       return result;
     });
@@ -113,6 +133,7 @@ export class StockfishService {
     this.process = null;
     this.startPromise = null;
     this.engineName = null;
+    this.lastSearchConfig = null;
   }
 
   private enqueue<T>(task: () => Promise<T>): Promise<T> {
@@ -144,6 +165,7 @@ export class StockfishService {
 
     this.lastError = null;
     this.stdoutBuffer = '';
+    this.lastSearchConfig = null;
 
     const child = spawn(this.configuredPath, [], {
       windowsHide: true,
@@ -159,10 +181,12 @@ export class StockfishService {
       if (message) this.lastError = message;
     });
     child.on('error', (error) => {
+      if (this.process !== child) return;
       this.lastError = error.message;
       this.process = null;
     });
     child.on('exit', (code, signal) => {
+      if (this.process !== child) return;
       if (code !== 0 && signal !== 'SIGTERM') {
         this.lastError = `Stockfish exited with code ${String(code)} (${String(signal)}).`;
       }
@@ -184,33 +208,51 @@ export class StockfishService {
     const sideToMove = request.fen.split(/\s+/)[1] === 'b' ? -1 : 1;
     const latest = new Map<number, EngineLine>();
 
-    this.write('setoption name Threads value 2');
-    this.write('setoption name Hash value 128');
-    this.write(`setoption name MultiPV value ${request.multiPv}`);
-
-    if (request.strength?.limit) {
-      this.write('setoption name UCI_LimitStrength value true');
-      this.write(`setoption name UCI_Elo value ${request.strength.elo ?? 1800}`);
-    } else {
-      this.write('setoption name UCI_LimitStrength value false');
-      this.write('setoption name Skill Level value 20');
+    // Fast play used to reduce only `go movetime`, while this block still rebuilt the
+    // hash and waited for readiness on every move. That setup cost can be far longer
+    // than a 200 ms search. Keep a smaller fast-play hash and only synchronize when
+    // an actual engine option changes.
+    const fastSearch = request.movetimeMs <= 900;
+    const threads = fastSearch ? 1 : 2;
+    const hash = fastSearch ? 32 : 128;
+    const strengthKey = request.strength?.limit
+      ? `limited:${request.strength.elo ?? 1800}`
+      : 'unlimited';
+    const configKey = `${threads}|${hash}|${request.multiPv}|${strengthKey}`;
+    if (configKey !== this.lastSearchConfig) {
+      this.write(`setoption name Threads value ${threads}`);
+      this.write(`setoption name Hash value ${hash}`);
+      this.write(`setoption name MultiPV value ${request.multiPv}`);
+      if (request.strength?.limit) {
+        this.write('setoption name UCI_LimitStrength value true');
+        this.write(`setoption name UCI_Elo value ${request.strength.elo ?? 1800}`);
+      } else {
+        this.write('setoption name UCI_LimitStrength value false');
+        this.write('setoption name Skill Level value 20');
+      }
+      const ready = this.waitForLine((line) => line === 'readyok', 8_000);
+      this.write('isready');
+      await ready;
+      this.lastSearchConfig = configKey;
     }
-
-    const ready = this.waitForLine((line) => line === 'readyok', 8_000);
-    this.write('isready');
-    await ready;
 
     this.write(`position fen ${request.fen}`);
 
     const result = await new Promise<AnalyseResult>((resolvePromise, rejectPromise) => {
       let settled = false;
+      const watchdogMs = fastSearch
+        ? Math.max(6_000, request.movetimeMs * 6)
+        : request.movetimeMs + 5_000;
       const timeout = setTimeout(() => {
         if (settled) return;
         settled = true;
         this.listeners.delete(onLine);
-        this.write('stop');
-        rejectPromise(new Error('Stockfish analysis timed out.'));
-      }, request.movetimeMs + 12_000);
+        try { this.write('stop'); } catch { /* process may have exited */ }
+        // A fast response that never produces bestmove is an unhealthy engine state.
+        // Restart before the next queued request instead of leaving the UI spinning.
+        if (fastSearch) void this.stop();
+        rejectPromise(new Error(fastSearch ? 'Fast Stockfish response timed out; engine restarted.' : 'Stockfish analysis timed out.'));
+      }, watchdogMs);
 
       const finish = (bestMove: string | null, ponder: string | null) => {
         if (settled) return;

@@ -34,7 +34,7 @@ export function DailyStudyPlannerPanel({
       </div>
 
       <div className="daily-duration-picker" aria-label="Daily study duration">
-        {([15, 20, 30] as DailyStudyDuration[]).map((minutes) => (
+        {([10, 20, 30, 45, 60] as DailyStudyDuration[]).map((minutes) => (
           <button
             type="button"
             key={minutes}
@@ -99,6 +99,18 @@ export function DailyStudyPlannerPanel({
         </div>
       )}
 
+      {plan.interventionAllocation && (
+        <div className="daily-intervention-adjustment">
+          <span>What works for you: {plan.interventionAllocation.effectiveMethodLabel}</span>
+          <div>
+            <b>+{plan.interventionAllocation.averageCplImprovement.toFixed(1)} cp average</b>
+            <b>{plan.interventionAllocation.boostedPositions} boosted positions</b>
+            <b>{plan.interventionAllocation.explorationReservePositions} exploration reserve</b>
+          </div>
+          <small>Based on {plan.interventionAllocation.evidenceCount} measured interventions. The reserve keeps under-tested approaches in the plan; overdue repertoire is never displaced.</small>
+        </div>
+      )}
+
       {plan.weakestLabels.length > 0 && (
         <div className="daily-focus-list">
           <span>Priority focus</span>
@@ -109,13 +121,29 @@ export function DailyStudyPlannerPanel({
       )}
 
       <div className="daily-plan-principles">
-        <span><b>1</b> overdue repertoire first</span>
-        <span><b>2</b> recurring weaknesses next</span>
-        <span><b>3</b> recent game errors</span>
-        <span><b>4</b> only a little new material</span>
+        <span><b>Composed from</b> due review, weaknesses, recent mistakes, goals, weekly trends, and what has worked for you.</span>
       </div>
 
       <p className="daily-plan-summary">{plan.summary}</p>
+
+      <div className="training-optimizer-blocks">
+        <span>Adaptive training optimizer</span>
+        {plan.optimizedBlocks.map((block) => <div key={block.label}><b>{block.minutes} min</b><strong>{block.label}</strong><small>{block.reason}</small></div>)}
+      </div>
+
+      {plan.items.length > 0 && (
+        <div className="daily-session-rationale">
+          <span>Why each exercise is here</span>
+          <ol>
+            {plan.items.map((item, index) => (
+              <li key={item.id}>
+                <b>{index + 1}. {item.sourceLabel}</b>
+                <small>{item.reason}</small>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       {latestReport && (
         <div className="daily-latest-recommendation">

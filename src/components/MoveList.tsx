@@ -1,4 +1,7 @@
+import { useLayoutEffect, useRef } from 'react';
 import type { MoveReview } from '../lib/chessCoach';
+
+export type ReplaySpeed = 0.5 | 1 | 2;
 
 export interface PlyRecord {
   id: number;
@@ -17,6 +20,15 @@ interface MoveListProps {
   viewedPly: number | null;
   disabled?: boolean;
   onNavigate(ply: number | null): void;
+  playing?: boolean;
+  onPlayPause?(): void;
+  onReplay?(): void;
+  replaySpeed: ReplaySpeed;
+  onReplaySpeedChange(speed: ReplaySpeed): void;
+  focusMode: boolean;
+  onToggleFocus(): void;
+  onFork?(): void;
+  forkDisabled?: boolean;
   onPreviousMistake?(): void;
   onNextMistake?(): void;
   previousMistakeAvailable?: boolean;
@@ -29,11 +41,21 @@ export function MoveList({
   viewedPly,
   disabled = false,
   onNavigate,
+  playing = false,
+  onPlayPause,
+  onReplay,
+  replaySpeed,
+  onReplaySpeedChange,
+  focusMode,
+  onToggleFocus,
+  onFork,
+  forkDisabled = false,
   onPreviousMistake,
   onNextMistake,
   previousMistakeAvailable = false,
   nextMistakeAvailable = false,
 }: MoveListProps) {
+  const moveListRef = useRef<HTMLDivElement>(null);
   const rows: Array<{ moveNumber: number; white?: PlyRecord; black?: PlyRecord }> = [];
   for (const record of records) {
     const moveNumber = Math.ceil(record.ply / 2);
@@ -49,6 +71,23 @@ export function MoveList({
   const currentPly = viewedPly ?? records.length;
   const atStart = currentPly === 0;
   const atLatest = viewedPly === null;
+
+  useLayoutEffect(() => {
+    const list = moveListRef.current;
+    if (!list || records.length === 0) return;
+    if (viewedPly === 0) {
+      list.scrollTop = 0;
+      return;
+    }
+    const targetPly = viewedPly ?? records.length;
+    const selectedRow = list.querySelector<HTMLElement>(`[data-ply="${targetPly}"]`)?.closest<HTMLElement>('.move-row');
+    if (!selectedRow) return;
+    const listBounds = list.getBoundingClientRect();
+    const rowBounds = selectedRow.getBoundingClientRect();
+    if (rowBounds.top < listBounds.top + 8 || rowBounds.bottom > listBounds.bottom - 8) {
+      list.scrollTop += rowBounds.top - listBounds.top - (list.clientHeight - rowBounds.height) / 2;
+    }
+  }, [viewedPly, records.length, records[0]?.id]);
 
   return (
     <div className="history-browser">
@@ -87,6 +126,42 @@ export function MoveList({
         >›|</button>
       </div>
 
+      <div className="history-playback-actions" aria-label="Game replay controls">
+        <button
+          className="history-step-button"
+          type="button"
+          onClick={() => onNavigate(Math.max(0, currentPly - 1))}
+          disabled={disabled || records.length === 0 || atStart}
+        >← Previous move</button>
+        <button
+          className="history-step-button"
+          type="button"
+          onClick={() => currentPly + 1 > records.length ? onNavigate(null) : onNavigate(currentPly + 1)}
+          disabled={disabled || records.length === 0 || atLatest}
+        >Next move →</button>
+        <button type="button" onClick={onPlayPause} disabled={disabled || records.length === 0}>{playing ? 'Pause replay' : 'Play moves'}</button>
+        <button type="button" onClick={onReplay} disabled={disabled || records.length === 0}>Replay from start</button>
+        <button type="button" onClick={onFork} disabled={disabled || forkDisabled || viewedPly === null} title="Start a new playable variation from the selected position">Fork &amp; play</button>
+      </div>
+
+      <div className="history-replay-options">
+        <div className="history-speed-control" aria-label="Replay speed">
+          <span>Speed</span>
+          {([0.5, 1, 2] as const).map((speed) => (
+            <button
+              type="button"
+              key={speed}
+              aria-pressed={replaySpeed === speed}
+              className={replaySpeed === speed ? 'active' : ''}
+              onClick={() => onReplaySpeedChange(speed)}
+            >{speed}×</button>
+          ))}
+        </div>
+        <button type="button" className="history-focus-button" onClick={onToggleFocus} disabled={records.length === 0} aria-pressed={focusMode}>
+          {focusMode ? 'Exit focus' : 'Focus replay'}
+        </button>
+      </div>
+
       <div className="history-shortcuts">←/→ step · Home start · End latest · [ / ] mistakes</div>
 
       <div className="mistake-navigation" aria-label="Mistake navigation">
@@ -104,7 +179,7 @@ export function MoveList({
         >Next mistake →</button>
       </div>
 
-      <div className="move-list" aria-label="Move history" aria-busy={disabled}>
+      <div className="move-list" aria-label="Move history" aria-busy={disabled} ref={moveListRef}>
         {rows.length === 0 && <div className="empty-state">Play a move to begin the game.</div>}
         {rows.map((row) => (
           <div className="move-row" key={row.moveNumber}>
@@ -121,6 +196,7 @@ export function MoveList({
                   ].filter(Boolean).join(' ')}
                   onClick={() => onNavigate(record.ply)}
                   title={`View position after ${record.san}`}
+                  data-ply={record.ply}
                   disabled={disabled}
                   key={side}
                 >

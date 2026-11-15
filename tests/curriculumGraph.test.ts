@@ -1,0 +1,2 @@
+import { describe, expect, it } from 'vitest'; import { buildCurriculumGraph, prerequisiteAdvice } from '../src/lib/curriculumGraph';
+describe('v1.8.0 curriculum graph',()=>{it('builds prerequisite nodes and gives prerequisite-first advice',()=>{const nodes=buildCurriculumGraph([],[]);expect(nodes).toHaveLength(15);expect(nodes.find(n=>n.id==='rook-activity')?.prerequisite).toBe('king-pawn');expect(prerequisiteAdvice(nodes)).toContain('rook activity')});});

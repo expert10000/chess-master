@@ -69,3 +69,11 @@ The static gate verifies the stable 1.x package version and required stable-rele
 - board remains visible/sticky where designed;
 - <1000 px single-column mode remains usable;
 - Personal Coach dashboard buttons scroll to the intended panels.
+
+### Game-history recommendations
+
+- Last 10 / 20 / 50 windows rank only repeated reviewed-game patterns;
+- Why? shows the metrics that caused the action;
+- Show evidence opens exact saved game/move rows;
+- Train now creates at most seven positions and enters Coach recommendation training;
+- model and archived games do not influence recommendation ranking.

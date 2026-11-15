@@ -18,6 +18,8 @@ The app downloads a timestamped file such as:
 
 The file includes recognized Stockfish Coach local-storage entries for:
 
+- persistent local game library;
+- recommendation outcome history;
 - personal weakness profile;
 - opening repertoire and opening deviations;
 - spaced-repetition cards and schedules;
@@ -70,3 +72,7 @@ v1.0.0 uses:
 - schema: `1`
 
 Future incompatible schemas should be migrated explicitly rather than guessed.
+
+- game-library tags, notes, pinned/model/archive metadata are contained inside the persistent game-library entry and are restored with it.
+
+- play pace preference;

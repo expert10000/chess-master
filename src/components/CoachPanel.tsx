@@ -231,7 +231,7 @@ export function CoachPanel({
       </div>
 
       <div className="conversation-suggestions" aria-label="Example coach questions">
-        {['What is the plan?', 'What tactical motifs are here?', 'What pawn weaknesses are here?', 'Why is the best move stronger?'].map((question) => (
+        {['What is the plan?', 'Why has my Black score improved?', 'What should I work on before my tournament?', 'Why is the best move stronger?'].map((question) => (
           <button type="button" key={question} disabled={chatLoading} onClick={() => onChatSubmit?.(question)}>{question}</button>
         ))}
       </div>

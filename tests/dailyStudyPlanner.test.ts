@@ -126,11 +126,36 @@ function weaknessMemory(count = 8): WeaknessMemory {
   return memory;
 }
 
-describe('v0.9.6 adaptive daily study planner', () => {
-  it('maps 15/20/30 minute sessions to bounded position targets', () => {
-    expect(targetPositionsForDuration(15)).toBe(10);
+describe('v1.1.1 adaptive session composer', () => {
+  it('maps 10/20/30/45 minute sessions to bounded position targets', () => {
+    expect(targetPositionsForDuration(10)).toBe(7);
     expect(targetPositionsForDuration(20)).toBe(13);
     expect(targetPositionsForDuration(30)).toBe(20);
+    expect(targetPositionsForDuration(45)).toBe(30);
+    expect(targetPositionsForDuration(60)).toBe(40);
+  });
+
+  it('composes a short session from the evidence that is actually available', () => {
+    const spaced = emptySpacedRepetitionMemory();
+    spaced.items.due = spacedItem('due', 'repertoire', 3, NOW - 1_000, 1);
+    const plan = buildAdaptiveDailyStudyPlan({
+      durationMinutes: 10,
+      now: NOW,
+      spacedMemory: spaced,
+      weaknessMemory: emptyWeaknessMemory(),
+      records: [],
+      humanColor: 'w',
+    });
+    expect(plan.targetPositions).toBe(7);
+    expect(plan.counts.dueRepertoire).toBeGreaterThan(0);
+    expect(plan.counts.newMaterial).toBe(0);
+    expect(plan.items.every((item) => item.reason.length > 0)).toBe(true);
+  });
+
+  it('exposes minute-based adaptive blocks that sum to the selected session', () => {
+    const plan = buildAdaptiveDailyStudyPlan({ durationMinutes: 20, now: NOW, spacedMemory: emptySpacedRepetitionMemory(), weaknessMemory: weaknessMemory(), records: [recentRecord(1)], humanColor: 'w' });
+    expect(plan.optimizedBlocks.length).toBeGreaterThan(0);
+    expect(plan.optimizedBlocks.reduce((sum, block) => sum + block.minutes, 0)).toBeGreaterThan(0);
   });
 
   it('keeps new material deliberately small in a 20-minute plan', () => {
@@ -286,5 +311,33 @@ describe('v0.9.9 goal-priority integration', () => {
     expect(firstDue.exercise.openingName).toBe('French Defense · Advance');
     expect(plan.goalAdjusted).toBe(true);
     expect(plan.goalPriorityLabels).toContain('French Defense · Advance');
+  });
+});
+
+describe('v1.0.9 intervention-aware allocation', () => {
+  it('moves phase-plan time toward recurring weaknesses while preserving an exploration reserve', () => {
+    const plan = buildAdaptiveDailyStudyPlan({
+      durationMinutes: 20,
+      now: NOW,
+      spacedMemory: emptySpacedRepetitionMemory(),
+      weaknessMemory: weaknessMemory(),
+      records: [recentRecord(1), recentRecord(2), recentRecord(3)],
+      humanColor: 'w',
+      interventionEvidence: [{
+        trainingType: 'phase-training',
+        label: 'Phase training',
+        interventions: 3,
+        avgCplImprovement: 24,
+        rank: 1,
+      }],
+    });
+
+    expect(plan.interventionAllocation).toMatchObject({
+      effectiveMethod: 'phase-training',
+      boostedPositions: 2,
+      explorationReservePositions: 3,
+    });
+    expect(plan.counts.weakestAreas).toBeGreaterThanOrEqual(6);
+    expect(plan.summary).toContain('exploration');
   });
 });

@@ -200,7 +200,7 @@ export function deriveWeaknessCategories(review: MoveReview): WeaknessCategoryId
     categories.add('hanging-pieces');
   }
 
-  const tacticalLabels = /\b(fork|double attack|pin|pinned|skewer|discovered|removal of defender|forcing check|checkmate|tactical)\b/;
+  const tacticalLabels = /\b(?:fork|double attack|pin|skewer|discovered|removal of defender|forcing check|checkmate|tactical)\b/;
   if (
     bestConcepts.some((concept) => concept.category === 'tactical' || tacticalLabels.test(concept.label.toLowerCase()))
     || tacticalLabels.test(text)
