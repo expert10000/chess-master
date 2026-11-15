@@ -40,6 +40,7 @@ import {
   formatEvaluation,
   parseCoachPrompt,
   resolveMoveInput,
+  uciLineToSan,
   type CoachAnswer,
   type ConversationAnswer,
   type CoachQuestion,
@@ -2651,6 +2652,13 @@ export default function App() {
   const currentEvaluation = currentAnalysis?.lines[0]
     ? formatEvaluation(currentAnalysis.lines[0])
     : '—';
+  const visibleFen = game.fen();
+  const hintLine = currentAnalysisFen === visibleFen
+    ? currentAnalysis?.lines.find((line) => line.multipv === 1) ?? currentAnalysis?.lines[0] ?? null
+    : null;
+  const hintMoves = hintLine
+    ? uciLineToSan(visibleFen, hintLine.pv.length ? hintLine.pv : currentAnalysis?.bestMove ? [currentAnalysis.bestMove] : [], 3)
+    : [];
 
   const reviewedCount = records.filter((record) => record.review).length;
   const mistakeCount = records.filter((record) => isMistakeReview(record.review)).length;
@@ -2906,6 +2914,22 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            {!pvPreview && <div className="board-hint-card" aria-live="polite">
+              <div className="board-hint-copy">
+                <span>{isHistoryView ? 'HINT FOR THIS POSITION' : 'COACH HINT'}</span>
+                {hintMoves[0] ? <>
+                  <strong>Best move: {hintMoves[0]}</strong>
+                  <p>{hintMoves[1] ? `${game.turn() === 'w' ? 'Black' : 'White'} replies ${hintMoves[1]} in Stockfish’s searched line${hintMoves[2] ? `; then ${hintMoves[2]}` : ''}.` : 'Stockfish found this move in the current position.'} <small>Depth {hintLine?.depth} · {hintLine ? formatEvaluation(hintLine) : '—'}</small></p>
+                </> : coachLoading && currentAnalysisFen === visibleFen ? <strong>Stockfish is finding a move…</strong>
+                  : coachError && currentAnalysisFen === visibleFen ? <strong>{coachError}</strong>
+                    : <strong>Find a move without leaving the board</strong>}
+              </div>
+              <div className="board-hint-actions">
+                {hintMoves[0] && <button type="button" className="board-hint-details" onClick={() => scrollReviewSection('selected-move-details')}>Full analysis ↓</button>}
+                <button type="button" className="board-hint-button" onClick={() => void analyseCurrentPosition()} disabled={analysisBusy || phase === 'promotion' || !engineStatus?.configured || game.isGameOver()}>{coachLoading && currentAnalysisFen === visibleFen ? 'Finding…' : hintMoves[0] ? 'Refresh hint' : '✦ Show hint'}</button>
+              </div>
+            </div>}
 
             {!pvPreview && (
               <div className="board-ideas-toolbar">

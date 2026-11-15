@@ -32,8 +32,16 @@ const electronExe = require('electron');
     await page.getByRole('gridcell', { name: 'e4 white p' }).waitFor();
     await page.getByRole('button', { name: 'Undo turn' }).waitFor({ state: 'visible' });
     await page.waitForFunction(() => document.querySelectorAll('[aria-label="Move history"] .move-chip').length >= 2, null, { timeout: 30000 });
-    await page.getByRole('button', { name: 'Analyze position' }).click();
+    await page.locator('#move-history-panel').scrollIntoViewIfNeeded();
+    const hintVisibility = await page.locator('.board-hint-card').evaluate((card) => {
+      const rect = card.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, viewport: window.innerHeight };
+    });
+    if (hintVisibility.top < 0 || hintVisibility.bottom > hintVisibility.viewport) throw new Error(`Hint action not visible beside the board: ${JSON.stringify(hintVisibility)}`);
+    await page.getByRole('button', { name: 'Show hint' }).click();
     await page.waitForFunction(() => document.querySelector('.topbar-status div span')?.textContent?.includes('Position analyzed'), null, { timeout: 30000 });
+    await page.locator('.board-hint-copy').getByText(/Best move:/).waitFor();
+    await page.screenshot({ path: join(root, 'artifacts', 'desktop-hint.png') });
     await page.getByRole('button', { name: 'Go to starting position' }).click();
     await page.getByRole('gridcell', { name: 'e2 white p' }).waitFor();
     await page.getByRole('button', { name: 'Go to latest position' }).click();
@@ -63,7 +71,7 @@ const electronExe = require('electron');
     mkdirSync(join(root, 'artifacts'), { recursive: true });
     await page.screenshot({ path: join(root, 'artifacts', 'playwright-smoke.png'), fullPage: true });
     if (errors.length) throw new Error(`Renderer errors: ${errors.join('; ')}`);
-    console.log(JSON.stringify({ pass: true, squares, engine: status, interactions: ['e2-e4', 'Stockfish reply', 'analysis', 'history start/latest', 'new game', 'mobile PGN import', 'variation from historical move', 'return to original game'], screenshot: 'artifacts/playwright-smoke.png' }));
+    console.log(JSON.stringify({ pass: true, squares, engine: status, interactions: ['e2-e4', 'Stockfish reply', 'visible board hint and analysis', 'history start/latest', 'new game', 'mobile PGN import', 'variation from historical move', 'return to original game'], screenshots: ['artifacts/desktop-hint.png', 'artifacts/playwright-smoke.png'] }));
   } finally {
     await electron.close();
   }

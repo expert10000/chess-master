@@ -140,6 +140,33 @@ button:hover:not(:disabled) { border-color: rgba(148, 178, 234, .46); background
   margin: 0 auto;
 }
 
+.board-hint-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 72px;
+  margin: 0 0 9px;
+  padding: 10px 12px;
+  border: 1px solid rgba(87, 191, 139, .42);
+  border-radius: 11px;
+  background: linear-gradient(120deg, rgba(29, 69, 55, .94), rgba(24, 47, 48, .94));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .16);
+}
+.board-hint-copy { min-width: 0; }
+.board-hint-copy > span { display: block; margin-bottom: 3px; color: #91e5b6; font-size: calc(9px * var(--font-scale)); font-weight: 800; letter-spacing: .1em; }
+.board-hint-copy > strong { display: block; color: #f1fff6; font-size: calc(15px * var(--font-scale)); }
+.board-hint-copy p { margin: 4px 0 0; color: #d2e9dd; font-size: calc(11px * var(--font-scale)); line-height: 1.4; }
+.board-hint-copy small { color: #a5c9b7; white-space: nowrap; }
+.board-hint-actions { display: flex; align-items: center; gap: 7px; flex: none; }
+.board-hint-card button { min-height: 38px; padding: 0 12px; border: 1px solid rgba(155, 219, 180, .38); border-radius: 8px; color: #d9f6e6; background: rgba(32, 68, 55, .85); font-weight: 750; font-size: calc(11px * var(--font-scale)); white-space: nowrap; }
+.board-hint-card .board-hint-button { min-width: 110px; color: #173a2c; background: #9ae8ba; border-color: #9ae8ba; }
+.board-hint-card .board-hint-button:hover:not(:disabled) { background: #b7f4d0; border-color: #b7f4d0; }
+@container (max-width: 600px) {
+  .board-hint-card { align-items: stretch; flex-direction: column; }
+  .board-hint-actions { justify-content: flex-end; }
+}
+
 .player-strip {
   display: flex;
   align-items: center;
