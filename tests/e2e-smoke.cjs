@@ -40,10 +40,30 @@ const electronExe = require('electron');
     await page.getByRole('gridcell', { name: 'e4 white p' }).waitFor();
     await page.getByRole('button', { name: 'New game' }).click();
     await page.getByRole('gridcell', { name: 'e2 white p' }).waitFor();
+    await page.getByRole('button', { name: 'Import PGN / FEN' }).click();
+    await page.getByRole('dialog', { name: 'Import PGN or FEN' }).waitFor();
+    await page.locator('.import-textarea').fill('[Event "Stockfish Coach mobile"]\n[White "You"]\n[Black "Stockfish"]\n[Result "*"]\n\n1. e4 d5 2. Nc3 d4');
+    await page.getByRole('checkbox', { name: 'Analyze the full game immediately' }).uncheck();
+    await page.getByRole('button', { name: 'Import game', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Import PGN or FEN' }).waitFor({ state: 'hidden' });
+    await page.locator('.move-chip[title="View position after d5"]').click();
+    await page.getByText('History mode').waitFor();
+    await page.getByRole('button', { name: 'Fork & play' }).click();
+    await page.locator('.current-line-card').getByText('Variation 1').waitFor();
+    await page.getByRole('gridcell', { name: 'g1 white n' }).click();
+    await page.getByRole('gridcell', { name: 'f3' }).click();
+    await page.getByRole('gridcell', { name: 'f3 white n' }).waitFor();
+    await page.waitForFunction(() => {
+      const saved = [...document.querySelectorAll('.saved-line-list button')].find(button => button.textContent.includes('Imported game'));
+      return saved && !saved.disabled;
+    }, null, { timeout: 30000 });
+    await page.locator('.saved-line-list button').filter({ hasText: 'Imported game' }).click();
+    await page.getByRole('gridcell', { name: 'c3 white n' }).waitFor();
+    await page.getByRole('gridcell', { name: 'd4 black p' }).waitFor();
     mkdirSync(join(root, 'artifacts'), { recursive: true });
     await page.screenshot({ path: join(root, 'artifacts', 'playwright-smoke.png'), fullPage: true });
     if (errors.length) throw new Error(`Renderer errors: ${errors.join('; ')}`);
-    console.log(JSON.stringify({ pass: true, squares, engine: status, interactions: ['e2-e4', 'Stockfish reply', 'analysis', 'history start/latest', 'new game'], screenshot: 'artifacts/playwright-smoke.png' }));
+    console.log(JSON.stringify({ pass: true, squares, engine: status, interactions: ['e2-e4', 'Stockfish reply', 'analysis', 'history start/latest', 'new game', 'mobile PGN import', 'variation from historical move', 'return to original game'], screenshot: 'artifacts/playwright-smoke.png' }));
   } finally {
     await electron.close();
   }

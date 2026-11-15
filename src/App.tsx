@@ -2859,8 +2859,8 @@ export default function App() {
                   <strong>{historyLabel}</strong>
                 </div>
                 <div className="history-mode-actions">
-                  <button type="button" className="history-variation-button" onClick={() => void createVariationFromHistory()}>Create variation</button>
-                  <button type="button" className="history-play-button" onClick={() => void playFromHistory()}>Play from here</button>
+                  <button type="button" className="history-variation-button" onClick={() => void createVariationFromHistory()} title="Keep the original line and start playing from this move">Fork &amp; play</button>
+                  <button type="button" className="history-play-button" onClick={() => void playFromHistory()} title="Replace the later moves in this line">Replace continuation</button>
                   <button type="button" onClick={() => void navigateHistory(null)}>Return to live</button>
                 </div>
               </div>

@@ -133,13 +133,21 @@ chosen.
 The focused Android app is a separate, offline Capacitor build. It has tap and drag
 chess, 1800/2000/2100 Elo and Max opponent settings, side selection, undo,
 board flip, mid-game strength changes, move history that opens the selected position on the board,
-the desktop original pieces plus four optional sets (Illustrated, Modern, Classic, Fantasy), and offline hints from a bundled Stockfish 19 lite engine. Hint analysis has Quick (~1 s),
+replay controls and saved playable forks, PGN file sharing, the desktop original pieces plus four optional sets (Staunton, Modern, Classic, Fantasy), and offline hints from a bundled Stockfish 19 lite engine. Hint analysis has Quick (~1 s),
 Explain (~4 s, default), and cancellable Deep (~9 s) modes, independent of opponent Elo.
 Engine hints show a checked board fact, the searched reply and continuation, an alternative
 when supported, and the actual depth. Quick opening-book hints are labelled as unverified
 until the player selects Verify with Stockfish. Analysis time does not guarantee a depth
 or prove a line is forced.
 The desktop Electron app remains available.
+
+To move a game to desktop: on the phone open **Moves → Export PGN**, share the
+`.pgn` file with Quick Share, Drive, email, or another file transfer app, then
+on desktop choose **Import PGN / FEN → Load .pgn file**. Tap a move in mobile
+history to inspect it on the board; **Replay** steps forward automatically and
+**Play from here** creates a playable fork while retaining the original line
+under Moves. On desktop, **Fork & play** likewise retains the original line;
+**Replace continuation** changes the current line.
 
 ```powershell
 npm ci

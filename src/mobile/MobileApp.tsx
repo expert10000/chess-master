@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Chess, type Move, type PieceSymbol, type Square } from 'chess.js';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { MobileEngine, type MobileAnalysis } from './engine';
 import { hintTip, moveTip } from './tips';
 import { openingHint } from './openingHint';
@@ -38,11 +41,22 @@ function PieceIcon({ color, piece, style }: { color: Side; piece: PieceSymbol; s
   return <img className={`chess-piece ${color === 'w' ? 'piece-white' : 'piece-black'} piece-style-${style}`} src={`./pieces/${style}/${color}${piece.toUpperCase()}.svg`} alt="" draggable={false} aria-hidden="true" />;
 }
 
+interface SavedLine {
+  id: number;
+  name: string;
+  originPly: number | null;
+  pgn: string;
+}
+
 interface SavedGame {
   pgn: string;
   side: Side;
   difficulty: Difficulty;
   flipped: boolean;
+  lineId: number;
+  lineName: string;
+  lineOriginPly: number | null;
+  otherLines: SavedLine[];
 }
 
 function loadSaved(): SavedGame {
@@ -57,9 +71,16 @@ function loadSaved(): SavedGame {
       side: value.side === 'b' ? 'b' : 'w',
       difficulty,
       flipped: value.flipped === true,
+      lineId: Number.isSafeInteger(value.lineId) && Number(value.lineId) > 0 ? Number(value.lineId) : 1,
+      lineName: typeof value.lineName === 'string' ? value.lineName : 'Main line',
+      lineOriginPly: Number.isSafeInteger(value.lineOriginPly) && Number(value.lineOriginPly) >= 0 ? Number(value.lineOriginPly) : null,
+      otherLines: Array.isArray(value.otherLines) ? value.otherLines.filter((line): line is SavedLine =>
+        line !== null && typeof line === 'object' && Number.isSafeInteger(line.id) && line.id > 0 &&
+        typeof line.name === 'string' && typeof line.pgn === 'string' &&
+        (line.originPly === null || Number.isSafeInteger(line.originPly))) : [],
     };
   } catch {
-    return { pgn: '', side: 'w', difficulty: '1800', flipped: false };
+    return { pgn: '', side: 'w', difficulty: '1800', flipped: false, lineId: 1, lineName: 'Main line', lineOriginPly: null, otherLines: [] };
   }
 }
 
@@ -82,6 +103,12 @@ function gameLabel(game: Chess, side: Side, busy: boolean): string {
   return game.turn() === side ? 'Your turn' : 'Stockfish to move';
 }
 
+function pgnPlyCount(pgn: string): number {
+  const line = new Chess();
+  try { if (pgn) line.loadPgn(pgn); return line.history().length; }
+  catch { return 0; }
+}
+
 export default function MobileApp() {
   const saved = useRef(loadSaved()).current;
   const gameRef = useRef<Chess | null>(null);
@@ -96,6 +123,7 @@ export default function MobileApp() {
   const engineRef = useRef<MobileEngine | null>(null);
   const sessionRef = useRef(0);
   const boardRef = useRef<HTMLDivElement | null>(null);
+  const historyBannerRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ from: Square; pointerId: number; startX: number; startY: number; piece: PieceSymbol; color: Side; active: boolean } | null>(null);
   const suppressDragClickRef = useRef<{ from: Square; until: number } | null>(null);
   const [fen, setFen] = useState(game.fen());
@@ -122,6 +150,12 @@ export default function MobileApp() {
   const [promotion, setPromotion] = useState<{ from: Square; to: Square } | null>(null);
   const [lastMove, setLastMove] = useState<Move | null>(moves.at(-1) ?? null);
   const [viewPly, setViewPly] = useState<number | null>(null);
+  const [replaying, setReplaying] = useState(false);
+  const [lineId, setLineId] = useState(saved.lineId);
+  const [lineName, setLineName] = useState(saved.lineName);
+  const [lineOriginPly, setLineOriginPly] = useState(saved.lineOriginPly);
+  const [otherLines, setOtherLines] = useState<SavedLine[]>(saved.otherLines);
+  const [exportStatus, setExportStatus] = useState('');
   const [dragPiece, setDragPiece] = useState<{ from: Square; piece: PieceSymbol; color: Side; x: number; y: number } | null>(null);
 
   const orientation: Side = flipped ? (side === 'w' ? 'b' : 'w') : side;
@@ -188,8 +222,15 @@ export default function MobileApp() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pgn: game.pgn(), side, difficulty, flipped } satisfies SavedGame));
-  }, [fen, side, difficulty, flipped]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pgn: game.pgn(), side, difficulty, flipped, lineId, lineName, lineOriginPly, otherLines } satisfies SavedGame));
+  }, [fen, side, difficulty, flipped, lineId, lineName, lineOriginPly, otherLines]);
+
+  useEffect(() => {
+    if (!replaying || viewPly === null) return;
+    if (viewPly >= moves.length) { setReplaying(false); return; }
+    const timer = window.setTimeout(() => setViewPly((ply) => ply === null ? null : Math.min(ply + 1, moves.length)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [replaying, viewPly, moves.length]);
 
   useEffect(() => {
     localStorage.setItem(HINT_MODE_KEY, hintMode);
@@ -340,6 +381,12 @@ export default function MobileApp() {
     setHintProgress('');
     setPromotion(null);
     setViewPly(null);
+    setReplaying(false);
+    setLineId(1);
+    setLineName('Main line');
+    setLineOriginPly(null);
+    setOtherLines([]);
+    setExportStatus('');
     setTip('Own the center, develop your pieces, and keep your king safe.');
     setBusy(false);
     setShowSetup(false);
@@ -372,9 +419,107 @@ export default function MobileApp() {
       setHintProgress('');
     }
     setViewPly(Math.max(0, Math.min(ply, moves.length)));
+    setReplaying(false);
     setSelected(null);
     setHint(null);
     setTab('play');
+    requestAnimationFrame(() => historyBannerRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' }));
+  }
+
+  function stepHistory(delta: number): void {
+    setReplaying(false);
+    setViewPly((ply) => ply === null ? null : Math.max(0, Math.min(ply + delta, moves.length)));
+  }
+
+  function returnToLive(): void {
+    setReplaying(false);
+    setViewPly(null);
+    if (ready && !busy && !game.isGameOver() && game.turn() !== side) void playEngine();
+  }
+
+  function forkFromHistory(): void {
+    if (viewPly === null) return;
+    sessionRef.current += 1;
+    engineRef.current?.stop();
+    const sourceLine: SavedLine = { id: lineId, name: lineName, originPly: lineOriginPly, pgn: game.pgn() };
+    const nextId = Math.max(lineId, ...otherLines.map((line) => line.id)) + 1;
+    const branchPly = viewPly;
+    setOtherLines((lines) => [...lines.filter((line) => line.id !== sourceLine.id), sourceLine]);
+    setLineId(nextId);
+    setLineName(`Variation ${nextId - 1}`);
+    setLineOriginPly(branchPly);
+    while (game.history().length > branchPly) game.undo();
+    setReplaying(false);
+    setViewPly(null);
+    setBusy(false);
+    setHint(null);
+    setHintSearchMode(null);
+    setHintProgress('');
+    setSelected(null);
+    setTip(`Playing from move ${branchPly}. The original game is saved in Moves.`);
+    refresh();
+    if (ready && !game.isGameOver() && game.turn() !== side) void playEngine();
+  }
+
+  function switchLine(line: SavedLine): void {
+    const restored = new Chess();
+    try { if (line.pgn) restored.loadPgn(line.pgn); }
+    catch { setExportStatus('Could not open this saved line.'); return; }
+    sessionRef.current += 1;
+    engineRef.current?.stop();
+    const current: SavedLine = { id: lineId, name: lineName, originPly: lineOriginPly, pgn: game.pgn() };
+    game.reset();
+    for (const move of restored.history({ verbose: true })) game.move({ from: move.from, to: move.to, promotion: move.promotion });
+    setOtherLines((lines) => [...lines.filter((savedLine) => savedLine.id !== line.id && savedLine.id !== current.id), current]);
+    setLineId(line.id);
+    setLineName(line.name);
+    setLineOriginPly(line.originPly);
+    setViewPly(null);
+    setReplaying(false);
+    setBusy(false);
+    setHint(null);
+    setHintSearchMode(null);
+    setHintProgress('');
+    setSelected(null);
+    setTab('play');
+    setTip(`Opened ${line.name}.`);
+    refresh();
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    if (ready && !game.isGameOver() && game.turn() !== side) void playEngine();
+  }
+
+  function gamePgn(): string {
+    const date = new Date().toISOString().slice(0, 10).replaceAll('-', '.');
+    const white = side === 'w' ? 'You' : 'Stockfish';
+    const black = side === 'b' ? 'You' : 'Stockfish';
+    const result = game.isCheckmate() ? game.turn() === 'w' ? '0-1' : '1-0' : game.isDraw() ? '1/2-1/2' : '*';
+    const exported = new Chess();
+    for (const move of game.history({ verbose: true })) exported.move({ from: move.from, to: move.to, promotion: move.promotion });
+    exported.header('Event', 'Stockfish Coach mobile', 'Date', date, 'White', white, 'Black', black, 'Result', result);
+    return `${exported.pgn()}\n`;
+  }
+
+  async function exportPgn(): Promise<void> {
+    if (!moves.length) return;
+    const pgn = gamePgn();
+    const name = `stockfish-coach-${new Date().toISOString().slice(0, 10)}.pgn`;
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const file = await Filesystem.writeFile({ path: name, data: pgn, directory: Directory.Cache, encoding: Encoding.UTF8 });
+        await Share.share({ title: 'Stockfish Coach game', files: [file.uri], dialogTitle: 'Send PGN to desktop' });
+        setExportStatus('PGN ready to open on desktop: Import PGN / FEN → Load .pgn file.');
+      } else {
+        const url = URL.createObjectURL(new Blob([pgn], { type: 'application/x-chess-pgn' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setExportStatus('PGN downloaded. Open it on desktop with Import PGN / FEN.');
+      }
+    } catch (error) {
+      setExportStatus(error instanceof Error ? error.message : 'Could not export the PGN.');
+    }
   }
 
   const playerLabel = side === 'w' ? 'White' : 'Black';
@@ -398,9 +543,17 @@ export default function MobileApp() {
           <div className="match-player"><strong>Stockfish</strong><span>{engineLabel} · {difficulty === 'max' ? 'Max strength' : `~${LEVELS[difficulty].label} Elo`}</span></div>
           <div className="engine-actions"><span className="engine-indicator">{ready ? 'Ready' : 'Loading'}</span><button type="button" className="level-control" aria-label="Change engine level" onClick={() => setShowLevelPicker(true)} disabled={busy}>Change level</button></div>
         </div>
-        {viewPly !== null && <div className="history-banner" role="status">
-          <div><span>VIEWING HISTORY</span><strong>{viewPly === 0 ? 'Starting position' : `${Math.ceil(viewPly / 2)}${viewPly % 2 ? '. White' : '... Black'} · ${displayedMove?.san}`}</strong></div>
-          <button type="button" onClick={() => setViewPly(null)}>Return to live</button>
+        {viewPly !== null && <div className="history-banner" role="status" ref={historyBannerRef}>
+          <div className="history-position"><span>{lineName.toUpperCase()} · VIEWING HISTORY</span><strong>{viewPly === 0 ? 'Starting position' : `${Math.ceil(viewPly / 2)}${viewPly % 2 ? '. White' : '... Black'} · ${displayedMove?.san}`} · {viewPly}/{moves.length}</strong></div>
+          <div className="history-replay-controls" aria-label="Replay moves">
+            <button type="button" onClick={() => stepHistory(-1)} disabled={viewPly === 0} aria-label="Previous move">◀</button>
+            <button type="button" onClick={() => setReplaying((value) => !value)} disabled={viewPly === moves.length && !replaying}>{replaying ? 'Pause' : 'Replay'}</button>
+            <button type="button" onClick={() => stepHistory(1)} disabled={viewPly === moves.length} aria-label="Next move">▶</button>
+          </div>
+          <div className="history-branch-actions">
+            <button type="button" className="fork-button" onClick={forkFromHistory}>Play from here</button>
+            <button type="button" onClick={returnToLive}>Live</button>
+          </div>
         </div>}
         <div className="board-wrap" ref={boardRef}>
           <div className={`mobile-board ${busy ? 'busy' : ''}`} role="grid" aria-label="Chessboard">
@@ -497,6 +650,12 @@ export default function MobileApp() {
       {tab === 'moves' && <div className="secondary-screen">
         <span className="eyebrow">YOUR GAME</span><h1>Move history</h1>
         <div className="history-summary"><span>{moves.length} plies played</span><strong>{game.isGameOver() ? gameLabel(game, side, false) : 'Tap a move to view it'}</strong></div>
+        <div className="mobile-line-manager">
+          <strong>Current: {lineName}{lineOriginPly !== null ? ` · from move ${lineOriginPly}` : ''}</strong>
+          {otherLines.length > 0 && <div className="mobile-saved-lines" aria-label="Saved game lines">{otherLines.slice().sort((a, b) => a.id - b.id).map((line) => <button type="button" key={line.id} onClick={() => switchLine(line)}>{line.name} <small>· {pgnPlyCount(line.pgn)} moves</small></button>)}</div>}
+        </div>
+        <div className="mobile-export-actions"><button type="button" onClick={() => void exportPgn()} disabled={!moves.length}>Export PGN</button><span>Share the .pgn file, then open it on desktop with Import PGN / FEN.</span></div>
+        {exportStatus && <p className="mobile-export-status" role="status">{exportStatus}</p>}
         {moves.length === 0 ? <div className="empty-moves">Make your first move to see the game unfold.</div> : <div className="history-list">
           {Array.from({ length: Math.ceil(moves.length / 2) }, (_, index) => {
             const whitePly = index * 2 + 1;
