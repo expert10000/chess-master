@@ -34,12 +34,14 @@ const artifactsDir = join(root, 'artifacts');
     const status = await page.locator('.topbar-status strong').innerText();
     if (squares !== 64) throw new Error(`Expected 64 squares, got ${squares}`);
     if (!status.includes('Stockfish')) throw new Error(`Unexpected engine status: ${status}`);
+    const rightTab = (name) => page.getByRole('navigation', { name: 'Right panel sections' }).getByRole('button', { name, exact: true });
     await page.getByRole('button', { name: 'Open workspace' }).click();
 
     await page.getByRole('gridcell', { name: 'e2 white p' }).click();
     await page.getByRole('gridcell', { name: 'e4' }).click();
     await page.getByRole('gridcell', { name: 'e4 white p' }).waitFor();
     await page.getByRole('button', { name: 'Undo turn' }).waitFor({ state: 'visible' });
+    await rightTab('Moves').click();
     try {
       await page.waitForFunction(() => document.querySelectorAll('[aria-label="Move history"] .move-chip').length >= 2, null, { timeout: 30000 });
     } catch (error) {
@@ -65,6 +67,18 @@ const artifactsDir = join(root, 'artifacts');
     await page.getByRole('button', { name: 'Show hint' }).click();
     await page.waitForFunction(() => document.querySelector('.topbar-status div span')?.textContent?.includes('Position analyzed'), null, { timeout: 30000 });
     await page.locator('.board-hint-copy').getByText(/Best move:/).waitFor();
+    await page.getByRole('button', { name: 'Full analysis' }).click();
+    if (await rightTab('Review').getAttribute('aria-current') !== 'page') throw new Error('Full analysis did not open the Review tab.');
+    await page.locator('#selected-move-details').waitFor();
+    await rightTab('Games').click();
+    await page.locator('#coach-game-library').waitFor();
+    await rightTab('Study').click();
+    await page.locator('#coach-daily-study').waitFor();
+    await rightTab('Tools').click();
+    await page.getByRole('heading', { name: 'Position tools' }).waitFor();
+    await rightTab('Coach').click();
+    await page.locator('#personal-coach-dashboard').waitFor();
+    await rightTab('Moves').click();
     await page.screenshot({ path: join(root, 'artifacts', 'desktop-hint.png') });
     await page.getByRole('button', { name: 'Go to starting position' }).click();
     await page.getByRole('gridcell', { name: 'e2 white p' }).waitFor();
@@ -72,13 +86,15 @@ const artifactsDir = join(root, 'artifacts');
     await page.getByRole('gridcell', { name: 'e4 white p' }).waitFor();
     await page.getByRole('button', { name: 'New game' }).click();
     await page.getByRole('gridcell', { name: 'e2 white p' }).waitFor();
+    await rightTab('Tools').click();
     await page.getByRole('button', { name: 'Import PGN / FEN' }).click();
     await page.getByRole('dialog', { name: 'Import PGN or FEN' }).waitFor();
     await page.locator('.import-textarea').fill('[Event "Stockfish Coach mobile"]\n[White "You"]\n[Black "Stockfish"]\n[Result "*"]\n\n1. e4 d5 2. Nc3 d4');
     await page.getByRole('checkbox', { name: 'Analyze the full game immediately' }).uncheck();
     await page.getByRole('button', { name: 'Import game', exact: true }).click();
     await page.getByRole('dialog', { name: 'Import PGN or FEN' }).waitFor({ state: 'hidden' });
-    await page.getByRole('button', { name: 'Replay moves (4)' }).waitFor();
+    await rightTab('Moves').click();
+    await page.locator('#move-history-panel .move-count').getByText('4 plies').waitFor();
     const boardGeometry = () => page.evaluate(() => {
       const column = document.querySelector('.board-column').getBoundingClientRect();
       const board = document.querySelector('.chessboard').getBoundingClientRect();
@@ -115,7 +131,7 @@ const artifactsDir = join(root, 'artifacts');
     }
     await page.screenshot({ path: join(root, 'artifacts', 'desktop-replay-focus.png') });
     await page.locator('.history-replay-options').getByRole('button', { name: 'Exit focus' }).click();
-    await page.locator('#coach-game-library').waitFor();
+    await rightTab('Moves').waitFor();
     await page.locator('.history-playback-actions').getByRole('button', { name: 'Play moves' }).click();
     await page.getByRole('gridcell', { name: 'd5 black p' }).waitFor();
     await page.locator('.history-playback-actions').getByRole('button', { name: 'Pause replay' }).click();
@@ -180,6 +196,7 @@ const artifactsDir = join(root, 'artifacts');
     if (newGameLayout.position !== 'static' || newGameLayout.sideTop < newGameLayout.boardBottom - 1) {
       throw new Error(`New-game board overlaps panels in resized window: ${JSON.stringify(newGameLayout)}`);
     }
+    await rightTab('Coach').click();
     await page.getByRole('button', { name: 'Open workspace' }).waitFor();
     await page.setViewportSize({ width: 1780, height: 1074 });
     const newGameDesktop = await page.evaluate(() => {
@@ -207,16 +224,19 @@ const artifactsDir = join(root, 'artifacts');
     await page.screenshot({ path: join(root, 'artifacts', 'desktop-first-move-1300.png') });
     await page.getByRole('button', { name: 'New game' }).click();
     await page.setViewportSize({ width: 1100, height: 760 });
-    await page.getByRole('button', { name: 'Open saved games' }).click();
+    await rightTab('Games').click();
     const importedCard = page.locator('#coach-game-library .game-library-card').filter({ hasText: 'You – Stockfish' }).first();
     await importedCard.getByRole('button', { name: 'Open', exact: true }).click();
+    await rightTab('Moves').click();
     await page.locator('#move-history-panel .move-count').getByText('4 plies').waitFor();
     await page.screenshot({ path: join(root, 'artifacts', 'playwright-smoke.png'), fullPage: true });
+    await rightTab('Tools').click();
     await page.getByRole('button', { name: 'Import PGN / FEN' }).click();
     await page.locator('.import-textarea').fill('[Event "Stockfish Coach mobile"]\n[White "You"]\n[Black "Stockfish"]\n[Result "*"]\n\n1. e4 d5 2. Nc3 d4');
     await page.getByRole('checkbox', { name: 'Analyze the full game immediately' }).check();
     await page.getByRole('button', { name: 'Import & review' }).click();
     await page.locator('.review-batch-progress').waitFor({ state: 'visible' });
+    await rightTab('Moves').click();
     await page.locator('.move-chip[title="View position after e4"]').click();
     await page.getByRole('gridcell', { name: 'd7 black p' }).waitFor();
     await page.locator('.history-playback-actions').getByRole('button', { name: 'Play moves' }).click();
@@ -230,9 +250,11 @@ const artifactsDir = join(root, 'artifacts');
     for (let index = 0; index < 15; index += 1) {
       for (const san of ['Nf3', 'Nf6', 'Ng1', 'Ng8']) longGame.move(san);
     }
+    await rightTab('Tools').click();
     await page.getByRole('button', { name: 'Import PGN / FEN' }).click();
     await page.locator('.import-textarea').fill(longGame.pgn());
     await page.getByRole('button', { name: 'Import game', exact: true }).click();
+    await rightTab('Moves').click();
     await page.locator('#move-history-panel .move-count').getByText('60 plies').waitFor();
     await page.locator('.move-list').evaluate((list) => { list.scrollTop = 0; });
     await page.locator('.history-playback-actions').getByRole('button', { name: 'Previous move' }).click();

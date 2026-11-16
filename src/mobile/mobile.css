@@ -26,7 +26,7 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .match-player span { color: #96aab6; font-size: 11px; }
 .engine-actions { display: grid; justify-items: end; gap: 3px; margin-left: auto; }
 .engine-indicator { color: #93c9ae; font-size: 10px; font-weight: 700; }
-.level-control { border: 0; background: transparent; color: #9ddfbd; padding: 1px 0; font-size: 10px; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.level-control { min-height: 44px; border: 0; background: transparent; color: #9ddfbd; padding: 8px 0 8px 10px; font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 .history-banner { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 10px; margin: 4px 0 10px; padding: 10px 12px; border: 1px solid #ba9761; border-radius: 11px; background: #393527; scroll-margin-top: max(12px, env(safe-area-inset-top)); }
 .history-position { display: grid; gap: 2px; min-width: 0; }
 .history-banner span { color: #d8b87b; font-size: 9px; font-weight: 800; letter-spacing: 1.1px; }
@@ -37,6 +37,8 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .history-replay-controls button:nth-child(2) { min-width: 76px; }
 .history-branch-actions { grid-column: 2; grid-row: 1; }
 .history-branch-actions .fork-button { background: #8de2b5; border-color: #8de2b5; color: #153b2b; }
+.history-replay-controls button, .history-branch-actions button { min-height: 44px; }
+.inactive-play-screen { display: none; }
 .board-wrap { padding: 5px; border-radius: 14px; background: #385365; box-shadow: 0 18px 36px #0005, inset 0 1px 0 #ffffff25; }
 .mobile-board { display: grid; grid-template-columns: repeat(8, minmax(0,1fr)); grid-template-rows: repeat(8, minmax(0,1fr)); aspect-ratio: 1; width: 100%; overflow: hidden; border-radius: 9px; }
 .square { position: relative; display: grid; place-items: center; min-width: 0; min-height: 0; border: 0; padding: 0; outline: none; }
@@ -66,6 +68,12 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .move-target { position: absolute; z-index: 2; width: 29%; height: 29%; border-radius: 50%; background: #183e43a6; }
 .capture-target { position: absolute; z-index: 2; inset: 2px; border: 4px solid #285c4abb; border-radius: 50%; }
 .you-strip { margin-bottom: 7px; }
+.hint-peek { display: flex; align-items: center; gap: 10px; margin: 9px 0 4px; padding: 10px 12px; border: 1px solid #64bb91; border-radius: 11px; background: #204b3e; }
+.hint-peek > div { min-width: 0; flex: 1; }
+.hint-peek span { color: #93e6b9; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.hint-peek strong { display: block; color: #f2fff7; font-size: 20px; }
+.hint-peek p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin: 2px 0 0; color: #d9eee3; font-size: 12px; line-height: 1.35; }
+.hint-peek button { flex: none; min-height: 44px; padding: 0 10px; border: 1px solid #95e6b9; border-radius: 8px; background: #327559; color: #fff; font-size: 12px; font-weight: 800; }
 .turn-pill { margin-left: auto; text-align: right; color: #b4c4ce; font-size: 11px; font-weight: 700; }
 .turn-pill.active { color: #87e1b4; }
 .game-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 1.1fr; gap: 7px; margin: 12px 0; }
@@ -89,7 +97,7 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .tip-card p { color: #e1eee9; font-size: 13px; line-height: 1.45; margin: 5px 0 0; }
 .tip-card small { display: block; color: #9ec8b6; margin-top: 8px; line-height: 1.4; }
 .verify-book { min-height: 38px; margin-top: 10px; padding: 0 12px; border: 1px solid #8fd4b0; border-radius: 9px; background: #2e6c52; color: #eafff1; font-size: 11px; font-weight: 800; }
-.view-hint-board { min-height: 34px; margin-top: 9px; padding: 0; border: 0; background: transparent; color: #a9efca; font-size: 11px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.view-hint-board { min-height: 44px; margin-top: 9px; padding: 0 8px; border: 0; background: transparent; color: #a9efca; font-size: 12px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 .hint-explanation { display: grid; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #4c746a; }
 .hint-evidence-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .hint-evidence-heading strong { color: #edfff5; font-size: 12px; }
@@ -125,8 +133,26 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .habit-card strong { font-size: 14px; }
 .habit-card p { color: #a7bac5; font-size: 12px; line-height: 1.5; margin: 5px 0 0; }
 .coach-footnote { color: #8297a4; font-size: 11px; line-height: 1.5; margin-top: 18px; }
+.coach-hint-source { display: block; margin: 12px 0; color: #b8d8c7; font-size: 12px; }
 .history-summary { display: flex; justify-content: space-between; padding: 14px; background: #1c303c; border-radius: 12px; font-size: 12px; margin-bottom: 14px; }
 .history-summary span { color: #9caebb; }
+.mobile-history-toolbar { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -4px 0 10px; padding: 6px; border-radius: 9px; background: #172c36; box-shadow: 0 4px 12px #0005; }
+.mobile-history-toolbar span { flex: 1; min-width: 86px; color: #b8d7ca; font-size: 12px; font-weight: 800; }
+.mobile-history-toolbar button { min-height: 44px; padding: 5px 10px; border: 1px solid #5c9276; border-radius: 8px; background: #295546; color: #effff5; font-size: 11px; font-weight: 800; }
+.mobile-history-toolbar button:first-child, .mobile-history-toolbar button:nth-child(3) { min-width: 44px; }
+.mobile-game-library { margin: 0 0 12px; padding: 12px; border: 1px solid #41695f; border-radius: 12px; background: #1b3335; }
+.mobile-library-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #dbf3e6; font-size: 14px; }
+.mobile-game-library summary { min-height: 44px; cursor: pointer; list-style: none; }
+.mobile-game-library summary::-webkit-details-marker { display: none; }
+.mobile-game-library summary::after { content: '▾'; color: #a5d8ba; }
+.mobile-game-library[open] summary::after { content: '▴'; }
+.mobile-library-heading span { color: #9fdfb9; }
+.mobile-game-library > p { margin: 9px 0 0; color: #a5c4b8; font-size: 12px; line-height: 1.4; }
+.mobile-library-list { display: grid; gap: 7px; max-height: 250px; overflow-y: auto; margin-top: 9px; }
+.mobile-library-list button { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 56px; padding: 8px 10px; border: 1px solid #467363; border-radius: 9px; background: #25453e; color: #e7f6ec; text-align: left; }
+.mobile-library-list button span { display: grid; gap: 3px; min-width: 0; }
+.mobile-library-list button small { color: #a7c7b8; font-size: 11px; }
+.mobile-library-list button b { flex: none; color: #abedc9; font-size: 11px; }
 .history-list { overflow: hidden; border-radius: 12px; border: 1px solid #32495a; }
 .history-row { display: grid; grid-template-columns: 45px 1fr 1fr; align-items: center; gap: 5px; padding: 7px 10px; border-bottom: 1px solid #304355; font-size: 14px; cursor: pointer; }
 .history-row:nth-child(odd) { background: #1c2d3b; }
@@ -185,6 +211,7 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 @media (orientation: landscape) and (max-height: 600px) {
   .mobile-app { width: 100%; max-width: none; height: 100dvh; min-height: 0; overflow: hidden; padding: max(26px, env(safe-area-inset-top)) 8px calc(51px + env(safe-area-inset-bottom)); }
   .app-header, .play-heading, .you-strip, .move-preview { display: none; }
+  .hint-peek { display: none; }
   .play-screen { display: grid; grid-template-columns: min(45vw, calc(100dvh - 84px)) minmax(0, 1fr); grid-template-rows: 38px 40px 50px minmax(0, 1fr); gap: 5px 9px; height: 100%; min-height: 0; }
   .play-screen > .match-strip:not(.you-strip) { grid-column: 2; grid-row: 1; padding: 0; min-width: 0; }
   .board-wrap { grid-column: 1; grid-row: 1 / -1; align-self: center; width: 100%; box-shadow: 0 6px 18px #0005; }
@@ -204,7 +231,18 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
   .history-banner { display: flex; flex-wrap: wrap; max-height: 100%; overflow-y: auto; }
   .history-position { flex: 1 1 100%; }
   .play-screen:has(.history-banner) .tip-card { display: none; }
-  .bottom-nav { max-width: none; padding: 2px 8px max(2px, env(safe-area-inset-bottom)); }
+  .bottom-nav { left: calc(min(45vw, 100dvh - 84px) + 17px); right: 8px; max-width: none; padding: 2px 8px max(2px, env(safe-area-inset-bottom)); border-left: 1px solid #38505d; border-radius: 9px 9px 0 0; }
   .bottom-nav button { min-height: 45px; }
   .bottom-nav button span { font-size: 19px; }
+  .mobile-app:has(> .secondary-screen) { display: grid; grid-template-columns: min(45vw, calc(100dvh - 84px)) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 9px; }
+  .mobile-app:has(> .secondary-screen) .play-screen.inactive-play-screen { display: grid; grid-column: 1; grid-row: 1; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 100%; }
+  .mobile-app:has(> .secondary-screen) .play-screen.inactive-play-screen > :not(.board-wrap) { display: none; }
+  .mobile-app:has(> .secondary-screen) .play-screen.inactive-play-screen .board-wrap { grid-column: 1; grid-row: 1; }
+  .mobile-app:has(> .secondary-screen) .secondary-screen { grid-column: 2; grid-row: 1; min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 6px 12px; }
+  .mobile-app:has(> .secondary-screen) .secondary-screen h1 { margin-bottom: 10px; font-size: 23px; }
+  .mobile-app:has(> .secondary-screen) .lesson-hero { padding: 12px 14px; }
+  .mobile-app:has(> .secondary-screen) .lesson-icon { display: none; }
+  .mobile-app:has(> .secondary-screen) .lesson-hero h2 { margin: 4px 0; font-size: 19px; }
+  .mobile-app:has(> .secondary-screen) .hint-explanation { margin-top: 8px; padding-top: 8px; }
+  .mobile-app:has(> .secondary-screen) .back-to-game { display: none; }
 }

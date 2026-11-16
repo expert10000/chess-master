@@ -18,6 +18,7 @@ type PieceStyle = 'desktop' | 'spatial' | 'chessnut' | 'fantasy' | 'illustrated'
 const STORAGE_KEY = 'stockfish-coach.mobile.v1';
 const HINT_MODE_KEY = 'stockfish-coach.mobile.hint-mode.v1';
 const PIECE_STYLE_KEY = 'stockfish-coach.mobile.piece-style.v2';
+const GAME_LIBRARY_KEY = 'stockfish-coach.mobile.game-library.v1';
 const PIECE_STYLES: { id: PieceStyle; name: string; description: string }[] = [
   { id: 'desktop', name: 'Desktop original', description: 'The familiar Stockfish Coach pieces' },
   { id: 'illustrated', name: 'Staunton', description: 'Detailed light and dark pieces' },
@@ -57,6 +58,46 @@ interface SavedGame {
   lineName: string;
   lineOriginPly: number | null;
   otherLines: SavedLine[];
+}
+
+interface ArchivedGame extends SavedGame {
+  id: string;
+  savedAt: number;
+}
+
+interface HintResult {
+  move: Move;
+  analysis: MobileAnalysis | null;
+  explanation: MobileExplanation | null;
+  source: 'book' | 'engine';
+  bookMoveSan: string | null;
+}
+
+function HintEvidence({ hint, turn }: { hint: HintResult; turn: Side }) {
+  const explanation = hint.explanation;
+  if (!explanation) return null;
+  return <div className="hint-explanation">
+    <div className="hint-evidence-heading"><strong>Why this move?</strong><span className={`hint-status ${explanation.status}`}>{explanation.status === 'supported' ? 'Checked line' : explanation.status === 'provisional' ? 'Preliminary' : 'Limited evidence'}</span></div>
+    <p>{explanation.whyNow}</p>
+    {explanation.replySan && <p><b>Best reply in this search:</b> {turn === 'w' ? 'Black' : 'White'} plays {explanation.replySan}. {explanation.replyConsequence}</p>}
+    {explanation.alternativeSan && <p><b>{explanation.alternativeGapCp !== null && Math.abs(explanation.alternativeGapCp) <= 35 ? 'Close alternative' : 'Another candidate'}:</b> {explanation.alternativeSan}{explanation.alternativeReplySan ? `, followed by ${explanation.alternativeReplySan} in its searched line` : ''}. {explanation.alternativeGapCp !== null && Math.abs(explanation.alternativeGapCp) <= 35 ? 'The engine scores these moves similarly; either may be practical.' : ''}</p>}
+    {explanation.lineSan.length > 1 && <details><summary>Show searched continuation</summary><p>{explanation.lineSan.join(' · ')}</p></details>}
+    {hint.bookMoveSan && <small>{hint.bookMoveSan === hint.move.san ? 'This move also appears in the local opening book.' : `The local book suggests ${hint.bookMoveSan}; this search chose ${hint.move.san}.`}</small>}
+    <small>{explanation.evidenceNote}</small>
+  </div>;
+}
+
+function loadArchivedGames(): ArchivedGame[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(GAME_LIBRARY_KEY) ?? '[]');
+    if (!Array.isArray(value)) return [];
+    return value.filter((entry): entry is ArchivedGame =>
+      entry !== null && typeof entry === 'object' &&
+      typeof entry.id === 'string' && Number.isFinite(entry.savedAt) &&
+      typeof entry.pgn === 'string' && (entry.side === 'w' || entry.side === 'b') &&
+      typeof entry.difficulty === 'string' && entry.difficulty in LEVELS &&
+      Array.isArray(entry.otherLines));
+  } catch { return []; }
 }
 
 function loadSaved(): SavedGame {
@@ -135,7 +176,7 @@ export default function MobileApp() {
   const [busy, setBusy] = useState(false);
   const [engineError, setEngineError] = useState('');
   const [selected, setSelected] = useState<Square | null>(null);
-  const [hint, setHint] = useState<{ move: Move; analysis: MobileAnalysis | null; explanation: MobileExplanation | null; source: 'book' | 'engine'; bookMoveSan: string | null } | null>(null);
+  const [hint, setHint] = useState<HintResult | null>(null);
   const [hintMode, setHintMode] = useState<HintMode>(loadHintMode);
   const [pieceStyle, setPieceStyle] = useState<PieceStyle>(loadPieceStyle);
   const [showPiecePicker, setShowPiecePicker] = useState(false);
@@ -155,6 +196,8 @@ export default function MobileApp() {
   const [lineName, setLineName] = useState(saved.lineName);
   const [lineOriginPly, setLineOriginPly] = useState(saved.lineOriginPly);
   const [otherLines, setOtherLines] = useState<SavedLine[]>(saved.otherLines);
+  const [archivedGames, setArchivedGames] = useState<ArchivedGame[]>(loadArchivedGames);
+  const [libraryError, setLibraryError] = useState('');
   const [exportStatus, setExportStatus] = useState('');
   const [dragPiece, setDragPiece] = useState<{ from: Square; piece: PieceSymbol; color: Side; x: number; y: number } | null>(null);
 
@@ -368,7 +411,55 @@ export default function MobileApp() {
     }
   }
 
+  function archiveCurrentGame(excludeId?: string): boolean {
+    const next = archivedGames.filter((entry) => entry.id !== excludeId);
+    if (game.history().length || otherLines.length) {
+      next.unshift({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        savedAt: Date.now(),
+        pgn: game.pgn(), side, difficulty, flipped, lineId, lineName, lineOriginPly, otherLines,
+      });
+    }
+    try {
+      localStorage.setItem(GAME_LIBRARY_KEY, JSON.stringify(next));
+      setArchivedGames(next);
+      setLibraryError('');
+      return true;
+    } catch {
+      setLibraryError('Could not save this game. Export its PGN before starting another game.');
+      return false;
+    }
+  }
+
+  function openArchivedGame(entry: ArchivedGame): void {
+    const restored = new Chess();
+    try { if (entry.pgn) restored.loadPgn(entry.pgn); }
+    catch { setLibraryError('This saved game could not be opened.'); return; }
+    if (!archiveCurrentGame(entry.id)) return;
+    sessionRef.current += 1;
+    engineRef.current?.stop();
+    if (entry.pgn) game.loadPgn(restored.pgn());
+    else game.reset();
+    setSide(entry.side);
+    setDifficulty(entry.difficulty);
+    setFlipped(entry.flipped);
+    setLineId(entry.lineId);
+    setLineName(entry.lineName);
+    setLineOriginPly(entry.lineOriginPly);
+    setOtherLines(entry.otherLines);
+    setSelected(null);
+    setHint(null);
+    setViewPly(null);
+    setReplaying(false);
+    setBusy(false);
+    setTab('play');
+    setTip('Game restored. Scan for checks, captures, and threats before you move.');
+    refresh();
+    if (ready && !game.isGameOver() && game.turn() !== entry.side) void playEngine(entry.difficulty);
+  }
+
   function newGame(): void {
+    if (!archiveCurrentGame()) return;
     sessionRef.current += 1;
     engineRef.current?.stop();
     game.reset();
@@ -422,8 +513,10 @@ export default function MobileApp() {
     setReplaying(false);
     setSelected(null);
     setHint(null);
-    setTab('play');
-    requestAnimationFrame(() => historyBannerRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' }));
+    if (!window.matchMedia('(orientation: landscape) and (max-height: 600px)').matches) {
+      setTab('play');
+      requestAnimationFrame(() => historyBannerRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' }));
+    }
   }
 
   function stepHistory(delta: number): void {
@@ -533,7 +626,7 @@ export default function MobileApp() {
         <div className="offline-badge"><i /> OFFLINE</div>
       </header>
 
-      {tab === 'play' && <div className="play-screen">
+      <div className={`play-screen ${tab !== 'play' ? 'inactive-play-screen' : ''}`}>
         <div className="play-heading">
           <div><span className="eyebrow">QUICK GAME</span><h1>Play chess</h1></div>
           <button className="round-action" type="button" onClick={() => { setSetupSide(side); setSetupDifficulty(difficulty); setShowSetup(true); }} aria-label="New game">＋</button>
@@ -594,6 +687,10 @@ export default function MobileApp() {
             }))}
           </div>
         </div>
+        {viewPly === null && hint && <div className="hint-peek" aria-live="polite">
+          <div><span>BEST MOVE · {hint.source === 'book' ? 'OPENING BOOK' : 'STOCKFISH'}</span><strong>{hint.move.san}</strong><p>{hint.explanation?.whyNow ?? tip}</p></div>
+          <button type="button" onClick={() => setTab('coach')}>Why? →</button>
+        </div>}
         {dragPiece && <div className="drag-piece" style={{ left: dragPiece.x, top: dragPiece.y - 22 }} aria-hidden="true"><PieceIcon color={dragPiece.color} piece={dragPiece.piece} style={pieceStyle} /></div>}
         <div className="match-strip you-strip">
           <div className="player-avatar you-avatar">YOU</div>
@@ -621,41 +718,34 @@ export default function MobileApp() {
             <span className="tip-label">{viewPly === null ? 'COACH TIP' : 'POSITION TIP'}</span>
             <p>{displayedTip}</p>
             {viewPly === null && hint?.source === 'book' && <button className="verify-book" type="button" onClick={() => void askForHint('explain', true)} disabled={busy}>Verify with Stockfish →</button>}
-            {viewPly === null && hint?.explanation && <div className="hint-explanation">
-              <div className="hint-evidence-heading"><strong>Why this move?</strong><span className={`hint-status ${hint.explanation.status}`}>{hint.explanation.status === 'supported' ? 'Checked line' : hint.explanation.status === 'provisional' ? 'Preliminary' : 'Limited evidence'}</span></div>
-              <p>{hint.explanation.whyNow}</p>
-              {hint.explanation.replySan && <p><b>Best reply in this search:</b> {game.turn() === 'w' ? 'Black' : 'White'} plays {hint.explanation.replySan}. {hint.explanation.replyConsequence}</p>}
-              {hint.explanation.alternativeSan && <p><b>{hint.explanation.alternativeGapCp !== null && Math.abs(hint.explanation.alternativeGapCp) <= 35 ? 'Close alternative' : 'Another candidate'}:</b> {hint.explanation.alternativeSan}{hint.explanation.alternativeReplySan ? `, followed by ${hint.explanation.alternativeReplySan} in its searched line` : ''}. {hint.explanation.alternativeGapCp !== null && Math.abs(hint.explanation.alternativeGapCp) <= 35 ? 'The engine scores these moves similarly; either may be practical.' : ''}</p>}
-              {hint.explanation.lineSan.length > 1 && <details><summary>Show searched continuation</summary><p>{hint.explanation.lineSan.join(' · ')}</p></details>}
-              {hint.bookMoveSan && <small>{hint.bookMoveSan === hint.move.san ? 'This move also appears in the local opening book.' : `The local book suggests ${hint.bookMoveSan}; this search chose ${hint.move.san}.`}</small>}
-              <small>{hint.explanation.evidenceNote}</small>
-            </div>}
+            {viewPly === null && hint && <HintEvidence hint={hint} turn={game.turn()} />}
             {viewPly === null && hint && <small>{hint.analysis ? `Stockfish · depth ${hint.analysis.depth} · ${((hint.explanation?.elapsedMs ?? hint.analysis.elapsedMs) / 1000).toFixed(1)} s` : 'Local opening book · not engine verified'}</small>}
             {viewPly === null && hint && <button className="view-hint-board" type="button" onClick={() => boardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>View highlighted move on board ↑</button>}
           </div>
         </section>
         <div className="move-preview"><span>Moves</span><strong>{viewPly !== null ? `Viewing ${viewPly} of ${moves.length}` : moves.length ? moves.slice(-4).map((move) => move.san).join('  ·  ') : 'Your opening starts here'}</strong><button type="button" onClick={() => setTab('moves')}>View all →</button></div>
-      </div>}
+      </div>
 
       {tab === 'coach' && <div className="secondary-screen">
         <span className="eyebrow">LEARN AS YOU PLAY</span><h1>Your coach</h1>
-        <section className="lesson-hero"><div className="lesson-icon">✦</div><span>IN THIS POSITION</span><h2>{viewPly !== null ? 'Study this move' : game.isGameOver() ? 'Game complete' : game.turn() === side ? 'Find your next idea' : 'Watch the reply'}</h2><p>{displayedTip}</p><button type="button" onClick={() => { setTab('play'); void askForHint(); }} disabled={!ready || busy || viewPly !== null || game.turn() !== side || game.isGameOver()}>Show a Stockfish hint →</button></section>
-        <h2 className="section-title">Three habits to build</h2>
-        <div className="habit-card"><b>01</b><div><strong>Scan for forcing moves</strong><p>Checks, captures, and direct threats deserve a look before quiet moves.</p></div></div>
-        <div className="habit-card"><b>02</b><div><strong>Develop with purpose</strong><p>Bring knights and bishops into play and fight for the center.</p></div></div>
-        <div className="habit-card"><b>03</b><div><strong>Keep your king safe</strong><p>Castle when it is sensible, and notice open lines near your king.</p></div></div>
-        <p className="coach-footnote">Tips are offline and based on the board. Stockfish chooses hints; you choose the move.</p>
+        <section className="lesson-hero"><div className="lesson-icon">✦</div><span>IN THIS POSITION</span><h2>{viewPly === null && hint ? `Best move: ${hint.move.san}` : viewPly !== null ? 'Study this move' : game.isGameOver() ? 'Game complete' : game.turn() === side ? 'Find your next idea' : 'Watch the reply'}</h2>{!(viewPly === null && hint?.explanation) && <p>{displayedTip}</p>}
+          {viewPly === null && hint && <HintEvidence hint={hint} turn={game.turn()} />}
+          {viewPly === null && hint && <small className="coach-hint-source">{hint.analysis ? `Stockfish · depth ${hint.analysis.depth}` : 'Local opening book · not engine verified'}</small>}
+          <button type="button" onClick={() => { setTab('play'); void askForHint(); }} disabled={!ready || busy || viewPly !== null || game.turn() !== side || game.isGameOver()}>{hint ? 'Refresh Stockfish hint →' : 'Show a Stockfish hint →'}</button>
+        </section>
+        {!hint && <p className="coach-footnote">The coach will explain its recommended move, the likely reply, and close alternatives for this position.</p>}
       </div>}
 
       {tab === 'moves' && <div className="secondary-screen">
         <span className="eyebrow">YOUR GAME</span><h1>Move history</h1>
         <div className="history-summary"><span>{moves.length} plies played</span><strong>{game.isGameOver() ? gameLabel(game, side, false) : 'Tap a move to view it'}</strong></div>
-        <div className="mobile-line-manager">
-          <strong>Current: {lineName}{lineOriginPly !== null ? ` · from move ${lineOriginPly}` : ''}</strong>
-          {otherLines.length > 0 && <div className="mobile-saved-lines" aria-label="Saved game lines">{otherLines.slice().sort((a, b) => a.id - b.id).map((line) => <button type="button" key={line.id} onClick={() => switchLine(line)}>{line.name} <small>· {pgnPlyCount(line.pgn)} moves</small></button>)}</div>}
-        </div>
-        <div className="mobile-export-actions"><button type="button" onClick={() => void exportPgn()} disabled={!moves.length}>Export PGN</button><span>Share the .pgn file, then open it on desktop with Import PGN / FEN.</span></div>
-        {exportStatus && <p className="mobile-export-status" role="status">{exportStatus}</p>}
+        {viewPly !== null && <div className="mobile-history-toolbar">
+          <button type="button" aria-label="Previous move in panel" onClick={() => stepHistory(-1)} disabled={viewPly === 0}>◀</button>
+          <span>Position {viewPly}/{moves.length}</span>
+          <button type="button" aria-label="Next move in panel" onClick={() => stepHistory(1)} disabled={viewPly === moves.length}>▶</button>
+          <button type="button" onClick={forkFromHistory}>Play from here</button>
+          <button type="button" onClick={returnToLive}>Live</button>
+        </div>}
         {moves.length === 0 ? <div className="empty-moves">Make your first move to see the game unfold.</div> : <div className="history-list">
           {Array.from({ length: Math.ceil(moves.length / 2) }, (_, index) => {
             const whitePly = index * 2 + 1;
@@ -669,6 +759,21 @@ export default function MobileApp() {
             </div>;
           })}
         </div>}
+        <div className="mobile-line-manager">
+          <strong>Current: {lineName}{lineOriginPly !== null ? ` · from move ${lineOriginPly}` : ''}</strong>
+          {otherLines.length > 0 && <div className="mobile-saved-lines" aria-label="Saved game lines">{otherLines.slice().sort((a, b) => a.id - b.id).map((line) => <button type="button" key={line.id} onClick={() => switchLine(line)}>{line.name} <small>· {pgnPlyCount(line.pgn)} moves</small></button>)}</div>}
+        </div>
+        {libraryError && <p className="error-banner" role="alert">{libraryError}</p>}
+        <details className="mobile-game-library" aria-label="Saved games">
+          <summary className="mobile-library-heading"><strong>Saved games</strong><span>{archivedGames.length}</span></summary>
+          {archivedGames.length ? <div className="mobile-library-list">{archivedGames.map((entry) =>
+            <button type="button" key={entry.id} onClick={() => openArchivedGame(entry)}>
+              <span><strong>{entry.lineName}</strong><small>{new Date(entry.savedAt).toLocaleString()} · {entry.side === 'w' ? 'White' : 'Black'} · {pgnPlyCount(entry.pgn)} plies</small></span>
+              <b>Open →</b>
+            </button>)}</div> : <p>Starting a new game will save the current game here automatically.</p>}
+        </details>
+        <div className="mobile-export-actions"><button type="button" onClick={() => void exportPgn()} disabled={!moves.length}>Export PGN</button><span>Share the .pgn file, then open it on desktop with Import PGN / FEN.</span></div>
+        {exportStatus && <p className="mobile-export-status" role="status">{exportStatus}</p>}
         <button className="back-to-game" type="button" onClick={() => setTab('play')}>Back to the board →</button>
       </div>}
 
@@ -688,6 +793,7 @@ export default function MobileApp() {
           <strong className="field-title">Opponent strength</strong>
           <div className="level-list">{(Object.keys(LEVELS) as Difficulty[]).map((level) => <button type="button" className={setupDifficulty === level ? 'active' : ''} key={level} onClick={() => setSetupDifficulty(level)}><span>{LEVELS[level].label}{level !== 'max' ? ' Elo' : ''}</span><small>{LEVELS[level].description}</small></button>)}</div>
           <p className="level-note">Elo levels are approximate. Max removes the strength limit.</p>
+          {libraryError && <p className="error-banner" role="alert">{libraryError}</p>}
           <button className="start-button" type="button" onClick={newGame}>Start game →</button>
           <button className="cancel-button" type="button" onClick={() => setShowSetup(false)}>Keep playing</button>
         </section>

@@ -139,7 +139,14 @@ Engine hints show a checked board fact, the searched reply and continuation, an 
 when supported, and the actual depth. Quick opening-book hints are labelled as unverified
 until the player selects Verify with Stockfish. Analysis time does not guarantee a depth
 or prove a line is forced.
+On a phone, the recommended move and its short reason appear directly below
+the board; **Why?** opens the position-specific Coach explanation. Landscape
+keeps the board visible while switching between Play, Coach, and Moves in the
+right pane. Starting a new game automatically saves the previous game and its
+variations under **Moves → Saved games**, where it can be reopened.
 The desktop Electron app remains available.
+On desktop, the right column has Coach, Review, Moves, Games, Study, and Tools
+tabs so the selected work stays beside the board.
 
 To move a game to desktop: on the phone open **Moves → Export PGN**, share the
 `.pgn` file with Quick Share, Drive, email, or another file transfer app, then

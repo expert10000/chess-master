@@ -403,6 +403,7 @@ export default function App() {
   const [inspectedSquare, setInspectedSquare] = useState<Square | null>(null);
   const [inspectionOverlayMode, setInspectionOverlayMode] = useState<InspectionOverlayMode>('all');
   const [appMode, setAppMode] = useState<AppMode>('play');
+  const [rightTab, setRightTab] = useState<'coach' | 'review' | 'moves' | 'games' | 'study' | 'tools'>('coach');
   // Keep the live board lean. The detailed workspace has several data-heavy panels
   // and should only mount when the player explicitly opens it.
   const [showCoachWorkspace, setShowCoachWorkspace] = useState(false);
@@ -2634,6 +2635,7 @@ export default function App() {
 
   function toggleReplayFocus(): void {
     if (records.length === 0) return;
+    setRightTab('moves');
     setReplayFocus((focused) => !focused);
   }
 
@@ -2677,7 +2679,13 @@ export default function App() {
   }
 
   function jumpToCoachSection(id: string): void {
-    setShowCoachWorkspace(true);
+    const tab = id === 'move-history-panel' ? 'moves'
+      : id === 'game-review-dashboard' || id === 'selected-move-details' ? 'review'
+      : id === 'coach-game-library' || id === 'coach-game-analytics' ? 'games'
+      : id.includes('study') || id.includes('training') || id.includes('opening') || id.includes('repertoire') || id.includes('endgame') || id.includes('goal') || id.includes('season') || id.includes('curriculum') || id.includes('weakness') || id.includes('spaced') || id.includes('weekly') || id.includes('time-control') || id.includes('strength-model') || id.includes('pattern') || id.includes('data-backup') ? 'study' : 'coach';
+    setRightTab(tab);
+    if (tab === 'coach') setShowCoachWorkspace(true);
+    if (replayFocus && tab !== 'moves') setReplayFocus(false);
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2728,6 +2736,7 @@ export default function App() {
   }
 
   function scrollReviewSection(id: string): void {
+    if (id === 'selected-move-details') setRightTab('review');
     window.requestAnimationFrame(() => {
       document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -3644,7 +3653,14 @@ export default function App() {
         </section>
 
         <aside className="side-column">
-          <section className="panel action-panel">
+          <nav className="right-panel-tabs panel" aria-label="Right panel sections">
+            {(['coach', 'review', 'moves', 'games', 'study', 'tools'] as const).map((tab) =>
+              <button key={tab} type="button" className={rightTab === tab ? 'active' : ''} aria-current={rightTab === tab ? 'page' : undefined} onClick={() => { setRightTab(tab); if (replayFocus && tab !== 'moves') setReplayFocus(false); }}>
+                {tab === 'moves' ? 'Moves' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>)}
+          </nav>
+          {batchReviewProgress && <ReviewProgressPanel current={batchReviewProgress.current} total={batchReviewProgress.total} san={batchReviewProgress.san} />}
+          {rightTab === 'tools' && <section className="panel action-panel">
             <div className="panel-heading compact">
               <div>
                 <span className="eyebrow">Analysis</span>
@@ -3676,22 +3692,6 @@ export default function App() {
               <button type="button" onClick={() => void chooseEngine()} disabled={analysisBusy || phase === 'promotion'}>Change engine</button>
             </div>
 
-            {batchReviewProgress && (
-              <ReviewProgressPanel
-                current={batchReviewProgress.current}
-                total={batchReviewProgress.total}
-                san={batchReviewProgress.san}
-              />
-            )}
-
-            <nav className="workflow-jump-nav" aria-label="Review workflow shortcuts">
-              <button type="button" onClick={() => jumpToCoachSection('personal-coach-dashboard')}>Coach</button>
-              <button type="button" onClick={() => jumpToCoachSection('game-review-dashboard')} disabled={records.length === 0}>Review</button>
-              <button type="button" onClick={() => jumpToCoachSection('move-history-panel')}>History</button>
-              <button type="button" onClick={() => jumpToCoachSection('coach-game-library')}>Games</button>
-              <button type="button" onClick={() => jumpToCoachSection('coach-daily-study')}>Study</button>
-            </nav>
-
             {records.length > 0 && (
               <ReviewLayoutControl
                 value={uiReviewLayout}
@@ -3700,9 +3700,9 @@ export default function App() {
                 disabled={phase === 'promotion'}
               />
             )}
-          </section>
+          </section>}
 
-          <PersonalCoachDashboard
+          {rightTab === 'coach' && <PersonalCoachDashboard
             weaknessMemory={weaknessMemory}
             repertoireMemory={repertoireMemory}
             spacedMemory={spacedMemory}
@@ -3717,23 +3717,22 @@ export default function App() {
             disabled={analysisBusy || phase === 'promotion'}
             onStartDaily={() => void startDailyStudy()}
             onJump={jumpToCoachSection}
-          />
+          />}
 
-          <section className="panel coach-workspace-toggle">
+          {rightTab === 'coach' && <section className="panel coach-workspace-toggle">
             <div>
               <span className="eyebrow">Live play performance</span>
               <h2>Detailed coach workspace</h2>
               <p>{showCoachWorkspace
-                ? 'Detailed analytics are open.'
-                : 'History, analytics, and curriculum tools are paused while you play for faster clicks.'}</p>
+                ? 'Personal recommendations and outcome analytics are open.'
+                : 'Open personal recommendations and outcome analytics when you need them.'}</p>
             </div>
             <button type="button" onClick={() => setShowCoachWorkspace((open) => !open)}>
               {showCoachWorkspace ? 'Hide workspace' : 'Open workspace'}
             </button>
-          </section>
+          </section>}
 
-          {(showCoachWorkspace || replayFocus) && <>
-          {!replayFocus && <>
+          {rightTab === 'coach' && showCoachWorkspace && !replayFocus && <>
           <PersonalCoachRecommendationsPanel
             memory={gameLibraryMemory}
             disabled={analysisBusy || phase === 'promotion'}
@@ -3762,7 +3761,9 @@ export default function App() {
           />
 
           <SkillMapPanel memory={skillMapMemory} onJump={jumpToCoachSection} />
+          </>}
 
+          {rightTab === 'review' && !replayFocus && <>
           {records.length > 0 && (
             <>
               <GameReviewSummary
@@ -3786,7 +3787,7 @@ export default function App() {
           )}
           </>}
 
-          <section className="panel history-panel" id="move-history-panel">
+          {(rightTab === 'moves' || replayFocus) && <section className="panel history-panel" id="move-history-panel">
             <div className="panel-heading compact">
               <div>
                 <span className="eyebrow">Game</span>
@@ -3870,9 +3871,9 @@ export default function App() {
               previousMistakeAvailable={previousMistake !== null}
               nextMistakeAvailable={nextMistake !== null}
             />
-          </section>
+          </section>}
 
-          {!replayFocus && <>
+          {rightTab === 'games' && !replayFocus && <>
           <GameLibraryPanel
             memory={gameLibraryMemory}
             currentGameId={currentLibraryGameId}
@@ -3890,7 +3891,9 @@ export default function App() {
             onOpenGame={(entry) => void loadGameFromLibrary(entry)}
             onOpenMove={(entry, ply) => void loadGameFromLibrary(entry, ply)}
           />
+          </>}
 
+          {rightTab === 'review' && !replayFocus && <>
           <div id="selected-move-details" className="selected-move-details-anchor">
           <CoachPanel
             review={review}
@@ -3929,7 +3932,9 @@ export default function App() {
             onAskBoardIdea={(question) => void askConversationalCoach(question)}
           />
           </div>
+          </>}
 
+          {rightTab === 'study' && !replayFocus && <>
           <OpeningExplorerPanel
             recognition={openingRecognition}
             disabled={analysisBusy || phase === 'promotion'}
@@ -4037,7 +4042,6 @@ export default function App() {
             onExport={exportCoachData}
             onImport={(file) => void importCoachData(file)}
           />
-          </>}
           </>}
         </aside>
           </>
