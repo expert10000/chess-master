@@ -10,6 +10,7 @@ import { createMobileExplanation, HINT_MODES, type HintMode, type MobileExplanat
 import { PIECE_GLYPHS } from '../lib/pieceGlyphs';
 import { illustratedBounds } from './illustratedPieces';
 import { MobilePuzzles } from './MobilePuzzles';
+import { exposesMajorPieceToCapture } from './opponentSafety';
 
 type Side = 'w' | 'b';
 type Tab = 'play' | 'coach' | 'moves' | 'puzzles';
@@ -231,11 +232,18 @@ export default function MobileApp() {
     const engine = engineRef.current;
     if (!engine || game.isGameOver()) return;
     const session = sessionRef.current;
+    const startFen = game.fen();
     setBusy(true);
     try {
-      const result = await engine.analyse(game.fen(), LEVELS[level], LEVELS[level].unrestricted);
-      if (session !== sessionRef.current || !result.bestMove) return;
-      const move = game.move({ from: result.bestMove.slice(0, 2), to: result.bestMove.slice(2, 4), promotion: result.bestMove[4] ?? 'q' });
+      const result = await engine.analyse(startFen, LEVELS[level], LEVELS[level].unrestricted);
+      if (session !== sessionRef.current || game.fen() !== startFen || !result.bestMove) return;
+      let chosenMove = result.bestMove;
+      if (!LEVELS[level].unrestricted && exposesMajorPieceToCapture(startFen, chosenMove)) {
+        const check = await engine.analyse(startFen, { elo: 3190, movetimeMs: 1000 }, true);
+        if (session !== sessionRef.current || game.fen() !== startFen || !check.bestMove) return;
+        chosenMove = check.bestMove;
+      }
+      const move = game.move({ from: chosenMove.slice(0, 2), to: chosenMove.slice(2, 4), promotion: chosenMove[4] ?? 'q' });
       refresh();
       setTip(game.isGameOver() ? moveTip(move, game) : 'Stockfish moved. Scan for checks, captures, and threats before you reply.');
       setHint(null);
@@ -589,7 +597,9 @@ export default function MobileApp() {
     const result = game.isCheckmate() ? game.turn() === 'w' ? '0-1' : '1-0' : game.isDraw() ? '1/2-1/2' : '*';
     const exported = new Chess();
     for (const move of game.history({ verbose: true })) exported.move({ from: move.from, to: move.to, promotion: move.promotion });
-    exported.header('Event', 'Stockfish Coach mobile', 'Date', date, 'White', white, 'Black', black, 'Result', result);
+    exported.header('Event', 'Stockfish Coach mobile', 'Date', date, 'White', white, 'Black', black, 'Result', result,
+      'CoachEngine', 'Stockfish 19 lite single', 'CoachLevelAtExport', difficulty === 'max' ? 'Max' : difficulty,
+      'CoachMoveTimeMsAtExport', String(LEVELS[difficulty].movetimeMs));
     return `${exported.pgn()}\n`;
   }
 
