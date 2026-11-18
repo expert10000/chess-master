@@ -26,6 +26,7 @@
     "release:qa": "npm run typecheck && npm test && npm run build && npm run release:static",
     "test:e2e": "node tests/e2e-smoke.cjs",
     "test:mobile": "node tests/mobile-smoke.cjs",
+    "test:puzzles": "node tests/puzzle-smoke.cjs",
     "build:mobile": "node scripts/copy-mobile-engine.mjs && vite build --config vite.mobile.config.ts",
     "dev:mobile": "node scripts/copy-mobile-engine.mjs && vite --config vite.mobile.config.ts",
     "android:sync": "npm run build:mobile && cap sync android"

@@ -9,9 +9,10 @@ import { openingHint } from './openingHint';
 import { createMobileExplanation, HINT_MODES, type HintMode, type MobileExplanation } from './causalHints';
 import { PIECE_GLYPHS } from '../lib/pieceGlyphs';
 import { illustratedBounds } from './illustratedPieces';
+import { MobilePuzzles } from './MobilePuzzles';
 
 type Side = 'w' | 'b';
-type Tab = 'play' | 'coach' | 'moves';
+type Tab = 'play' | 'coach' | 'moves' | 'puzzles';
 type Difficulty = '1800' | '2000' | '2100' | 'max';
 type PieceStyle = 'desktop' | 'spatial' | 'chessnut' | 'fantasy' | 'illustrated';
 
@@ -777,10 +778,13 @@ export default function MobileApp() {
         <button className="back-to-game" type="button" onClick={() => setTab('play')}>Back to the board →</button>
       </div>}
 
+      {tab === 'puzzles' && <MobilePuzzles renderPiece={(color, piece) => <PieceIcon color={color} piece={piece} style={pieceStyle} />} />}
+
       <nav className="bottom-nav" aria-label="App sections">
         <button type="button" className={tab === 'play' ? 'active' : ''} onClick={() => setTab('play')}><span>♞</span>Play</button>
         <button type="button" className={tab === 'coach' ? 'active' : ''} onClick={() => setTab('coach')}><span>✦</span>Coach</button>
         <button type="button" className={tab === 'moves' ? 'active' : ''} onClick={() => setTab('moves')}><span>☷</span>Moves</button>
+        <button type="button" className={tab === 'puzzles' ? 'active' : ''} onClick={() => setTab('puzzles')}><span>◈</span>Puzzles</button>
       </nav>
 
       {showSetup && <div className="modal-backdrop" onClick={() => setShowSetup(false)}>

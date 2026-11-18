@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chess, type Move, type Square } from 'chess.js';
 import { ChessBoard } from './components/ChessBoard';
+import { PuzzleTrainer } from './components/PuzzleTrainer';
 import { CoachPanel } from './components/CoachPanel';
 import { MoveList, type PlyRecord, type ReplaySpeed } from './components/MoveList';
 import { PromotionDialog } from './components/PromotionDialog';
@@ -261,7 +262,7 @@ interface Difficulty {
   strength: EngineStrength;
 }
 
-type AppMode = 'play' | 'training';
+type AppMode = 'play' | 'training' | 'puzzles';
 
 type GamePhase =
   | 'engine-missing'
@@ -2454,7 +2455,10 @@ export default function App() {
     setIdeaInspection(false);
     setBoardIdeaExplanation(null);
     setAppMode(mode);
-    if (mode === 'training') {
+    if (mode === 'puzzles') {
+      setHistoryCursor(null);
+      setStatusText('Offline puzzles');
+    } else if (mode === 'training') {
       setHistoryCursor(null);
       setStatusText(trainingExercises.length ? 'Training mode' : 'Training mode · review moves to create exercises');
     } else {
@@ -3440,10 +3444,14 @@ export default function App() {
           <strong>Training</strong>
           <span>Find stronger moves from your reviewed games</span>
         </button>
+        <button type="button" className={appMode === 'puzzles' ? 'active' : ''} disabled={analysisBusy || phase === 'promotion' || Boolean(trainingPromotion)} onClick={() => void switchAppMode('puzzles')}>
+          <strong>Puzzles</strong>
+          <span>Choose and solve rated tactics offline</span>
+        </button>
       </nav>
 
-      <div className={`workspace ${appMode === 'training' ? 'training-workspace' : ''}`}>
-        {appMode === 'play' ? (
+      <div className={`workspace ${appMode === 'training' ? 'training-workspace' : ''}${appMode === 'puzzles' ? ' puzzle-workspace' : ''}`}>
+        {appMode === 'puzzles' ? <PuzzleTrainer /> : appMode === 'play' ? (
           <>
         <section id="review-board-column" className={`board-column${records.length > 0 ? ' review-board-column' : ''}${pvPreview ? ' pv-board-column' : ''}`}>
           <div className="game-toolbar play-toolbar panel">
