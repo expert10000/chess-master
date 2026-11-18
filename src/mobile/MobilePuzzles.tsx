@@ -11,7 +11,7 @@ export function MobilePuzzles({ renderPiece }: { renderPiece: (color: 'w' | 'b',
   const suppressClick = useRef(false);
   const files = t.orientation === 'white' ? 'abcdefgh' : 'hgfedcba';
   const ranks = t.orientation === 'white' ? '87654321' : '12345678';
-  const canMove = !t.solved && !t.revealed && t.replayIndex === null;
+  const canMove = !t.solved && !t.revealed && !t.pendingReply && t.replayIndex === null;
   const list = t.filtered.slice(t.page * 6, t.page * 6 + 6);
   const solution = t.puzzle && (t.solved || t.revealed) ? puzzleSanLine(t.puzzle) : [];
 
@@ -39,7 +39,7 @@ export function MobilePuzzles({ renderPiece }: { renderPiece: (color: 'w' | 'b',
           const square = `${file}${rank}` as Square;
           const piece = t.currentGame.get(square);
           const light = (file.charCodeAt(0) - 97 + Number(rank)) % 2 === 0;
-          return <button key={square} type="button" role="gridcell" data-square={square} aria-label={`${square}${piece ? ` ${piece.color === 'w' ? 'white' : 'black'} ${piece.type}` : ''}`} className={`square ${light ? 'light' : 'dark'} ${t.selectedSquare === square ? 'selected' : ''} ${t.hintFrom === square || t.hintTo === square ? 'hinted' : ''}`} style={{ touchAction: 'none' }} onClick={() => { if (suppressClick.current) return; t.tap(square); }} onPointerDown={(event) => pointerDown(event, square)} onPointerUp={pointerUp} onPointerCancel={() => { drag.current = null; }}>
+          return <button key={square} type="button" role="gridcell" data-square={square} aria-label={`${square}${piece ? ` ${piece.color === 'w' ? 'white' : 'black'} ${piece.type}` : ''}`} className={`square ${light ? 'light' : 'dark'} ${t.selectedSquare === square ? 'selected' : ''} ${t.displayedLastMove.from === square || t.displayedLastMove.to === square ? 'last' : ''} ${t.hintFrom === square || t.hintTo === square ? 'hinted' : ''}`} style={{ touchAction: 'none' }} onClick={() => { if (suppressClick.current) return; t.tap(square); }} onPointerDown={(event) => pointerDown(event, square)} onPointerUp={pointerUp} onPointerCancel={() => { drag.current = null; }}>
             {col === 0 && <small className="rank">{rank}</small>}{row === 7 && <small className="file">{file}</small>}{piece && renderPiece(piece.color, piece.type)}{t.targets.has(square) && <span className={piece ? 'capture-target' : 'move-target'} />}
           </button>;
         }))}

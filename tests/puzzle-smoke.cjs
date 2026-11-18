@@ -10,6 +10,7 @@ async function solve(page, board) {
     const answer = puzzle.moves[i];
     await board.locator(`[data-square="${answer.slice(0, 2)}"], [aria-label^="${answer.slice(0, 2)}"]`).first().click();
     await board.locator(`[data-square="${answer.slice(2, 4)}"], [aria-label^="${answer.slice(2, 4)}"]`).first().click();
+    if (i + 2 < puzzle.moves.length) await page.getByText(/Find the next move/).waitFor();
   }
   await page.getByText(/Solved on the first try/).waitFor();
 }
@@ -45,6 +46,34 @@ async function solve(page, board) {
     await page.getByRole('button', { name: 'Next solution move' }).click();
     await page.getByLabel('Difficulty').selectOption('very-hard');
     await page.getByText('Very hard', { exact: true }).count();
+    await page.getByLabel('Difficulty').selectOption('hard');
+    await page.locator('.puzzle-mobile-list button').filter({ hasText: '1402' }).tap();
+    await board.locator('[data-square="f2"]').tap();
+    await board.locator('[data-square="f4"]').tap();
+    await board.locator('[data-square="f4"][aria-label="f4 white p"]').waitFor();
+    await page.screenshot({ path: join(root, 'artifacts', 'puzzles-pawn-move.png') });
+    await page.getByText(/en passant, capturing your pawn/).waitFor();
+    await board.locator('[data-square="f4"][aria-label="f4"]').waitFor();
+    await page.getByRole('button', { name: 'Retry', exact: true }).tap();
+    const fromBox = await board.locator('[data-square="f2"]').boundingBox();
+    const toBox = await board.locator('[data-square="f4"]').boundingBox();
+    if (!fromBox || !toBox) throw new Error('Pawn drag squares are missing.');
+    const touch = await mobile.newCDPSession(page);
+    const fromPoint = { x: fromBox.x + fromBox.width / 2, y: fromBox.y + fromBox.height / 2 };
+    const toPoint = { x: toBox.x + toBox.width / 2, y: toBox.y + toBox.height / 2 };
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [fromPoint] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: fromPoint.x, y: fromPoint.y - 16 }] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [toPoint] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await board.locator('[data-square="f4"][aria-label="f4 white p"]').waitFor();
+    await page.getByText(/en passant, capturing your pawn/).waitFor();
+    await page.getByRole('button', { name: 'Retry', exact: true }).tap();
+    await board.locator('[data-square="f2"]').tap();
+    await board.locator('[data-square="f4"]').tap();
+    await page.getByRole('button', { name: 'Next', exact: false }).filter({ hasText: 'Next' }).first().tap();
+    await page.getByText('1403 rating').waitFor();
+    await page.waitForTimeout(950);
+    await page.getByText('1403 rating').waitFor();
     if (errors.length) throw new Error(`Mobile page errors: ${errors.join('; ')}`);
     await mobile.close();
 
@@ -71,7 +100,7 @@ async function solve(page, board) {
     await desktop.getByRole('button', { name: 'Review on board' }).click();
     for (let i = 0; i < puzzle.moves.length - 1; i++) await desktop.getByRole('button', { name: 'Previous solution move' }).click();
     await desktop.getByText('Starting position').waitFor();
-    console.log('Puzzle smoke passed: mobile portrait, mobile landscape, desktop, hints, solve, replay.');
+    console.log('Puzzle smoke passed: mobile portrait, mobile landscape, desktop, hints, solve, replay, f2-f4 tap and drag, en passant pause.');
   } finally {
     if (electron) await electron.close();
     if (browser) await browser.close();

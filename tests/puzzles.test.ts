@@ -40,4 +40,15 @@ describe('offline puzzles', () => {
     expect(result.solved).toBe(true);
     expect(result.game.isCheckmate()).toBe(true);
   });
+
+  it('keeps the player move visible before an en passant reply', () => {
+    const puzzle = PUZZLES.find((item) => item.id === 'JOBS8')!;
+    const result = tryPuzzleMove(puzzle, puzzleStart(puzzle), 1, 'f2', 'f4');
+    expect(result.correct).toBe(true);
+    expect(result.replySan).toBe('exf3');
+    expect(result.replyIsEnPassant).toBe(true);
+    expect(new Chess(result.playerFen!).get('f4')?.type).toBe('p');
+    expect(result.game.get('f4')).toBeUndefined();
+    expect(result.game.get('f3')?.color).toBe('b');
+  });
 });

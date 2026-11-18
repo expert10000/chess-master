@@ -48,7 +48,7 @@ export function puzzleSanLine(puzzle: Puzzle): string[] {
   return puzzle.moves.slice(1).map((uci) => game.move(uci).san);
 }
 
-export function tryPuzzleMove(puzzle: Puzzle, game: Chess, nextIndex: number, from: Square, to: Square): { correct: boolean; game: Chess; nextIndex: number; solved: boolean; san?: string; replySan?: string } {
+export function tryPuzzleMove(puzzle: Puzzle, game: Chess, nextIndex: number, from: Square, to: Square): { correct: boolean; game: Chess; nextIndex: number; solved: boolean; san?: string; playerFen?: string; replySan?: string; replyIsEnPassant?: boolean } {
   const candidate = new Chess(game.fen());
   let move;
   try { move = candidate.move({ from, to, promotion: 'q' }); }
@@ -58,11 +58,15 @@ export function tryPuzzleMove(puzzle: Puzzle, game: Chess, nextIndex: number, fr
   if (`${move.from}${move.to}${move.promotion ?? ''}` !== expected && !(isMateInOne && candidate.isCheckmate())) {
     return { correct: false, game, nextIndex, solved: false };
   }
+  const playerFen = candidate.fen();
   let replySan: string | undefined;
+  let replyIsEnPassant = false;
   let index = nextIndex + 1;
   if (index < puzzle.moves.length) {
-    replySan = candidate.move(puzzle.moves[index]).san;
+    const reply = candidate.move(puzzle.moves[index]);
+    replySan = reply.san;
+    replyIsEnPassant = reply.flags.includes('e');
     index++;
   }
-  return { correct: true, game: candidate, nextIndex: index, solved: index >= puzzle.moves.length, san: move.san, replySan };
+  return { correct: true, game: candidate, nextIndex: index, solved: index >= puzzle.moves.length, san: move.san, playerFen, replySan, replyIsEnPassant };
 }
