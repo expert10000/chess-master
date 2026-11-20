@@ -35,7 +35,8 @@
     "android:source:fetch": "node scripts/fetch-stockfish-source.mjs",
     "android:aab:verify": "python scripts/verify-android-aab.py",
     "android:source:verify": "node scripts/verify-stockfish-rebuild.mjs",
-    "android:source:test": "py -3 scripts/test-stockfish-source-archive.py"
+    "android:source:test": "py -3 scripts/test-stockfish-source-archive.py",
+    "android:source:tools": "node scripts/stockfish-windows-tools.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.10",
