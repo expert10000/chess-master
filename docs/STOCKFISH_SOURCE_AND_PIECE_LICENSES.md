@@ -26,12 +26,12 @@ The Android code in `src/mobile/MobileApp.tsx` offers:
 | Display style | Runtime source | License record |
 | --- | --- | --- |
 | Desktop original | `src/lib/pieceGlyphs.ts` Unicode characters rendered in device fonts | No redistributed font binary in this implementation; check the final bundle |
-| Staunton | `mobile/public/pieces/illustrated-sheet.png` | UNVERIFIED |
+| Staunton | Excluded from commercial Android package and selectable piece styles | Source rights unverified; do not distribute |
 | Modern | `mobile/public/pieces/spatial/{w,b}{P,N,B,R,Q,K}.svg` | Verified 12/12 upstream MIT Git blobs |
 | Classic | `mobile/public/pieces/chessnut/{w,b}{P,N,B,R,Q,K}.svg` | Replaced all 12 with byte-identical Apache-2.0 upstream files |
 | Fantasy | `mobile/public/pieces/fantasy/{w,b}{P,N,B,R,Q,K}.svg` | Verified 12/12 upstream MIT Git blobs |
 
-The script expands the three SVG patterns into 12 expected files each, audits the sprite sheet, records SHA-256 hashes, and detects unlisted art files beneath `mobile/public/pieces`.
+The script expands the three SVG patterns into 12 expected files each, refuses unlisted graphics and records SHA-256 hashes, and detects unlisted art files beneath `mobile/public/pieces`.
 
 **Do not infer an asset license from its style name or from its inclusion in Git.** Record authors, sources, license proof, and commercial permissions before setting `commercialUseApproved` to true. Any icons, screenshots or branding not under that asset folder require a separate release-wide audit.
 
@@ -50,3 +50,9 @@ Staunton remains UNVERIFIED. `src/mobile/illustratedPieces.ts` calls the sprite 
 The generated `compliance/stockfish-source-attestation.json` is not checked into Git. After fetching and inspecting corresponding source, copy `compliance/stockfish-source-attestation.example.json` to that path and populate the exact archive hash, tag revision, source URL, build instructions, review identity/date and true evidence of binary correspondence. Never set `binaryMatchesSourceVerified=true` merely to bypass a failing script.
 
 Current status: the script and asset fixes are committed on the draft branch. This review has **not** executed a clean end-to-end Android AAB build, nor independently verified source-to-binary reproduction.
+
+## Staunton release disposition (2026-11-20)
+
+The previously user-provided `mobile/public/pieces/illustrated-sheet.png` was **not** demonstrated to be covered by a commercial redistribution license. Rather than declaring it approved, this PR removes the raster sheet, removes `src/mobile/illustratedPieces.ts`, and removes the `illustrated` option/rendering from `src/mobile/MobileApp.tsx`. The existing piece-style preference falls back to `desktop` when the deleted ID is found. The inventory now covers only actively shipped sets. Reinstate Staunton only with documented permission or newly authored/reused artwork with an exact attributable permissive license.
+
+All piece-art license/credit text files require separate notice review. The checker indexes their hashes but does not establish their contents are legally adequate.
