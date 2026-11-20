@@ -59,8 +59,22 @@
       "author": "Alexis Luengas",
       "sourceUrl": "https://github.com/lichess-org/lila/tree/master/public/piece/chessnut",
       "license": "Apache-2.0",
-      "licenseEvidence": "Published Lichess-derived Chessnut attribution identifies Apache-2.0; validate exact file provenance and preserve any NOTICE before approval",
-      "commercialUseApproved": false
+      "licenseEvidence": "All 12 distributed SVGs replaced with exact public/piece/chessnut files from lichess-org/lila; lila/COPYING.md lists Alexis Luengas, Apache-2.0. Git blob SHA-1 recorded for every file; preserve Apache license and check NOTICE requirements.",
+      "commercialUseApproved": true,
+      "expectedGitBlobSha": {
+        "wK.svg": "de4bc2906d01f315ff7ae32ce28762cb373adea0",
+        "wQ.svg": "f748b8591896a8a15d21f11d775e841fab0c050b",
+        "wR.svg": "66484063755b46619dd9fe7cfb19bd4d7816bb23",
+        "wB.svg": "7a2fb6cee8cba0ad7582f133f0b841a0f44798dc",
+        "wN.svg": "7ccaeda6c799dfb23ad26151da574f8d0c2b17c9",
+        "wP.svg": "e27c1b94839a5adc2865b6c14205bcf9b34dd5e8",
+        "bK.svg": "a231ff2517c37779eea3e0bf392b57c59d7dc1d7",
+        "bQ.svg": "89b1902ec3e9d366c1100ca642f49c900fac9415",
+        "bR.svg": "3b3d47d3fe62e29ba11ce94f5fb491429df547d0",
+        "bB.svg": "894405574e484714e5619627961e13bd3a930640",
+        "bN.svg": "39126a2507ec7d47eea4455a5f51daaf36232dc9",
+        "bP.svg": "337915dd57cf22a97c8ba9189bb405d78db56023"
+      }
     },
     {
       "id": "fantasy",
