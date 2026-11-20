@@ -14,19 +14,6 @@
       "commercialUseApproved": true
     },
     {
-      "id": "illustrated",
-      "displayName": "Staunton",
-      "paths": [
-        "mobile/public/pieces/illustrated-sheet.png"
-      ],
-      "runtimeSource": "src/mobile/MobileApp.tsx",
-      "author": null,
-      "sourceUrl": null,
-      "license": null,
-      "licenseEvidence": null,
-      "commercialUseApproved": false
-    },
-    {
       "id": "spatial",
       "displayName": "Modern",
       "pathPattern": "mobile/public/pieces/spatial/{w,b}{P,N,B,R,Q,K}.svg",
