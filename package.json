@@ -33,7 +33,8 @@
     "android:licenses:prepare": "node scripts/prepare-android-licenses.mjs",
     "android:release:prepare": "npm run build:mobile && npm run android:licenses:prepare && npm run android:sync",
     "android:source:fetch": "node scripts/fetch-stockfish-source.mjs",
-    "android:aab:verify": "python scripts/verify-android-aab.py"
+    "android:aab:verify": "python scripts/verify-android-aab.py",
+    "android:source:verify": "node scripts/verify-stockfish-rebuild.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.10",
