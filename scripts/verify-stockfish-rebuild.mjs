@@ -24,7 +24,11 @@ if (emcc.error || emcc.status !== 0 || !(emcc.stdout + emcc.stderr).includes('6.
 const workspace = await mkdtemp(join(tmpdir(), 'stockfish-rebuild-'));
 const sourceParent = join(workspace,'source');
 await mkdir(sourceParent);
-command('tar',['-xzf',archive,'-C',sourceParent],root);
+if (process.platform === 'win32') {
+  command('py',['-3','scripts/stockfish-source-archive.py','extract',archive,sourceParent],root);
+} else {
+  command('python3',['scripts/stockfish-source-archive.py','extract',archive,sourceParent],root);
+}
 const roots = (await readdir(sourceParent,{withFileTypes:true})).filter(x=>x.isDirectory());
 if (roots.length!==1) throw Error('Unexpected source archive layout');
 const tree = join(sourceParent,roots[0].name);
