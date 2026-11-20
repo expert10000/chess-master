@@ -21,6 +21,18 @@ VERIFICATION = ROOT / "artifacts/chess-coach-complete-source-verification.json"
 OUTPUT = ROOT / "artifacts/chess-coach-clean-source-build.json"
 PREFIX = "chess-coach-source/"
 RESULTS = []
+BASELINE = '1d3d85d6f3e889beda0a97c4f59e29f51902f9c2'
+APK_COPY = ROOT / 'artifacts/chess-coach-clean-source-debug.apk'
+REQUIRED_ASSETS = [
+    'assets/public/engine/stockfish-19-lite-single.js',
+    'assets/public/engine/stockfish-19-lite-single.wasm',
+    'assets/public/engine/Stockfish-GPL-3.0.txt',
+    'assets/public/licenses.html',
+]
+for category in ('spatial','fantasy','chessnut'):
+    for side in ('w','b'):
+        for piece in ('P','N','B','R','Q','K'):
+            REQUIRED_ASSETS.append('assets/public/pieces/'+category+'/'+side+piece+'.svg')
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 def run(args,cwd):
@@ -42,6 +54,17 @@ def main():
     prior=json.loads(VERIFICATION.read_text(encoding="utf8"))
     if prior.get("status")!="COMPLETE_SOURCE_TECHNICAL_PASS_LEGAL_PENDING" or prior.get("errors") or prior.get("archiveSha256")!=digest(ZIP.read_bytes()):
         raise RuntimeError("Full-source ZIP verification is stale or failed")
+    if prior.get("gitCommit")!=BASELINE or prior.get("trackedFileCount")!=371:
+        raise RuntimeError("Source ZIP verification is not the qualified 1d3d85d / 371-file baseline")
+    with zipfile.ZipFile(ZIP) as check:
+        manifest_name = PREFIX + "SOURCE_MANIFEST.json"
+        if manifest_name not in check.namelist():
+            raise RuntimeError("Complete-source ZIP lacks its own manifest")
+        manifest=json.loads(check.read(manifest_name))
+        if manifest.get("gitCommit")!=BASELINE or manifest.get("trackedFileCount")!=371:
+            raise RuntimeError("ZIP internal manifest does not match qualified baseline")
+        if manifest.get("stockfishSourceSha256")!=prior.get("stockfishSourceSha256"):
+            raise RuntimeError("Nested Stockfish source identity differs from accepted verification")
     if os.name=="nt":
         npm="npm.cmd"
     else:
@@ -75,8 +98,25 @@ def main():
         apk=app/"android/app/build/outputs/apk/debug/app-debug.apk"
         if not apk.is_file():
             raise RuntimeError("Android Gradle finished but debug APK was not found")
+        with zipfile.ZipFile(apk) as zip_apk:
+            entries=set(zip_apk.namelist())
+            missing=[entry for entry in REQUIRED_ASSETS if entry not in entries]
+            if missing:
+                raise RuntimeError("Debug APK missing Stockfish/license/piece assets: "+", ".join(missing[:12]))
+            if any(name.endswith("illustrated-sheet.png") for name in entries):
+                raise RuntimeError("Debug APK contains excluded Staunton sprite sheet")
+            engine_hashes={}
+            for entry in REQUIRED_ASSETS[:4]:
+                engine_hashes[entry] = digest(zip_apk.read(entry))
+        APK_COPY.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(apk,APK_COPY)
+        if digest(APK_COPY.read_bytes())!=digest(apk.read_bytes()):
+            raise RuntimeError("Copied APK SHA-256 differs from freshly built APK")
         result={
             "status":"CLEAN_SOURCE_DEBUG_BUILD_PASS_NOT_RELEASE_APPROVAL",
+            "debugApkPath":str(APK_COPY.relative_to(ROOT)).replace("\\","/"),
+            "packagedAssetSha256":engine_hashes,
+            "requiredAssetCount":len(REQUIRED_ASSETS),
             "qualifiedSourceZipSha256":digest(ZIP.read_bytes()),
             "baselineCommit":prior.get("gitCommit"),
             "debugApkSha256":digest(apk.read_bytes()),
