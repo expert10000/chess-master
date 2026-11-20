@@ -18,7 +18,7 @@ const version = lock.packages?.['node_modules/stockfish']?.version;
 if (version !== '19.0.1') throw Error('This pinned source preparer supports only the audited stockfish@19.0.1; inspect a new version separately.');
 const sourceRevision = '0d5dd7944f88c817c07a26bc4fb1905d5f9c46d6';
 const netName = 'nn-61e7af4bb97d.nnue';
-const tagUrl = 'https://codeload.github.com/nmrugg/stockfish.js/tar.gz/refs/tags/v19.0.1';
+const tagUrl = 'https://codeload.github.com/nmrugg/stockfish.js/tar.gz/' + sourceRevision;
 const nnueUrls = [
   'https://tests.stockfishchess.org/api/nn/' + netName,
   'https://raw.githubusercontent.com/official-stockfish/networks/master/' + netName,
