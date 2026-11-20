@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Fail-closed release preparation. Run BEFORE "npm run android:sync".
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { resolve, join, relative } from 'node:path';
 import process from 'node:process';
 
@@ -65,7 +65,8 @@ try {
     if (!hasValue(a[field])) errors.push('Incomplete Stockfish source attestation field: ' + field);
   }
   if (a.packageVersion !== pkg?.version) errors.push('Attested Stockfish version does not equal locked npm version');
-  if (a.archiveSha256 !== actualHash) errors.push('Corresponding source archive hash does not match attestation');
+  if (!/^[a-f0-9]{64}$/i.test(a.archiveSha256 ?? '') || a.archiveSha256 !== actualHash) errors.push('Corresponding source archive SHA-256 does not match attestation');
+  if (Object.values(a).some((value) => typeof value === 'string' && /REPLACE_WITH|YYYY-MM-DD/.test(value))) errors.push('Stockfish attestation contains template placeholders');
   if (!a.binaryMatchesSourceVerified) errors.push('Manual corresponding-source verification not attested');
   source = { archivePath, sha256: actualHash, sizeBytes: archive.length, attestation: a };
 } catch(e) { errors.push('Missing/unreadable source archive or compliance/stockfish-source-attestation.json: ' + e.message); }
