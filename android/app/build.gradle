@@ -1,5 +1,15 @@
 apply plugin: 'com.android.application'
 
+def uploadStoreFile = System.getenv('CHESS_COACH_UPLOAD_STORE_FILE')
+def uploadStorePassword = System.getenv('CHESS_COACH_UPLOAD_STORE_PASSWORD')
+def uploadKeyAlias = System.getenv('CHESS_COACH_UPLOAD_KEY_ALIAS')
+def uploadKeyPassword = System.getenv('CHESS_COACH_UPLOAD_KEY_PASSWORD')
+def uploadSigningValues = [uploadStoreFile, uploadStorePassword, uploadKeyAlias, uploadKeyPassword]
+if (uploadSigningValues.any { it } && !uploadSigningValues.every { it }) {
+    throw new GradleException('Set all four CHESS_COACH_UPLOAD_* environment variables to sign a release.')
+}
+def uploadSigningReady = uploadSigningValues.every { it }
+
 android {
     namespace "com.expert10000.stockfishcoach"
     compileSdk rootProject.ext.compileSdkVersion
@@ -16,8 +26,19 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        upload {
+            if (uploadSigningReady) {
+                storeFile file(uploadStoreFile)
+                storePassword uploadStorePassword
+                keyAlias uploadKeyAlias
+                keyPassword uploadKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
+            if (uploadSigningReady) signingConfig signingConfigs.upload
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

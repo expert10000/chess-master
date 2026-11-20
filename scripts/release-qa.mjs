@@ -59,11 +59,11 @@ const app = fs.readFileSync(path.join(root, 'src/App.tsx'), 'utf8');
 for (const marker of [
   '<PersonalCoachDashboard',
   '<DataManagementPanel',
-  `createCoachBackup(window.localStorage, '${pkg.version}'`,
+  'createCoachBackup(window.localStorage',
   'restoreCoachBackup(window.localStorage',
   'onUpdateMetadata={updateSavedGameMetadata}',
   'onOpenMove={(entry, ply) => void loadGameFromLibrary(entry, ply)}',
-  'Fast — play first',
+  'Fast — strength-aware',
   'UI_PLAY_PACE_STORAGE_KEY',
   '<RecommendationOutcomePanel',
   '<InterventionHistoryAnalyticsPanel',

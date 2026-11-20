@@ -6,6 +6,9 @@ mobile/public/engine/
 coverage/
 artifacts/
 *.log
+*.jks
+*.keystore
+android/key.properties
 .DS_Store
 Thumbs.db
 resources/stockfish/stockfish

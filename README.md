@@ -130,7 +130,7 @@ chosen.
 
 ## Android / Samsung Galaxy
 
-The focused Android app is a separate, offline Capacitor build. It has tap and drag
+The focused Android app is a separate, offline-first Capacitor build. It has tap and drag
 chess, 1800/2000/2100 Elo and Max opponent settings, side selection, undo,
 board flip, mid-game strength changes, move history that opens the selected position on the board,
 replay controls and saved playable forks, PGN file sharing, the desktop original pieces plus four optional sets (Staunton, Modern, Classic, Fantasy), and offline hints from a bundled Stockfish 19 lite engine. Hint analysis has Quick (~1 s),
@@ -170,7 +170,8 @@ debugging and authorize the computer on the phone before using `adb`. Run
 `npm run test:mobile` after `npm run build:mobile` for the Playwright phone-size
 smoke test. The Android package includes a GPLv3 Stockfish WASM engine and its
 license text; distributing the APK requires meeting that license's terms. A
-public release also needs a signed release APK or AAB.
+public release through Google Play also needs a signed Android App Bundle (AAB).
+For Google Play, follow [`docs/GOOGLE_PLAY_RELEASE.md`](docs/GOOGLE_PLAY_RELEASE.md) for the API 36 bundle, signing, privacy, listing, and testing steps.
 
 ## How the explanation works
 
