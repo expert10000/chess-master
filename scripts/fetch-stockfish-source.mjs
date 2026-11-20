@@ -4,7 +4,7 @@
 // compilation or grant automatic source-to-binary attestation.
 import { createHash } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -26,9 +26,12 @@ const nnueUrls = [
 const destinationDir = resolve(root, 'release-sources');
 const destination = join(destinationDir, 'stockfish-corresponding-source.tar.gz');
 const workspace = await mkdtemp(join(tmpdir(), 'chess-coach-source-'));
-function tar(args) {
-  const result = spawnSync('tar', args, {encoding: 'utf8'});
-  if (result.error || result.status !== 0) throw Error('tar failed: ' + (result.error?.message ?? result.stderr));
+function runArchiveTool(args) {
+  const python = process.platform === 'win32' ? 'py' : 'python3';
+  const argv = process.platform === 'win32' ? ['-3', 'scripts/stockfish-source-archive.py', ...args] : ['scripts/stockfish-source-archive.py', ...args];
+  const result = spawnSync(python, argv, {cwd:root,encoding:'utf8'});
+  if(result.error || result.status !== 0) throw Error('Python source archiver failed: ' + (result.error?.message ?? result.stderr));
+  if(result.stdout) console.log(result.stdout.trim());
 }
 async function download(url, file) {
   const response = await fetch(url, {redirect: 'follow'});
@@ -38,17 +41,6 @@ async function download(url, file) {
 try {
   const original = join(workspace, 'tag.tar.gz');
   await download(tagUrl, original);
-  const unpacked = join(workspace, 'tree');
-  await mkdir(unpacked);
-  tar(['-xzf', original, '-C', unpacked]);
-  const entries = (await readdir(unpacked, {withFileTypes:true})).filter(x => x.isDirectory());
-  if (entries.length !== 1) throw Error('Unexpected source archive layout');
-  const tree = join(unpacked, entries[0].name);
-  for (const path of ['build.js', 'Copying.txt', 'scripts/net.sh', 'src/Makefile', 'src/evaluate.h', 'src/emscripten/wasm-makefile.mk']) {
-    await readFile(join(tree, path));
-  }
-  const evaluate = await readFile(join(tree,'src/evaluate.h'),'utf8');
-  if (!evaluate.includes('EvalFileLiteName "' + netName + '"')) throw Error('Tag refers to different lite neural network');
   let netBytes;
   let netSource;
   for (const url of nnueUrls) {
@@ -65,10 +57,11 @@ try {
     }
   }
   if (!netBytes) throw Error('Could not download and validate required Stockfish lite NNUE network');
-  await writeFile(join(tree, 'src', netName), netBytes);
   await mkdir(destinationDir, {recursive:true});
   const staged = join(workspace, 'corresponding-source.tar.gz');
-  tar(['-czf', staged, '-C', unpacked, entries[0].name]);
+  const netFile = join(workspace, netName);
+  await writeFile(netFile, netBytes);
+  runArchiveTool(['assemble', original, netFile, staged]);
   const archive = await readFile(staged);
   const hash = sha256(archive);
   await rename(staged, destination);
