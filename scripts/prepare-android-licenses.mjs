@@ -113,6 +113,22 @@ try {
   } catch(e) {
     errors.push('Missing or unreadable formal Stockfish rebuild evidence: ' + e.message);
   }
+  // Require a separate source-archive preflight. Its result is technical
+  // evidence, not a legal approval and not an automatic attestation toggle.
+  try {
+    const review = await readJson('artifacts/stockfish-source-review.json');
+    if (review.status !== 'TECHNICAL_PREFLIGHT_PASS_LEGAL_REVIEW_PENDING' ||
+        review.sourceArchiveSha256 !== actualHash ||
+        review.rebuild?.sourceArchiveSha256 !== actualHash ||
+        review.rebuild?.reportedStatus !== 'REPRODUCIBLE_EXACT' ||
+        !review.networkSha256PrefixMatchesName ||
+        !Number.isInteger(review.sourceFiles) || review.sourceFiles < 10 ||
+        review.issues?.length) {
+      errors.push('Source preflight review missing, incomplete or inconsistent with archive');
+    }
+  } catch(e) {
+    errors.push('Missing source archive review: run npm run android:source:review (' + e.message + ')');
+  }
   // A GitHub tag tarball alone omits the lite NNUE download. Require its exact
   // content-addressed bytes to be present inside the redistributed source.
   const tarList = spawnSync('tar', ['-tzf', at(archivePath)], { encoding: 'utf8' });
