@@ -129,6 +129,21 @@ try {
   } catch(e) {
     errors.push('Missing source archive review: run npm run android:source:review (' + e.message + ')');
   }
+  // Verify the complete React/Android + Stockfish source package is tied to
+  // this release before staging it alongside the engine source.
+  try {
+    const whole = await readJson('artifacts/chess-coach-complete-source-verification.json');
+    const wholeBytes = await readFile(at('release-sources/chess-coach-complete-source-candidate.zip'));
+    if (whole.status !== 'COMPLETE_SOURCE_TECHNICAL_PASS_LEGAL_PENDING' ||
+        whole.legalApproval !== false || (whole.errors ?? []).length ||
+        whole.archiveSha256 !== sha256(wholeBytes) ||
+        whole.stockfishSourceSha256 !== actualHash) {
+      errors.push('Whole-application source ZIP verification failed or is stale');
+    }
+    source = { ...(source ?? {}), completeArchiveSha256: sha256(wholeBytes), completeArchiveSizeBytes: wholeBytes.length };
+  } catch(e) {
+    errors.push('Missing verified whole-app source package: run npm run android:complete-source:verify (' + e.message + ')');
+  }
   // A GitHub tag tarball alone omits the lite NNUE download. Require its exact
   // content-addressed bytes to be present inside the redistributed source.
   const tarList = spawnSync('tar', ['-tzf', at(archivePath)], { encoding: 'utf8' });
@@ -154,7 +169,7 @@ try {
   if (!/^[a-f0-9]{64}$/i.test(a.archiveSha256 ?? '') || a.archiveSha256 !== actualHash) errors.push('Corresponding source archive SHA-256 does not match attestation');
   if (Object.values(a).some((value) => typeof value === 'string' && /REPLACE_WITH|YYYY-MM-DD/.test(value))) errors.push('Stockfish attestation contains template placeholders');
   if (!a.binaryMatchesSourceVerified) errors.push('Manual corresponding-source verification not attested');
-  source = { archivePath, sha256: actualHash, sizeBytes: archive.length, attestation: a };
+  source = { ...(source ?? {}), archivePath, sha256: actualHash, sizeBytes: archive.length, attestation: a };
 } catch(e) { errors.push('Missing/unreadable source archive or compliance/stockfish-source-attestation.json: ' + e.message); }
 
 if (errors.length) {
@@ -165,6 +180,7 @@ if (errors.length) {
   const sourceTarget = at('mobile/public/engine/source/stockfish-corresponding-source.tar.gz');
   await mkdir(at('mobile/public/engine/source'), { recursive: true });
   await copyFile(at(source.archivePath), sourceTarget);
+  await copyFile(at('release-sources/chess-coach-complete-source-candidate.zip'), at('mobile/public/engine/source/chess-coach-complete-source.zip'));
   const manifest = {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
@@ -178,6 +194,11 @@ if (errors.length) {
       revision: source.attestation.sourceRevision,
       sourceUrl: source.attestation.sourceUrl,
       buildInstructions: source.attestation.buildInstructions
+    },
+    completeApplicationSource: {
+      path: 'engine/source/chess-coach-complete-source.zip',
+      sha256: source.completeArchiveSha256,
+      sizeBytes: source.completeArchiveSizeBytes,
     },
     assets: found,
     artworkNoticeFiles: noticeFiles
