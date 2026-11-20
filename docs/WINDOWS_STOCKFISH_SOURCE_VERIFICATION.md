@@ -9,10 +9,11 @@ git fetch origin
 git switch release/stockfish-source-asset-inventory
 git pull --ff-only
 npm ci
+npm run android:source:test
 npm run android:source:fetch
 ```
 
-The source fetcher now uses `scripts/stockfish-source-archive.py assemble` to copy the original tar entries (including symbolic-link metadata) directly to a new tar.gz, adding the content-address-verified `nn-61e7af4bb97d.nnue` network input. **It does not extract `examples/src` or require Windows Developer Mode / administrator-created symlinks.** The final archive preserves the original symlink information for recipients on compatible systems.
+The source fetcher now uses `scripts/stockfish-source-archive.py assemble` to copy the original tar entries (including symbolic-link metadata) directly to a new tar.gz, adding the content-address-verified `nn-61e7af4bb97d.nnue` network input. `npm run android:source:test` uses a synthetic source archive with the same optional symlink shape and verifies preservation plus Windows-safe build extraction. **It does not extract `examples/src` or require Windows Developer Mode / administrator-created symlinks.** The final archive preserves the original symlink information for recipients on compatible systems.
 
 Check `release-sources/stockfish-corresponding-source.tar.gz` and the unverified local `compliance/stockfish-source-attestation.json`. Both are ignored by Git. Source download and archive integrity do not constitute binary reproducibility.
 
