@@ -833,6 +833,7 @@ export default function MobileApp() {
             <span className="piece-style-check" aria-hidden="true">{pieceStyle === id ? '✓' : ''}</span>
           </button>)}</div>
           <p className="piece-art-credit">Optional artwork: Maurizio Monge (Modern, Fantasy) and Alexis Luengas (Classic). License details are included with the app.</p>
+          <p className="piece-art-credit"><a href="./licenses.html" target="_blank" rel="noopener noreferrer">Open-source licenses and Stockfish source</a></p>
           <button className="cancel-button" type="button" onClick={() => setShowPiecePicker(false)}>Back to game</button>
         </section>
       </div>}
