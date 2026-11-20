@@ -92,6 +92,16 @@ async function solve(page, board) {
     await page.reload();
     await page.locator('.bottom-nav').getByRole('button', { name: 'Puzzles' }).click();
     await page.getByText('1403 rating').waitFor();
+    await page.route('https://lichess.org/api/puzzle/next**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ game: { pgn: 'e4 d5 exd5 Qxd5' }, puzzle: { id: 'newPuzzle', rating: 1520, initialPly: 3, solution: ['b1c3'], themes: ['fork'] } }) }));
+    await page.getByRole('button', { name: 'Get new puzzle' }).click();
+    await page.getByText('1520 rating').waitFor();
+    await page.getByText(/1 added/).waitFor();
+    await page.locator('.bottom-nav').getByRole('button', { name: 'Play' }).click();
+    await page.locator('.bottom-nav').getByRole('button', { name: 'Puzzles' }).click();
+    await page.getByText('1520 rating').waitFor();
+    await page.reload();
+    await page.locator('.bottom-nav').getByRole('button', { name: 'Puzzles' }).click();
+    await page.getByText('1520 rating').waitFor();
     if (errors.length) throw new Error(`Mobile page errors: ${errors.join('; ')}`);
     await mobile.close();
 
@@ -118,7 +128,7 @@ async function solve(page, board) {
     await desktop.getByRole('button', { name: 'Review on board' }).click();
     for (let i = 0; i < puzzle.moves.length - 1; i++) await desktop.getByRole('button', { name: 'Previous solution move' }).click();
     await desktop.getByText('Starting position').waitFor();
-    console.log('Puzzle smoke passed: mobile portrait, mobile landscape, desktop, hints, solve, replay, f2-f4 tap and drag, en passant pause, category progress and reload.');
+    console.log('Puzzle smoke passed: mobile portrait, mobile landscape, desktop, hints, solve, replay, f2-f4 tap and drag, en passant pause, category progress, fresh puzzle saving and reload.');
   } finally {
     if (electron) await electron.close();
     if (browser) await browser.close();

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Chess, type Square } from 'chess.js';
 import { PUZZLES, puzzlePositions, puzzleStart, tryPuzzleMove } from '../src/lib/puzzles';
+import { levelForRating, parseLichessPuzzle } from '../src/lib/freshPuzzles';
 
 describe('offline puzzles', () => {
   it('has legal setup and complete solution lines for every bundled puzzle', () => {
@@ -50,5 +51,24 @@ describe('offline puzzles', () => {
     expect(new Chess(result.playerFen!).get('f4')?.type).toBe('p');
     expect(result.game.get('f4')).toBeUndefined();
     expect(result.game.get('f3')?.color).toBe('b');
+  });
+});
+
+describe('fresh Lichess puzzles', () => {
+  const response = {
+    game: { pgn: 'e4 d5 exd5 Qxd5' },
+    puzzle: { id: 'newPuzzle', rating: 1520, initialPly: 3, solution: ['b1c3'], themes: ['fork'] },
+  };
+
+  it('reconstructs the setup position and verifies the solution', () => {
+    const puzzle = parseLichessPuzzle(response);
+    expect(puzzle.moves).toEqual(['d8d5', 'b1c3']);
+    expect(puzzlePositions(puzzle)).toHaveLength(2);
+    expect(puzzleStart(puzzle).get('d5')?.type).toBe('q');
+    expect(levelForRating(puzzle.rating)).toBe('hard');
+  });
+
+  it('rejects unsupported promotion moves', () => {
+    expect(() => parseLichessPuzzle({ ...response, puzzle: { ...response.puzzle, solution: ['b7b8q'] } })).toThrow(/promotion choice/);
   });
 });

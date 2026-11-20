@@ -143,6 +143,10 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .puzzle-mobile-filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 .puzzle-mobile-filters label { display: grid; gap: 5px; color: #b6d0ce; font-size: 11px; font-weight: 800; }
 .puzzle-mobile-filters select { width: 100%; min-height: 42px; border: 1px solid #466671; border-radius: 9px; background: #243a47; color: #fff; padding: 7px; }
+.puzzle-mobile-fresh { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+.puzzle-mobile-fresh button { flex: 0 0 auto; min-height: 42px; border: 1px solid #73d6aa; border-radius: 9px; background: #2c755a; color: #fff; padding: 7px 12px; font-weight: 800; }
+.puzzle-mobile-fresh button:disabled { opacity: .6; }
+.puzzle-mobile-fresh small { color: #b6d0ce; line-height: 1.3; }
 .puzzle-mobile-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
 .puzzle-mobile-list button { display: flex; justify-content: space-between; gap: 4px; align-items: center; min-width: 0; min-height: 44px; border: 1px solid #405b69; border-radius: 8px; background: #20333e; color: #dfeceb; padding: 7px; text-align: left; font-size: 11px; }
 .puzzle-mobile-list button.active { border-color: #87dfb5; background: #2c584b; }
