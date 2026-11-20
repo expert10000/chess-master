@@ -37,6 +37,10 @@ android {
         }
     }
     buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
         release {
             if (uploadSigningReady) signingConfig signingConfigs.upload
             minifyEnabled false
