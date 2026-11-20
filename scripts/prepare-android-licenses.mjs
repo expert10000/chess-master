@@ -18,6 +18,7 @@ const inventory = await readJson('compliance/piece-assets.json');
 const piecesRoot = at('mobile/public/pieces');
 const required = [];
 const found = [];
+const noticeFiles = [];
 for (const set of inventory.sets ?? []) {
   if (set.paths) required.push(...set.paths);
   if (set.pathPattern) {
@@ -49,7 +50,15 @@ async function collect(dir) {
     if (item.isDirectory()) await collect(absolute);
     else if (item.isFile()) {
       const path = relative(root, absolute).replaceAll('\\', '/');
-      if (!required.includes(path)) errors.push('Uninventoried art file: ' + path);
+      if (!required.includes(path)) {
+        if (/\.(?:txt|md)$/i.test(item.name)) {
+          const notice = await readFile(absolute);
+          noticeFiles.push({path, sha256: sha256(notice), sizeBytes: notice.length});
+          if (notice.length === 0) errors.push('Empty artwork attribution/license document: ' + path);
+        } else {
+          errors.push('Uninventoried art file: ' + path);
+        }
+      }
     }
   }
 }
@@ -100,9 +109,11 @@ if (errors.length) {
       sourceUrl: source.attestation.sourceUrl,
       buildInstructions: source.attestation.buildInstructions
     },
-    assets: found
+    assets: found,
+    artworkNoticeFiles: noticeFiles
   };
   await writeFile(at('mobile/public/engine/source/compliance-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   console.log('Android license release gate passed. Source archive and manifest staged for mobile build.');
+  console.log('Artwork attribution/license documents indexed: ' + noticeFiles.length);
   console.log('Run npm run android:sync, then verify the archive and manifest inside the signed AAB.');
 }
