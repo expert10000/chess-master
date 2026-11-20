@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "assetRoot": "mobile/public/pieces",
+  "sets": [
+    {
+      "id": "desktop",
+      "displayName": "Desktop original",
+      "paths": [],
+      "runtimeSource": "src/lib/pieceGlyphs.ts (Unicode chess symbols rendered using user-device system fonts)",
+      "author": "Unicode chess symbol characters; system font supplied by device",
+      "sourceUrl": "https://www.unicode.org/charts/PDF/U2600.pdf",
+      "license": "system-font-not-redistributed",
+      "licenseEvidence": "No font binary shipped by this glyph implementation; verify that no additional font package is bundled.",
+      "commercialUseApproved": true
+    },
+    {
+      "id": "illustrated",
+      "displayName": "Staunton",
+      "paths": ["mobile/public/pieces/illustrated-sheet.png"],
+      "runtimeSource": "src/mobile/MobileApp.tsx",
+      "author": null,
+      "sourceUrl": null,
+      "license": null,
+      "licenseEvidence": null,
+      "commercialUseApproved": false
+    },
+    {
+      "id": "spatial",
+      "displayName": "Modern",
+      "pathPattern": "mobile/public/pieces/spatial/{w,b}{P,N,B,R,Q,K}.svg",
+      "runtimeSource": "src/mobile/MobileApp.tsx",
+      "author": null,
+      "sourceUrl": null,
+      "license": null,
+      "licenseEvidence": null,
+      "commercialUseApproved": false
+    },
+    {
+      "id": "chessnut",
+      "displayName": "Classic",
+      "pathPattern": "mobile/public/pieces/chessnut/{w,b}{P,N,B,R,Q,K}.svg",
+      "runtimeSource": "src/mobile/MobileApp.tsx",
+      "author": null,
+      "sourceUrl": null,
+      "license": null,
+      "licenseEvidence": null,
+      "commercialUseApproved": false
+    },
+    {
+      "id": "fantasy",
+      "displayName": "Fantasy",
+      "pathPattern": "mobile/public/pieces/fantasy/{w,b}{P,N,B,R,Q,K}.svg",
+      "runtimeSource": "src/mobile/MobileApp.tsx",
+      "author": null,
+      "sourceUrl": null,
+      "license": null,
+      "licenseEvidence": null,
+      "commercialUseApproved": false
+    }
+  ]
+}
