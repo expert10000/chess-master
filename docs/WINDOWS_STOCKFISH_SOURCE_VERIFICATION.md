@@ -112,3 +112,23 @@ npm audit --json > artifacts\npm-audit-full.json
 ```
 
 Create the `artifacts` directory first if needed. Distinguish production from build/dev-only dependencies and assess exploitability and upgrade impact. Do **not** run `npm audit fix --force` as a shortcut during the pinned engine compliance qualification: it could change the locked software and invalidate the exact-version source checks.
+
+## 3b. Rebuild hashes matched but upstream post-build symlink failed (EPERM)
+
+An actual Windows Emscripten 6.0.9 + MSYS2 Make rebuild produced **matching JS and WASM SHA-256 values** in a user's local observation file `artifacts/stockfish-source-rebuild-observation.json`. However, the official verifier exited when upstream `build.js` attempted `fs.symlinkSync()`, before writing its formal evidence JSON. The reported hashes have not been independently inspected in this repository, so this remains **supporting observation**, not a source attestation.
+
+The verifier now makes a narrowly scoped **temporary build-script change** in its extracted workspace, replacing only `fs.symlinkSync(makeRelative(origPath, newPath), origPath)` with `fs.copyFileSync(newPath, origPath)`. That creates byte-identical post-build aliases, without requiring Windows symlink privileges. It requires exactly one occurrence of the pinned upstream line and fails rather than silently patching a changed upstream version. The downloaded corresponding-source archive, the installed npm distribution, and tracked upstream sources remain untouched.
+
+The formal verification JSON includes the unmodified and patched `build.js` SHA-256 hashes, patch intent, and exact replacement count under `postprocessWorkaround`, plus the rebuilt/npm checksums for both JS and WASM. Reviewers must distinguish this documented packaging-only workaround from the upstream build. It is not proof of an unmodified, bit-for-bit executable build process and must be assessed as part of technical attestation.
+
+In the Emscripten-activated cmd.exe shell with GNU Make available:
+
+```bat
+git fetch origin
+git switch release/stockfish-source-asset-inventory
+git pull --ff-only
+npm run android:source:tools
+npm run android:source:verify
+```
+
+Inspect `artifacts/stockfish-source-rebuild-evidence.json`, checking that the two `exactMatch` fields are true, the source archive checksum agrees with the local archive, and the workaround is recorded accurately. Do not edit `binaryMatchesSourceVerified` solely because the new command exits zero; review the report and the GPL source scope first.
