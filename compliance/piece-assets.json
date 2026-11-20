@@ -32,10 +32,24 @@
       "pathPattern": "mobile/public/pieces/spatial/{w,b}{P,N,B,R,Q,K}.svg",
       "runtimeSource": "src/mobile/MobileApp.tsx",
       "author": "Maurizio Monge",
-      "sourceUrl": "https://github.com/maurimo/chess-art",
+      "sourceUrl": "https://github.com/lichess-org/lila/tree/master/public/piece/spatial",
       "license": "MIT",
-      "licenseEvidence": "Upstream project explicitly licenses Fantasy and Spatial artwork MIT; exact repository asset origin, transformations and required notices have not yet been attested",
-      "commercialUseApproved": false
+      "licenseEvidence": "Verified 12/12 exact Git blob SHA matches with lichess-org/lila/public/piece/spatial on 2026-11-20; lila/COPYING.md attributes spatial to Maurizio Monge under MIT; preserve MIT license and copyright notice.",
+      "commercialUseApproved": true,
+      "expectedGitBlobSha": {
+        "wK.svg": "ca198d76c9c7afcd3de5fe0763de5043b73f46cd",
+        "wQ.svg": "1a9474925ca4314438c17fb595909314b353eead",
+        "wR.svg": "c5f86a4a8d87ef8952210c5430b9e349f1e0e2c0",
+        "wB.svg": "20345f5960d40ac3b3ce3b9829ad13341fa9a2e4",
+        "wN.svg": "d641bcf4c421dd6cf59cf4a2dabc32f13fe5adce",
+        "wP.svg": "ea3cd6a2d010c579eb0a50215477ff1acb17f9f7",
+        "bK.svg": "ddf037c0cc7b23ee52cf05944fa2ae932a49ae91",
+        "bQ.svg": "a15d2697a400f9e870c8e0f8d277d1c9448f06d2",
+        "bR.svg": "271dbcdf7cd49d643b2e172b3913b6d8d6a781bc",
+        "bB.svg": "b5734c86edaa02c25d8dd85c766123042b6eee70",
+        "bN.svg": "94928ee91cb3e9d0632889b3bf6911a014b6e6bd",
+        "bP.svg": "87be0833d265e4ba59147ee7a905eced808f287d"
+      }
     },
     {
       "id": "chessnut",
@@ -54,10 +68,24 @@
       "pathPattern": "mobile/public/pieces/fantasy/{w,b}{P,N,B,R,Q,K}.svg",
       "runtimeSource": "src/mobile/MobileApp.tsx",
       "author": "Maurizio Monge",
-      "sourceUrl": "https://github.com/maurimo/chess-art",
+      "sourceUrl": "https://github.com/lichess-org/lila/tree/master/public/piece/fantasy",
       "license": "MIT",
-      "licenseEvidence": "Upstream project explicitly licenses Fantasy and Spatial artwork MIT; exact repository asset origin, transformations and required notices have not yet been attested",
-      "commercialUseApproved": false
+      "licenseEvidence": "Verified 12/12 exact Git blob SHA matches with lichess-org/lila/public/piece/fantasy on 2026-11-20; lila/COPYING.md attributes fantasy to Maurizio Monge under MIT; preserve MIT license and copyright notice.",
+      "commercialUseApproved": true,
+      "expectedGitBlobSha": {
+        "wK.svg": "7ad06f21f7aa05a3ef80b383a5bf5eba36d12fef",
+        "wQ.svg": "e46811ec8a66aad07aed3a4239186a1af562be75",
+        "wR.svg": "2bc9da817a20d9334e0c72bde8aaa947739107d3",
+        "wB.svg": "4ca47c97a12d69579c80bb43b2619325fbf34892",
+        "wN.svg": "beaff3331430b83f9b5e61d1af06469f8e8d0d4c",
+        "wP.svg": "7aba494c53e03db53c4e798c65b148dffe304387",
+        "bK.svg": "52e411f194f52ba70c2526c135eede10ea55501d",
+        "bQ.svg": "246be11dc81e45936b4e37ed206521bbe85f4d2d",
+        "bR.svg": "ca02a6aeef325859d032dab3e3759e73f325ee1e",
+        "bB.svg": "bc68ec8634f3d106efc3d7b873b919e26eb3b307",
+        "bN.svg": "caaba40210bbf3407c8d04af57b72306c873473c",
+        "bP.svg": "67d5c9e8688ba6f48799d1f5372909e3e32a3266"
+      }
     }
   ]
 }
