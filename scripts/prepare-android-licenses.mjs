@@ -52,7 +52,7 @@ async function collect(dir) {
     else if (item.isFile()) {
       const path = relative(root, absolute).replaceAll('\\', '/');
       if (!required.includes(path)) {
-        if (/\.(?:txt|md)$/i.test(item.name)) {
+        if (/\.(?:txt|md|license)$/i.test(item.name) || /^(?:LICENSE|LICENCE|COPYING|CREDITS|ATTRIBUTION|NOTICE|README)(?:\.[a-z0-9_-]+)?$/i.test(item.name)) {
           const notice = await readFile(absolute);
           noticeFiles.push({path, sha256: sha256(notice), sizeBytes: notice.length});
           if (notice.length === 0) errors.push('Empty artwork attribution/license document: ' + path);
