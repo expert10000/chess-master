@@ -83,6 +83,36 @@ try {
   const archivePath = 'release-sources/stockfish-corresponding-source.tar.gz';
   const archive = await readFile(at(archivePath));
   const actualHash = sha256(archive);
+  // Bind the manual attestation to a concrete formal rebuild record, not a
+  // manually toggled boolean. Rebuilt and npm artifacts must match EXACTLY.
+  let rebuild = null;
+  try {
+    rebuild = await readJson('artifacts/stockfish-source-rebuild-evidence.json');
+    if (rebuild.status !== 'REPRODUCIBLE_EXACT' || rebuild.packageVersion !== pkg?.version || rebuild.sourceArchiveSha256 !== actualHash) {
+      errors.push('Rebuild evidence does not match exact locked package/source archive');
+    }
+    for (const [filename, artifact] of [
+      ['stockfish-19-lite-single.js', binaries.find(x => x.path.endsWith('/stockfish-19-lite-single.js'))],
+      ['stockfish-19-lite-single.wasm', binaries.find(x => x.path.endsWith('/stockfish-19-lite-single.wasm'))],
+    ]) {
+      const matching = rebuild.comparisons?.filter(x => x.file === filename);
+      if (!artifact || matching?.length !== 1 || !matching[0].exactMatch ||
+          matching[0].npmSha256 !== artifact.sha256 ||
+          matching[0].rebuiltSha256 !== artifact.sha256 ||
+          matching[0].npmBytes !== artifact.sizeBytes ||
+          matching[0].rebuiltBytes !== artifact.sizeBytes) {
+        errors.push('Formal rebuild report does not prove exact packaged artifact: ' + filename);
+      }
+    }
+    if (rebuild.postprocessWorkaround &&
+        (rebuild.postprocessWorkaround.kind !== 'windows-symlink-alias-copy' ||
+         rebuild.postprocessWorkaround.exactReplacementCount !== 1 ||
+         rebuild.postprocessWorkaround.sourceArchiveUnmodified !== true)) {
+      errors.push('Unsupported or undocumented Windows rebuild workaround');
+    }
+  } catch(e) {
+    errors.push('Missing or unreadable formal Stockfish rebuild evidence: ' + e.message);
+  }
   // A GitHub tag tarball alone omits the lite NNUE download. Require its exact
   // content-addressed bytes to be present inside the redistributed source.
   const tarList = spawnSync('tar', ['-tzf', at(archivePath)], { encoding: 'utf8' });
