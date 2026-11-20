@@ -47,10 +47,42 @@ Within the newly opened **cmd.exe** window (same repository working directory):
 
 ```bat
 emcc --version
+npm run android:source:tools
 npm run android:source:verify
 ```
 
 Confirm that `emcc --version` contains **6.0.9**. Keep the exact SDK, do not substitute `latest`. If installation fails, record the precise SDK error rather than marking the build as reproduced.
+
+## 2b. Install GNU Make / POSIX tools (required by Stockfish source build)
+
+The upstream `build.js` invokes `make` and the Stockfish Makefile relies on a POSIX shell. The standalone native `mingw32-make` is not an assured substitute. Install [MSYS2](https://www.msys2.org/) at `C:\\msys64` (or record your custom path). Open the **MSYS2 MSYS** terminal, **not** the Emscripten cmd.exe shell, and execute:
+
+```bash
+pacman -Syu
+# Reopen MSYS2 MSYS if it requests an upgrade restart
+pacman -S --needed make bash coreutils grep sed gawk
+make --version
+sh -c 'printf "shell-ready\\n"'
+```
+
+Return to the existing **cmd.exe** opened with Emscripten `emsdk_env.bat`, in the chess-master root. The verifier now prepends `C:\\msys64\\usr\\bin` to **its child process PATH only** and preserves the emsdk variables:
+
+```bat
+npm run android:source:tools
+emcc --version
+npm run android:source:verify
+```
+
+For an MSYS2 installation at a different location, set `STOCKFISH_MSYS_BIN` within the same cmd.exe window before executing:
+
+```bat
+set STOCKFISH_MSYS_BIN=D:\\tools\\msys64\\usr\\bin
+npm run android:source:tools
+```
+
+The preflight must recognize GNU Make, `sh`, and `grep` before attempting compilation. The verifier does not modify Windows' system/user PATH and launches Node/Python without a shell to avoid the previous quoting problems; only `npm.cmd` and the Windows `emcc` probe go through `cmd.exe`.
+
+If the tools are missing, **the release is still blocked**; do not set the source attestation to true.
 
 ## 3. Acceptance and evidence
 
