@@ -36,7 +36,7 @@ try {
     binaryMatchesSourceVerified: false
   };
   try {
-    await writeFile(draftPath, JSON.stringify(draft, null, 2) + '\\n', { flag: 'wx' });
+    await writeFile(draftPath, JSON.stringify(draft, null, 2) + String.fromCharCode(10), { flag: 'wx' });
     console.log('Created unverified attestation draft: ' + draftPath);
   } catch (error) {
     if (error.code !== 'EEXIST') throw error;
