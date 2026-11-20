@@ -1,0 +1,10 @@
+{
+  "packageVersion": "19.0.1",
+  "sourceRevision": "REPLACE_WITH_EXACT_SOURCE_COMMIT_OR_RELEASE",
+  "sourceUrl": "REPLACE_WITH_VERIFIED_ARCHIVE_SOURCE_URL",
+  "buildInstructions": "REPLACE_WITH_PATH_OR_URL_TO_EXACT_BUILD_INSTRUCTIONS",
+  "reviewedBy": "REPLACE_WITH_REVIEWER",
+  "reviewDate": "YYYY-MM-DD",
+  "archiveSha256": "REPLACE_WITH_SHA256_OF_COMPLETE_SOURCE_TARBALL",
+  "binaryMatchesSourceVerified": false
+}
