@@ -31,7 +31,8 @@
     "dev:mobile": "node scripts/copy-mobile-engine.mjs && vite --config vite.mobile.config.ts",
     "android:sync": "npm run build:mobile && cap sync android",
     "android:licenses:prepare": "node scripts/prepare-android-licenses.mjs",
-    "android:release:prepare": "npm run build:mobile && npm run android:licenses:prepare && npm run android:sync"
+    "android:release:prepare": "npm run build:mobile && npm run android:licenses:prepare && npm run android:sync",
+    "android:source:fetch": "node scripts/fetch-stockfish-source.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.10",
