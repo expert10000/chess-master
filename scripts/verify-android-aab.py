@@ -31,6 +31,7 @@ with zipfile.ZipFile(bundle) as archive:
         "engine/stockfish-19-lite-single.js",
         "engine/stockfish-19-lite-single.wasm",
         "engine/source/stockfish-corresponding-source.tar.gz",
+        "engine/source/chess-coach-complete-source.zip",
         "engine/source/compliance-manifest.json",
     ]
     for path in required:
@@ -47,6 +48,15 @@ with zipfile.ZipFile(bundle) as archive:
                 entries.append({"path": "mobile/public/" + source.get("path", ""), "sha256": source.get("sha256"), "sizeBytes": source.get("sizeBytes")})
             else:
                 failures.append("Missing corresponding-source manifest entry")
+            complete = manifest.get("completeApplicationSource", {})
+            if complete:
+                entries.append({
+                    "path": "mobile/public/" + complete.get("path", ""),
+                    "sha256": complete.get("sha256"),
+                    "sizeBytes": complete.get("sizeBytes"),
+                })
+            else:
+                failures.append("Missing complete-application source manifest entry")
             if not entries:
                 failures.append("Empty release inventory")
             for item in entries:
