@@ -97,12 +97,14 @@ try {
     if (netMember) {
       const net = spawnSync('tar', ['-xOf', at(archivePath), netMember], { encoding: null, maxBuffer: 64 * 1024 * 1024 });
       if (net.error || net.status !== 0 || sha256(net.stdout).slice(0, 12) !== '61e7af4bb97d') errors.push('Corresponding source NNUE bytes failed SHA-256 content-address verification');
+      if (a.liteNetworkSha256 !== sha256(net.stdout) || a.liteNetworkName !== 'nn-61e7af4bb97d.nnue') errors.push('Attested lite NNUE name or hash does not match source archive');
     }
   }
   for (const field of ['packageVersion','sourceRevision','sourceUrl','buildInstructions','reviewedBy','reviewDate','archiveSha256']) {
     if (!hasValue(a[field])) errors.push('Incomplete Stockfish source attestation field: ' + field);
   }
   if (a.packageVersion !== pkg?.version) errors.push('Attested Stockfish version does not equal locked npm version');
+  if (a.sourceRevision !== '0d5dd7944f88c817c07a26bc4fb1905d5f9c46d6') errors.push('Attestation does not identify the pinned Stockfish.js 19.0.1 source commit');
   if (!/^[a-f0-9]{64}$/i.test(a.archiveSha256 ?? '') || a.archiveSha256 !== actualHash) errors.push('Corresponding source archive SHA-256 does not match attestation');
   if (Object.values(a).some((value) => typeof value === 'string' && /REPLACE_WITH|YYYY-MM-DD/.test(value))) errors.push('Stockfish attestation contains template placeholders');
   if (!a.binaryMatchesSourceVerified) errors.push('Manual corresponding-source verification not attested');
