@@ -32,7 +32,7 @@ The bundled puzzle corpus is derived from the Lichess standard puzzle database (
 
 ## Chess-piece sets, images, fonts, audio and store graphics
 
-**RELEASE BLOCKER:** Record origin, author, URL, exact license, and required credit for each shipped asset, including the original board set and Staunton, Modern, Classic, and Fantasy variants. The store icon/feature image/screenshot rights must also be established. No license is inferred from a filename or an asset being present in a repository.
+**RELEASE BLOCKER:** Record origin, author, URL, exact license, and required credit for each shipped asset, including the original board set and Modern, Classic, and Fantasy variants. The original illustrated Staunton PNG was removed from the proposed commercial Android release because its redistribution rights were not verified. The store icon/feature image/screenshot rights must also be established. No license is inferred from a filename or an asset being present in a repository.
 
 ## Ollama (desktop optional, not bundled)
 
