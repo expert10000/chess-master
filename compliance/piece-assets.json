@@ -16,7 +16,9 @@
     {
       "id": "illustrated",
       "displayName": "Staunton",
-      "paths": ["mobile/public/pieces/illustrated-sheet.png"],
+      "paths": [
+        "mobile/public/pieces/illustrated-sheet.png"
+      ],
       "runtimeSource": "src/mobile/MobileApp.tsx",
       "author": null,
       "sourceUrl": null,
@@ -29,10 +31,10 @@
       "displayName": "Modern",
       "pathPattern": "mobile/public/pieces/spatial/{w,b}{P,N,B,R,Q,K}.svg",
       "runtimeSource": "src/mobile/MobileApp.tsx",
-      "author": null,
-      "sourceUrl": null,
-      "license": null,
-      "licenseEvidence": null,
+      "author": "Maurizio Monge",
+      "sourceUrl": "https://github.com/maurimo/chess-art",
+      "license": "MIT",
+      "licenseEvidence": "Upstream project explicitly licenses Fantasy and Spatial artwork MIT; exact repository asset origin, transformations and required notices have not yet been attested",
       "commercialUseApproved": false
     },
     {
@@ -40,10 +42,10 @@
       "displayName": "Classic",
       "pathPattern": "mobile/public/pieces/chessnut/{w,b}{P,N,B,R,Q,K}.svg",
       "runtimeSource": "src/mobile/MobileApp.tsx",
-      "author": null,
-      "sourceUrl": null,
-      "license": null,
-      "licenseEvidence": null,
+      "author": "Alexis Luengas",
+      "sourceUrl": "https://github.com/lichess-org/lila/tree/master/public/piece/chessnut",
+      "license": "Apache-2.0",
+      "licenseEvidence": "Published Lichess-derived Chessnut attribution identifies Apache-2.0; validate exact file provenance and preserve any NOTICE before approval",
       "commercialUseApproved": false
     },
     {
@@ -51,10 +53,10 @@
       "displayName": "Fantasy",
       "pathPattern": "mobile/public/pieces/fantasy/{w,b}{P,N,B,R,Q,K}.svg",
       "runtimeSource": "src/mobile/MobileApp.tsx",
-      "author": null,
-      "sourceUrl": null,
-      "license": null,
-      "licenseEvidence": null,
+      "author": "Maurizio Monge",
+      "sourceUrl": "https://github.com/maurimo/chess-art",
+      "license": "MIT",
+      "licenseEvidence": "Upstream project explicitly licenses Fantasy and Spatial artwork MIT; exact repository asset origin, transformations and required notices have not yet been attested",
       "commercialUseApproved": false
     }
   ]
