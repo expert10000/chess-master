@@ -37,7 +37,8 @@
     "android:source:verify": "node scripts/verify-stockfish-rebuild.mjs",
     "android:source:test": "py -3 scripts/test-stockfish-source-archive.py",
     "android:source:tools": "node scripts/stockfish-windows-tools.mjs",
-    "android:source:review": "python scripts/review-stockfish-source.py"
+    "android:source:review": "python scripts/review-stockfish-source.py",
+    "android:complete-source:prepare": "python scripts/prepare-complete-source.py"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.10",
