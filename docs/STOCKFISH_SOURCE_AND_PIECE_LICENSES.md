@@ -96,3 +96,18 @@ The release checker now requires the actual local `artifacts/stockfish-source-re
 Refer to `docs/ANDROID_GPL_SCOPE_REVIEW_2026.md` for current source inventory, actual UCI Worker separation, and the outstanding license-scope decision. A legal reviewer must decide whether the bundled Web Worker and React UI constitute separate programs or a combined GPL-covered work; `Worker` alone is not enough to resolve this.
 
 **Release order:** confirm archive completeness and GPL scope in a recorded review; authorize/sign accurate source attestation; run the fail-closed Android release preparation against the complete evidence; produce and inspect the signed AAB; test the installed app; review dependency vulnerabilities. No Google Play publication, monetization or blanket license clearance has been authorized.
+
+## Additional independent technical preflight (2026-11-20)
+
+Run `npm run android:source:review` after the exact rebuild has generated `artifacts/stockfish-source-rebuild-evidence.json`. This command does **not** require Emscripten and does not change the source attestation. It opens the actual local source tarball and checks the archive root, required compiler/build source members, presence of `src/nn-61e7af4bb97d.nnue` and its content-addressed hash, archive safety, and SHA-256 consistency with the formal reproducibility report, npm-installed JS and WASM bytes and local attestation draft. It writes `artifacts/stockfish-source-review.json`.
+
+A successful result is called `TECHNICAL_PREFLIGHT_PASS_LEGAL_REVIEW_PENDING`, **not** "GPL approved". The Android license checker now requires that report and will reject a stale/mismatched one. The preflight cannot independently certify license scope, rights of the whole React/Worker application or that every less-obvious source input has been accounted for. GPL review must remain a distinct sign-off; keep `binaryMatchesSourceVerified=false` until the appropriate source-completeness reviewer approves it.
+
+Windows command sequence:
+
+```powershell
+npm run android:source:review
+Get-Content .\artifacts\stockfish-source-review.json
+```
+
+**Important:** The earlier `REPRODUCIBLE_EXACT` result was reported with full evidence on the user's local machine, but the full file was not attached to this chat. A successful local preflight is additional evidence, not a claim that this session independently opened it.
