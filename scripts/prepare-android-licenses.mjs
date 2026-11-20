@@ -9,6 +9,7 @@ const root = process.cwd();
 const at = (path) => resolve(root, path);
 const errors = [];
 const sha256 = (data) => createHash('sha256').update(data).digest('hex');
+const gitBlobSha = (data) => createHash('sha1').update(`blob ${data.length}\0`).update(data).digest('hex');
 const hasValue = (value) => typeof value === 'string' && value.trim().length > 0;
 const readJson = async (path) => JSON.parse(await readFile(at(path), 'utf8'));
 const packages = await readJson('package-lock.json');
@@ -31,7 +32,13 @@ for (const set of inventory.sets ?? []) {
   }
 }
 for (const path of required) {
-  try { const b = await readFile(at(path)); found.push({ path, sha256: sha256(b), sizeBytes: b.length }); }
+  try { const b = await readFile(at(path));
+    const set = inventory.sets.find((item) => (item.paths ?? []).includes(path) || (item.pathPattern && path.startsWith(`mobile/public/pieces/${item.id}/`)));
+    const basename = path.split('/').at(-1);
+    const expectedBlob = set?.expectedGitBlobSha?.[basename];
+    if (set?.expectedGitBlobSha && expectedBlob !== gitBlobSha(b)) errors.push('Artwork blob differs from verified upstream license evidence: ' + path);
+    found.push({ path, sha256: sha256(b), gitBlobSha: gitBlobSha(b), sizeBytes: b.length });
+  }
   catch { errors.push('Required artwork missing: ' + path); }
 }
 async function collect(dir) {
