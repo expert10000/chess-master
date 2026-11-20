@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Fail-closed release preparation. Run BEFORE "npm run android:sync".
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { resolve, join, relative } from 'node:path';
 import process from 'node:process';
@@ -82,6 +83,22 @@ try {
   const archivePath = 'release-sources/stockfish-corresponding-source.tar.gz';
   const archive = await readFile(at(archivePath));
   const actualHash = sha256(archive);
+  // A GitHub tag tarball alone omits the lite NNUE download. Require its exact
+  // content-addressed bytes to be present inside the redistributed source.
+  const tarList = spawnSync('tar', ['-tzf', at(archivePath)], { encoding: 'utf8' });
+  if (tarList.error || tarList.status !== 0) {
+    errors.push('Cannot inspect corresponding-source tarball (tar is required)');
+  } else {
+    const members = tarList.stdout.split(/\r?\n/).filter(Boolean);
+    for (const suffix of ['/build.js', '/Copying.txt', '/scripts/net.sh', '/src/Makefile', '/src/evaluate.h', '/src/emscripten/wasm-makefile.mk', '/src/nn-61e7af4bb97d.nnue']) {
+      if (!members.some(name => name.endsWith(suffix))) errors.push('Corresponding source archive missing: ' + suffix);
+    }
+    const netMember = members.find(name => name.endsWith('/src/nn-61e7af4bb97d.nnue'));
+    if (netMember) {
+      const net = spawnSync('tar', ['-xOf', at(archivePath), netMember], { encoding: null, maxBuffer: 64 * 1024 * 1024 });
+      if (net.error || net.status !== 0 || sha256(net.stdout).slice(0, 12) !== '61e7af4bb97d') errors.push('Corresponding source NNUE bytes failed SHA-256 content-address verification');
+    }
+  }
   for (const field of ['packageVersion','sourceRevision','sourceUrl','buildInstructions','reviewedBy','reviewDate','archiveSha256']) {
     if (!hasValue(a[field])) errors.push('Incomplete Stockfish source attestation field: ' + field);
   }
