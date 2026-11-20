@@ -29,7 +29,9 @@
     "test:puzzles": "node tests/puzzle-smoke.cjs",
     "build:mobile": "node scripts/copy-mobile-engine.mjs && vite build --config vite.mobile.config.ts",
     "dev:mobile": "node scripts/copy-mobile-engine.mjs && vite --config vite.mobile.config.ts",
-    "android:sync": "npm run build:mobile && cap sync android"
+    "android:sync": "npm run build:mobile && cap sync android",
+    "android:licenses:prepare": "node scripts/prepare-android-licenses.mjs",
+    "android:release:prepare": "npm run build:mobile && npm run android:licenses:prepare && npx cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.10",
