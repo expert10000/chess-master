@@ -8,7 +8,8 @@ A commercial app may distribute GPLv3 software, but the source materials, licens
 ## Source-delivery workflow
 
 1. Run `npm ci` from the repository root. Confirm the exact resolved stockfish package in `package-lock.json`.
-2. Run `npm run android:source:fetch` to download the source candidate for the exact locked version. The upstream `v19.0.1` tag resolves to `0d5dd7944f88c817c07a26bc4fb1905d5f9c46d6`. The downloaded tarball alone does **not** prove source-to-binary correspondence.\n3. Obtain and verify the **complete corresponding source** for the precise shipped Stockfish.js engine, including any necessary generator/build scripts and relevant network files. Verify exact revisions against the JS/WASM artifacts. Merely downloading an unrelated upstream source tree does not suffice.
+2. Run `npm run android:source:fetch` to prepare the source candidate for the exact locked version. The upstream `v19.0.1` tag resolves to `0d5dd7944f88c817c07a26bc4fb1905d5f9c46d6`. The fetcher now pins that immutable commit and embeds the content-address-verified lite network `nn-61e7af4bb97d.nnue`, which is downloaded by upstream `scripts/net.sh` but absent from the bare Git tag tree. The prepared archive remains an **unverified source-to-binary candidate**.
+3. Obtain and verify the **complete corresponding source** for the precise shipped Stockfish.js engine, including any necessary generator/build scripts and relevant network files. Verify exact revisions against the JS/WASM artifacts. Merely downloading an unrelated upstream source tree does not suffice.
 4. Put a redistributable archive of that material in `release-sources/stockfish-corresponding-source.tar.gz`. Do not add this generated archive to source control unless its contents and size have been reviewed.
 5. SHA-256 hash that archive, and create `compliance/stockfish-source-attestation.json` from `compliance/stockfish-source-attestation.example.json`. Complete all fields truthfully, including who verified that binaries correspond to the archive. If not verified, leave `binaryMatchesSourceVerified` false and the gate will fail.
 6. Fill in license rights for each set in `compliance/piece-assets.json`. For any set we cannot clear, remove it from the shipped app AND from the inventory only after checking all runtime references and build artifacts, or obtain a proper license.
@@ -56,3 +57,23 @@ Current status: the script and asset fixes are committed on the draft branch. Th
 The previously user-provided `mobile/public/pieces/illustrated-sheet.png` was **not** demonstrated to be covered by a commercial redistribution license. Rather than declaring it approved, this PR removes the raster sheet, removes `src/mobile/illustratedPieces.ts`, and removes the `illustrated` option/rendering from `src/mobile/MobileApp.tsx`. The existing piece-style preference falls back to `desktop` when the deleted ID is found. The inventory now covers only actively shipped sets. Reinstate Staunton only with documented permission or newly authored/reused artwork with an exact attributable permissive license.
 
 All piece-art license/credit text files require separate notice review. The checker indexes their hashes but does not establish their contents are legally adequate.
+
+## Release verification commands (only after source-to-binary attestation)
+
+```powershell
+npm ci
+npm run android:source:fetch
+# Inspect archive and compare a rebuilt Stockfish.js lite-single JS and WASM
+# to the exact installed npm outputs using Emscripten 6.0.9. Do not claim
+# reproducibility merely because the package hashes or NNUE filename match.
+# Fill compliance/stockfish-source-attestation.json only after verification.
+npm run android:release:prepare
+cd android
+.\gradlew.bat bundleRelease
+cd ..
+npm run android:aab:verify
+```
+
+The AAB verifier examines `base/assets/public` inside the real bundle, checks source archive, engine JS/WASM and GPL text against the release manifest, checks piece and notice file SHA-256 hashes, and fails if the excluded Staunton image is still present. It **does not validate AAB signing**; verify the signed AAB separately with `jarsigner` and finally test the Play-installed app.
+
+**Current result:** The source archive and signed Android AAB are on the user's local computer, not attached or otherwise accessible here. This GitHub review therefore does not include a completed local release run or an authenticated source-to-binary attestation. Source and legal release gates remain blocked.
