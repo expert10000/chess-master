@@ -74,6 +74,24 @@ async function solve(page, board) {
     await page.getByText('1403 rating').waitFor();
     await page.waitForTimeout(950);
     await page.getByText('1403 rating').waitFor();
+    await page.locator('.bottom-nav').getByRole('button', { name: 'Play' }).click();
+    await page.locator('.bottom-nav').getByRole('button', { name: 'Puzzles' }).click();
+    await page.getByText('1403 rating').waitFor();
+    await page.getByLabel('Difficulty').selectOption('easy');
+    await page.getByText(/Puzzle 2\/.* rating/).waitFor();
+    await page.getByLabel('Difficulty').selectOption('hard');
+    await page.getByText('1403 rating').waitFor();
+    await page.getByLabel('Theme').selectOption('fork');
+    await page.locator('.puzzle-mobile-actions').getByRole('button', { name: 'Next' }).click();
+    const forkPosition = await page.locator('.puzzle-mobile-meta span').textContent();
+    await page.getByLabel('Theme').selectOption('all');
+    await page.getByText('1403 rating').waitFor();
+    await page.getByLabel('Theme').selectOption('fork');
+    if (await page.locator('.puzzle-mobile-meta span').textContent() !== forkPosition) throw new Error('Theme did not remember its last puzzle.');
+    await page.getByLabel('Theme').selectOption('all');
+    await page.reload();
+    await page.locator('.bottom-nav').getByRole('button', { name: 'Puzzles' }).click();
+    await page.getByText('1403 rating').waitFor();
     if (errors.length) throw new Error(`Mobile page errors: ${errors.join('; ')}`);
     await mobile.close();
 
@@ -100,7 +118,7 @@ async function solve(page, board) {
     await desktop.getByRole('button', { name: 'Review on board' }).click();
     for (let i = 0; i < puzzle.moves.length - 1; i++) await desktop.getByRole('button', { name: 'Previous solution move' }).click();
     await desktop.getByText('Starting position').waitFor();
-    console.log('Puzzle smoke passed: mobile portrait, mobile landscape, desktop, hints, solve, replay, f2-f4 tap and drag, en passant pause.');
+    console.log('Puzzle smoke passed: mobile portrait, mobile landscape, desktop, hints, solve, replay, f2-f4 tap and drag, en passant pause, category progress and reload.');
   } finally {
     if (electron) await electron.close();
     if (browser) await browser.close();

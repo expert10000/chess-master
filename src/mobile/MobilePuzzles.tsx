@@ -6,7 +6,7 @@ import { PUZZLE_LEVELS, PUZZLE_MOTIFS, puzzleSanLine, puzzleTitle, type PuzzleLe
 const motifNames: Record<string, string> = { all: 'All themes', mate: 'Checkmate', fork: 'Fork', pin: 'Pin', skewer: 'Skewer', discoveredAttack: 'Discovered attack', hangingPiece: 'Win a piece', sacrifice: 'Sacrifice', endgame: 'Endgame' };
 
 export function MobilePuzzles({ renderPiece }: { renderPiece: (color: 'w' | 'b', piece: PieceSymbol) => ReactNode }) {
-  const t = usePuzzleTrainer();
+  const t = usePuzzleTrainer(6);
   const drag = useRef<{ from: Square; x: number; y: number } | null>(null);
   const suppressClick = useRef(false);
   const files = t.orientation === 'white' ? 'abcdefgh' : 'hgfedcba';
@@ -33,7 +33,7 @@ export function MobilePuzzles({ renderPiece }: { renderPiece: (color: 'w' | 'b',
   return <div className="puzzle-screen" aria-label="Chess puzzles">
     <div className="puzzle-mobile-title"><div><span className="eyebrow">OFFLINE PRACTICE</span><h1>Puzzles</h1></div><span>{t.solvedIds.length} solved</span></div>
     <div className="puzzle-mobile-board-area">
-      <div className="puzzle-mobile-meta"><strong>{t.puzzle ? puzzleTitle(t.puzzle) : 'Choose a puzzle'}</strong><span>{t.puzzle?.rating} rating · {t.currentGame.turn() === 'w' ? 'White' : 'Black'} to move</span></div>
+      <div className="puzzle-mobile-meta"><strong>{t.puzzle ? puzzleTitle(t.puzzle) : 'Choose a puzzle'}</strong><span>Puzzle {t.puzzleNumber}/{t.filtered.length} · {t.puzzle?.rating} rating · {t.currentGame.turn() === 'w' ? 'White' : 'Black'} to move</span></div>
       <div className="board-wrap"><div className="mobile-board puzzle-mobile-board" role="grid" aria-label="Puzzle chessboard">
         {[...ranks].flatMap((rank, row) => [...files].map((file, col) => {
           const square = `${file}${rank}` as Square;
