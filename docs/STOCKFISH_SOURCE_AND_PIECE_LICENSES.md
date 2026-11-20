@@ -63,10 +63,13 @@ All piece-art license/credit text files require separate notice review. The chec
 ```powershell
 npm ci
 npm run android:source:fetch
-# Inspect archive and compare a rebuilt Stockfish.js lite-single JS and WASM
-# to the exact installed npm outputs using Emscripten 6.0.9. Do not claim
-# reproducibility merely because the package hashes or NNUE filename match.
-# Fill compliance/stockfish-source-attestation.json only after verification.
+# Activate Emscripten 6.0.9 in this shell before running the next command.
+npm run android:source:verify
+# Inspect artifacts/stockfish-source-rebuild-evidence.json and require
+# status REPRODUCIBLE_EXACT for BOTH JS and WASM. If MISMATCH, keep release BLOCKED.
+# Only after mathematical/technical review of evidence and full source archive:
+# fill compliance/stockfish-source-attestation.json with verified reviewer,
+# reviewDate, and binaryMatchesSourceVerified=true. Do not bypass a mismatch.
 npm run android:release:prepare
 cd android
 .\gradlew.bat bundleRelease
@@ -77,3 +80,9 @@ npm run android:aab:verify
 The AAB verifier examines `base/assets/public` inside the real bundle, checks source archive, engine JS/WASM and GPL text against the release manifest, checks piece and notice file SHA-256 hashes, and fails if the excluded Staunton image is still present. It **does not validate AAB signing**; verify the signed AAB separately with `jarsigner` and finally test the Play-installed app.
 
 **Current result:** The source archive and signed Android AAB are on the user's local computer, not attached or otherwise accessible here. This GitHub review therefore does not include a completed local release run or an authenticated source-to-binary attestation. Source and legal release gates remain blocked.
+
+### Provenance vs. reproducibility
+
+The source preparation command now downloads immutable Stockfish.js commit `0d5dd7944f88c817c07a26bc4fb1905d5f9c46d6`, obtains the upstream lite NNUE network `nn-61e7af4bb97d.nnue` from the same download locations used by `scripts/net.sh`, verifies the NNUE full SHA-256 against its content-addressed filename, and archives them together. This is substantially stronger than a bare tagged-source tarball, which omits the `.nnue` binary input. The gate also checks the archive contains the source and network, and checks that the released engine JS/WASM are byte-for-byte equal to the locked npm distribution.
+
+The separate `android:source:verify` script requires Emscripten **6.0.9**. It extracts the prepared archive, installs source build tools with scripts disabled, performs `node build.js --single-threaded --lite --force`, and compares both rebuilt bytes with the installed npm JS/WASM. It emits a report under `artifacts/` and exits nonzero if either differs. Build reproducibility is not presumed: a source download is not a successful rebuild, and even matching binaries do not settle the separate GPL combined-work assessment.
