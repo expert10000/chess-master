@@ -8,18 +8,31 @@ import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { verifyMakeTools } from './stockfish-windows-tools.mjs';
 const root = process.cwd(), sha256 = data => createHash('sha256').update(data).digest('hex');
 const archive = resolve(root, 'release-sources/stockfish-corresponding-source.tar.gz');
 const locked = JSON.parse(await readFile(resolve(root, 'package-lock.json'),'utf8')).packages?.['node_modules/stockfish']?.version;
 if (locked !== '19.0.1') throw Error('Only stockfish@19.0.1 has been audited for this comparison.');
 const expectedNet = 'nn-61e7af4bb97d.nnue';
+let buildEnv;
 function command(exe,args,cwd) {
-  const result = spawnSync(exe,args,{cwd,encoding:'utf8',stdio:'inherit',shell:process.platform==='win32'});
+  const result = spawnSync(exe,args,{cwd,env:buildEnv,stdio:'inherit',shell:false,windowsHide:true});
   if (result.error || result.status !== 0) throw Error(exe + ' failed (exit '+result.status+'): '+args.join(' ') + (result.error?.message ?? ''));
 }
-const emcc = spawnSync('emcc',['--version'],{encoding:'utf8',shell:process.platform==='win32'});
+function npmInstall(cwd) {
+  if (process.platform === 'win32') {
+    // Run npm.cmd via cmd.exe, but never apply shell quoting to JS, Python, or path arguments.
+    command(process.env.ComSpec || 'cmd.exe',['/d','/s','/c','npm install --ignore-scripts --no-audit --no-fund'],cwd);
+  } else {
+    command('npm',['install','--ignore-scripts','--no-audit','--no-fund'],cwd);
+  }
+}
+buildEnv = verifyMakeTools();
+const emcc = process.platform === 'win32'
+  ? spawnSync(process.env.ComSpec || 'cmd.exe',['/d','/s','/c','emcc --version'],{encoding:'utf8',env:buildEnv,windowsHide:true})
+  : spawnSync('emcc',['--version'],{encoding:'utf8',env:buildEnv});
 if (emcc.error || emcc.status !== 0 || !(emcc.stdout + emcc.stderr).includes('6.0.9')) {
-  throw Error('Emscripten 6.0.9 must be installed and activated before reproducible rebuild verification.');
+  throw Error('Emscripten 6.0.9 must be activated in this shell before reproducible rebuild verification.');
 }
 const workspace = await mkdtemp(join(tmpdir(), 'stockfish-rebuild-'));
 const sourceParent = join(workspace,'source');
@@ -35,7 +48,7 @@ const tree = join(sourceParent,roots[0].name);
 const net = await readFile(join(tree,'src',expectedNet));
 if (sha256(net).slice(0,12)!=='61e7af4bb97d') throw Error('Source archive lite NNUE does not match its SHA-256 name.');
 console.log('Building from verified source candidate with Emscripten 6.0.9 at:',tree);
-command(process.platform==='win32'?'npm.cmd':'npm',['install','--ignore-scripts','--no-audit','--no-fund'],tree);
+npmInstall(tree);
 command(process.execPath,['build.js','--single-threaded','--lite','--force'],tree);
 const files = ['stockfish-19-lite-single.js','stockfish-19-lite-single.wasm'];
 const comparisons = [];
