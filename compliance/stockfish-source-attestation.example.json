@@ -1,10 +1,13 @@
 {
   "packageVersion": "19.0.1",
-  "sourceRevision": "REPLACE_WITH_EXACT_SOURCE_COMMIT_OR_RELEASE",
-  "sourceUrl": "REPLACE_WITH_VERIFIED_ARCHIVE_SOURCE_URL",
-  "buildInstructions": "REPLACE_WITH_PATH_OR_URL_TO_EXACT_BUILD_INSTRUCTIONS",
+  "sourceRevision": "0d5dd7944f88c817c07a26bc4fb1905d5f9c46d6",
+  "sourceUrl": "https://codeload.github.com/nmrugg/stockfish.js/tar.gz/0d5dd7944f88c817c07a26bc4fb1905d5f9c46d6",
+  "buildInstructions": "Install Emscripten 6.0.9, then npm run build-single-lite; verify both resulting JS and WASM against the locked npm package.",
   "reviewedBy": "REPLACE_WITH_REVIEWER",
   "reviewDate": "YYYY-MM-DD",
-  "archiveSha256": "REPLACE_WITH_SHA256_OF_COMPLETE_SOURCE_TARBALL",
-  "binaryMatchesSourceVerified": false
+  "archiveSha256": "REPLACE_WITH_SHA256_OF_SOURCE_PLUS_NNUE_ARCHIVE",
+  "binaryMatchesSourceVerified": false,
+  "liteNetworkName": "nn-61e7af4bb97d.nnue",
+  "liteNetworkUrl": "https://tests.stockfishchess.org/api/nn/nn-61e7af4bb97d.nnue",
+  "liteNetworkSha256": "REPLACE_WITH_VERIFIED_FULL_SHA256"
 }
