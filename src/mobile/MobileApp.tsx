@@ -8,14 +8,13 @@ import { hintTip, moveTip } from './tips';
 import { openingHint } from './openingHint';
 import { createMobileExplanation, HINT_MODES, type HintMode, type MobileExplanation } from './causalHints';
 import { PIECE_GLYPHS } from '../lib/pieceGlyphs';
-import { illustratedBounds } from './illustratedPieces';
 import { MobilePuzzles } from './MobilePuzzles';
 import { exposesMajorPieceToCapture } from './opponentSafety';
 
 type Side = 'w' | 'b';
 type Tab = 'play' | 'coach' | 'moves' | 'puzzles';
 type Difficulty = '1800' | '2000' | '2100' | 'max';
-type PieceStyle = 'desktop' | 'spatial' | 'chessnut' | 'fantasy' | 'illustrated';
+type PieceStyle = 'desktop' | 'spatial' | 'chessnut' | 'fantasy';
 
 const STORAGE_KEY = 'stockfish-coach.mobile.v1';
 const HINT_MODE_KEY = 'stockfish-coach.mobile.hint-mode.v1';
@@ -23,7 +22,6 @@ const PIECE_STYLE_KEY = 'stockfish-coach.mobile.piece-style.v2';
 const GAME_LIBRARY_KEY = 'stockfish-coach.mobile.game-library.v1';
 const PIECE_STYLES: { id: PieceStyle; name: string; description: string }[] = [
   { id: 'desktop', name: 'Desktop original', description: 'The familiar Stockfish Coach pieces' },
-  { id: 'illustrated', name: 'Staunton', description: 'Detailed light and dark pieces' },
   { id: 'spatial', name: 'Modern', description: 'Clean shapes and strong contrast' },
   { id: 'chessnut', name: 'Classic', description: 'Traditional tournament pieces' },
   { id: 'fantasy', name: 'Fantasy', description: 'Detailed carved pieces' },
@@ -36,11 +34,6 @@ const LEVELS: Record<Difficulty, { label: string; description: string; elo: numb
 };
 function PieceIcon({ color, piece, style }: { color: Side; piece: PieceSymbol; style: PieceStyle }) {
   if (style === 'desktop') return <span className={`chess-piece piece-desktop piece-desktop-${color}`} aria-hidden="true">{PIECE_GLYPHS[color][piece]}</span>;
-  if (style === 'illustrated') {
-    const [x, y, width, height] = illustratedBounds(color, piece);
-    const size = 83.7;
-    return <svg className="chess-piece piece-illustrated" viewBox={`${x} ${y} ${width} ${height}`} style={{ width: `${size * width / height}%`, height: `${size}%` }} aria-hidden="true"><image href="./pieces/illustrated-sheet.png" width="1983" height="793" /></svg>;
-  }
   return <img className={`chess-piece ${color === 'w' ? 'piece-white' : 'piece-black'} piece-style-${style}`} src={`./pieces/${style}/${color}${piece.toUpperCase()}.svg`} alt="" draggable={false} aria-hidden="true" />;
 }
 
