@@ -67,8 +67,13 @@ if (!pkg?.version || !pkg.integrity) errors.push('Missing locked Stockfish versi
 const binaries = [];
 for (const name of ['stockfish-19-lite-single.js', 'stockfish-19-lite-single.wasm', 'Stockfish-GPL-3.0.txt']) {
   const path = 'mobile/public/engine/' + name;
-  try { const data = await readFile(at(path)); binaries.push({path, sha256: sha256(data), sizeBytes:data.length}); }
-  catch { errors.push('Missing bundled engine file: ' + path + '; run npm run build:mobile first'); }
+  try {
+    const data = await readFile(at(path));
+    const packageName = name === 'Stockfish-GPL-3.0.txt' ? 'Copying.txt' : 'bin/' + name;
+    const npmFile = await readFile(at('node_modules/stockfish/' + packageName));
+    if (sha256(data) !== sha256(npmFile)) errors.push('Bundled Stockfish file differs from exact npm-installed bytes: ' + name);
+    binaries.push({path, sha256: sha256(data), sizeBytes:data.length});
+  } catch { errors.push('Missing bundled or npm Stockfish engine file: ' + path + '; run npm ci and npm run build:mobile first'); }
 }
 
 let source = null;
