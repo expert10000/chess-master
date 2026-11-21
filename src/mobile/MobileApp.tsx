@@ -10,7 +10,9 @@ import { createMobileExplanation, HINT_MODES, type HintMode, type MobileExplanat
 import { PIECE_GLYPHS } from '../lib/pieceGlyphs';
 import { illustratedBounds } from './illustratedPieces';
 import { MobilePuzzles } from './MobilePuzzles';
+import { PrivacyNotice } from './PrivacyNotice';
 import { exposesMajorPieceToCapture } from './opponentSafety';
+import { splitPgnCollection, type PgnCollectionEntry } from '../lib/gameImport';
 
 type Side = 'w' | 'b';
 type Tab = 'play' | 'coach' | 'moves' | 'puzzles';
@@ -19,11 +21,11 @@ type PieceStyle = 'desktop' | 'spatial' | 'chessnut' | 'fantasy' | 'illustrated'
 
 const STORAGE_KEY = 'stockfish-coach.mobile.v1';
 const HINT_MODE_KEY = 'stockfish-coach.mobile.hint-mode.v1';
-const PIECE_STYLE_KEY = 'stockfish-coach.mobile.piece-style.v2';
+const PIECE_STYLE_KEY = 'stockfish-coach.mobile.piece-style.v3';
 const GAME_LIBRARY_KEY = 'stockfish-coach.mobile.game-library.v1';
 const PIECE_STYLES: { id: PieceStyle; name: string; description: string }[] = [
-  { id: 'desktop', name: 'Desktop original', description: 'The familiar Stockfish Coach pieces' },
   { id: 'illustrated', name: 'Staunton', description: 'Detailed light and dark pieces' },
+  { id: 'desktop', name: 'Desktop original', description: 'The familiar Stockfish Coach pieces' },
   { id: 'spatial', name: 'Modern', description: 'Clean shapes and strong contrast' },
   { id: 'chessnut', name: 'Classic', description: 'Traditional tournament pieces' },
   { id: 'fantasy', name: 'Fantasy', description: 'Detailed carved pieces' },
@@ -134,7 +136,7 @@ function loadHintMode(): HintMode {
 
 function loadPieceStyle(): PieceStyle {
   const saved = localStorage.getItem(PIECE_STYLE_KEY);
-  return PIECE_STYLES.some(({ id }) => id === saved) ? saved as PieceStyle : 'desktop';
+  return PIECE_STYLES.some(({ id }) => id === saved) ? saved as PieceStyle : 'illustrated';
 }
 
 function gameLabel(game: Chess, side: Side, busy: boolean): string {
@@ -167,6 +169,7 @@ export default function MobileApp() {
   const sessionRef = useRef(0);
   const boardRef = useRef<HTMLDivElement | null>(null);
   const historyBannerRef = useRef<HTMLDivElement | null>(null);
+  const importFileRef = useRef<HTMLInputElement | null>(null);
   const dragRef = useRef<{ from: Square; pointerId: number; startX: number; startY: number; piece: PieceSymbol; color: Side; active: boolean } | null>(null);
   const suppressDragClickRef = useRef<{ from: Square; until: number } | null>(null);
   const [fen, setFen] = useState(game.fen());
@@ -192,7 +195,7 @@ export default function MobileApp() {
   const [setupDifficulty, setSetupDifficulty] = useState<Difficulty>(saved.difficulty);
   const [promotion, setPromotion] = useState<{ from: Square; to: Square } | null>(null);
   const [lastMove, setLastMove] = useState<Move | null>(moves.at(-1) ?? null);
-  const [viewPly, setViewPly] = useState<number | null>(null);
+  const [viewPly, setViewPly] = useState<number | null>(saved.lineName === 'Imported game' ? 0 : null);
   const [replaying, setReplaying] = useState(false);
   const [lineId, setLineId] = useState(saved.lineId);
   const [lineName, setLineName] = useState(saved.lineName);
@@ -201,6 +204,8 @@ export default function MobileApp() {
   const [archivedGames, setArchivedGames] = useState<ArchivedGame[]>(loadArchivedGames);
   const [libraryError, setLibraryError] = useState('');
   const [exportStatus, setExportStatus] = useState('');
+  const [pendingImports, setPendingImports] = useState<PgnCollectionEntry[]>([]);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const [dragPiece, setDragPiece] = useState<{ from: Square; piece: PieceSymbol; color: Side; x: number; y: number } | null>(null);
 
   const orientation: Side = flipped ? (side === 'w' ? 'b' : 'w') : side;
@@ -261,7 +266,7 @@ export default function MobileApp() {
     engine.waitUntilReady().then(() => {
       if (!active) return;
       setReady(true);
-      if (!game.isGameOver() && game.turn() !== saved.side) void playEngine(saved.difficulty);
+      if (saved.lineName !== 'Imported game' && !game.isGameOver() && game.turn() !== saved.side) void playEngine(saved.difficulty);
     }).catch((error: unknown) => {
       if (active) setEngineError(error instanceof Error ? error.message : 'Stockfish could not load.');
     });
@@ -458,13 +463,13 @@ export default function MobileApp() {
     setOtherLines(entry.otherLines);
     setSelected(null);
     setHint(null);
-    setViewPly(null);
+    setViewPly(entry.lineName === 'Imported game' ? 0 : null);
     setReplaying(false);
     setBusy(false);
     setTab('play');
     setTip('Game restored. Scan for checks, captures, and threats before you move.');
     refresh();
-    if (ready && !game.isGameOver() && game.turn() !== entry.side) void playEngine(entry.difficulty);
+    if (entry.lineName !== 'Imported game' && ready && !game.isGameOver() && game.turn() !== entry.side) void playEngine(entry.difficulty);
   }
 
   function newGame(): void {
@@ -551,6 +556,7 @@ export default function MobileApp() {
     setLineName(`Variation ${nextId - 1}`);
     setLineOriginPly(branchPly);
     while (game.history().length > branchPly) game.undo();
+    if (lineName === 'Imported game') setSide(game.turn());
     setReplaying(false);
     setViewPly(null);
     setBusy(false);
@@ -560,7 +566,7 @@ export default function MobileApp() {
     setSelected(null);
     setTip(`Playing from move ${branchPly}. The original game is saved in Moves.`);
     refresh();
-    if (ready && !game.isGameOver() && game.turn() !== side) void playEngine();
+    if (lineName !== 'Imported game' && ready && !game.isGameOver() && game.turn() !== side) void playEngine();
   }
 
   function switchLine(line: SavedLine): void {
@@ -576,7 +582,7 @@ export default function MobileApp() {
     setLineId(line.id);
     setLineName(line.name);
     setLineOriginPly(line.originPly);
-    setViewPly(null);
+    setViewPly(line.name === 'Imported game' ? 0 : null);
     setReplaying(false);
     setBusy(false);
     setHint(null);
@@ -587,7 +593,7 @@ export default function MobileApp() {
     setTip(`Opened ${line.name}.`);
     refresh();
     window.scrollTo({ top: 0, behavior: 'instant' });
-    if (ready && !game.isGameOver() && game.turn() !== side) void playEngine();
+    if (line.name !== 'Imported game' && ready && !game.isGameOver() && game.turn() !== side) void playEngine();
   }
 
   function gamePgn(): string {
@@ -623,6 +629,57 @@ export default function MobileApp() {
       }
     } catch (error) {
       setExportStatus(error instanceof Error ? error.message : 'Could not export the PGN.');
+    }
+  }
+
+  function importPgn(pgn: string): void {
+    const imported = new Chess();
+    try {
+      imported.loadPgn(pgn);
+      if (imported.getHeaders().FEN && imported.getHeaders().FEN !== new Chess().fen()) {
+        throw new Error('This PGN starts from a custom position. Import a complete game from the standard starting position.');
+      }
+      if (!imported.history().length) throw new Error('This PGN has no moves to replay.');
+    } catch (error) {
+      setLibraryError(error instanceof Error ? error.message : 'Could not read this PGN.');
+      return;
+    }
+    if (!archiveCurrentGame()) return;
+    sessionRef.current += 1;
+    engineRef.current?.stop();
+    game.loadPgn(imported.pgn());
+    setSide('w');
+    setFlipped(false);
+    setLineId(1);
+    setLineName('Imported game');
+    setLineOriginPly(null);
+    setOtherLines([]);
+    setSelected(null);
+    setPromotion(null);
+    setHint(null);
+    setHintSearchMode(null);
+    setHintProgress('');
+    setBusy(false);
+    setReplaying(false);
+    setViewPly(0);
+    setPendingImports([]);
+    setTab('play');
+    setLibraryError('');
+    setExportStatus(`Imported ${imported.history().length} moves. Replay the game, or choose Play from here.`);
+    setTip('Replay this game move by move, then play from any position.');
+    refresh();
+    requestAnimationFrame(() => historyBannerRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' }));
+  }
+
+  async function openPgnFile(file: File): Promise<void> {
+    try {
+      if (file.size > 2_000_000) throw new Error('This PGN is too large. Choose a file under 2 MB.');
+      const entries = splitPgnCollection(await file.text());
+      if (!entries.length) throw new Error('The file has no PGN game.');
+      if (entries.length === 1) importPgn(entries[0].pgn);
+      else { setPendingImports(entries); setLibraryError(''); }
+    } catch (error) {
+      setLibraryError(error instanceof Error ? error.message : 'Could not open this file.');
     }
   }
 
@@ -749,6 +806,10 @@ export default function MobileApp() {
 
       {tab === 'moves' && <div className="secondary-screen">
         <span className="eyebrow">YOUR GAME</span><h1>Move history</h1>
+        <div className="mobile-export-actions"><button type="button" onClick={() => importFileRef.current?.click()}>Import PGN</button><button type="button" onClick={() => void exportPgn()} disabled={!moves.length}>Export PGN</button></div>
+        <input ref={importFileRef} type="file" accept=".pgn,.txt,application/x-chess-pgn,text/plain" className="mobile-import-file" aria-label="Choose PGN file" onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void openPgnFile(file); event.currentTarget.value = ''; }} />
+        <p className="mobile-export-help">Open a game from your phone to replay or play from a move. Export shares a .pgn file with desktop.</p>
+        <button className="mobile-privacy-link" type="button" onClick={() => setShowPrivacy(true)}>Privacy &amp; open source</button>
         <div className="history-summary"><span>{moves.length} plies played</span><strong>{game.isGameOver() ? gameLabel(game, side, false) : 'Tap a move to view it'}</strong></div>
         {viewPly !== null && <div className="mobile-history-toolbar">
           <button type="button" aria-label="Previous move in panel" onClick={() => stepHistory(-1)} disabled={viewPly === 0}>◀</button>
@@ -783,7 +844,6 @@ export default function MobileApp() {
               <b>Open →</b>
             </button>)}</div> : <p>Starting a new game will save the current game here automatically.</p>}
         </details>
-        <div className="mobile-export-actions"><button type="button" onClick={() => void exportPgn()} disabled={!moves.length}>Export PGN</button><span>Share the .pgn file, then open it on desktop with Import PGN / FEN.</span></div>
         {exportStatus && <p className="mobile-export-status" role="status">{exportStatus}</p>}
         <button className="back-to-game" type="button" onClick={() => setTab('play')}>Back to the board →</button>
       </div>}
@@ -820,6 +880,21 @@ export default function MobileApp() {
           <div className="level-list">{(Object.keys(LEVELS) as Difficulty[]).map((level) => <button type="button" className={difficulty === level ? 'active' : ''} key={level} onClick={() => { setDifficulty(level); setShowLevelPicker(false); }}><span>{LEVELS[level].label}{level !== 'max' ? ' Elo' : ''}</span><small>{LEVELS[level].description}</small></button>)}</div>
           <p className="level-note">Elo levels are approximate. Max removes the strength limit.</p>
           <button className="cancel-button" type="button" onClick={() => setShowLevelPicker(false)}>Keep current level</button>
+        </section>
+      </div>}
+      {pendingImports.length > 0 && <div className="modal-backdrop" onClick={() => setPendingImports([])}>
+        <section className="setup-sheet import-sheet" role="dialog" aria-modal="true" aria-label="Choose PGN game" onClick={(event) => event.stopPropagation()}>
+          <div className="sheet-handle" /><span className="eyebrow">IMPORT PGN</span><h2>Choose a game</h2>
+          <p>{pendingImports.length} games in this file. Open one to replay it on the board.</p>
+          <div className="import-game-list">{pendingImports.map((entry) => <button key={entry.index} type="button" onClick={() => importPgn(entry.pgn)}>{entry.label}</button>)}</div>
+          <button className="cancel-button" type="button" onClick={() => setPendingImports([])}>Cancel</button>
+        </section>
+      </div>}
+      {showPrivacy && <div className="modal-backdrop" onClick={() => setShowPrivacy(false)}>
+        <section className="setup-sheet privacy-sheet" role="dialog" aria-modal="true" aria-label="Privacy policy" onClick={(event) => event.stopPropagation()}>
+          <div className="sheet-handle" /><span className="eyebrow">ABOUT THE APP</span><h2>Privacy policy</h2>
+          <PrivacyNotice />
+          <button className="cancel-button" type="button" onClick={() => setShowPrivacy(false)}>Close</button>
         </section>
       </div>}
       {showPiecePicker && <div className="modal-backdrop" onClick={() => setShowPiecePicker(false)}>

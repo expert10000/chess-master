@@ -133,7 +133,7 @@ chosen.
 The focused Android app is a separate, offline-first Capacitor build. It has tap and drag
 chess, 1800/2000/2100 Elo and Max opponent settings, side selection, undo,
 board flip, mid-game strength changes, move history that opens the selected position on the board,
-replay controls and saved playable forks, PGN file sharing, the desktop original pieces plus four optional sets (Staunton, Modern, Classic, Fantasy), and offline hints from a bundled Stockfish 19 lite engine. Hint analysis has Quick (~1 s),
+replay controls and saved playable forks, PGN import and sharing, Staunton pieces by default with four optional sets (Desktop original, Modern, Classic, Fantasy), and offline hints from a bundled Stockfish 19 lite engine. Hint analysis has Quick (~1 s),
 Explain (~4 s, default), and cancellable Deep (~9 s) modes, independent of opponent Elo.
 Engine hints show a checked board fact, the searched reply and continuation, an alternative
 when supported, and the actual depth. Quick opening-book hints are labelled as unverified
@@ -154,7 +154,11 @@ on desktop choose **Import PGN / FEN → Load .pgn file**. Tap a move in mobile
 history to inspect it on the board; **Replay** steps forward automatically and
 **Play from here** creates a playable fork while retaining the original line
 under Moves. On desktop, **Fork & play** likewise retains the original line;
-**Replace continuation** changes the current line.
+**Replace continuation** changes the current line. To bring a desktop game to
+the phone, transfer its `.pgn` file and choose **Moves → Import PGN**. A file
+with several games opens a game picker. The imported game starts at move zero
+for replay, and **Play from here** starts a variation. **Moves → Privacy & open
+source** shows the app's data and license notice.
 
 ```powershell
 npm ci

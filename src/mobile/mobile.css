@@ -201,10 +201,16 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .mobile-saved-lines { display: flex; flex-wrap: wrap; gap: 7px; }
 .mobile-saved-lines button { min-height: 36px; padding: 5px 10px; border: 1px solid #5c8b78; border-radius: 9px; background: #27453e; color: #dff8e9; font-size: 11px; font-weight: 800; }
 .mobile-saved-lines small { color: #accfbd; font-weight: 600; }
-.mobile-export-actions { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.mobile-export-actions button { flex: none; min-height: 42px; padding: 0 15px; border: 1px solid #7dd7ad; border-radius: 10px; background: #2a7559; color: #fff; font-size: 12px; font-weight: 800; }
+.mobile-export-actions { display: flex; align-items: center; gap: 10px; margin: 12px 0 6px; }
+.mobile-export-actions button { flex: 1; min-height: 44px; padding: 0 15px; border: 1px solid #7dd7ad; border-radius: 10px; background: #2a7559; color: #fff; font-size: 12px; font-weight: 800; }
+.mobile-export-actions button + button { border-color: #496d66; background: #253d40; }
+.mobile-import-file { display: none; }
+.mobile-export-help { color: #a6c7b9; font-size: 11px; line-height: 1.4; margin: 0 0 14px; }
 .mobile-export-actions span, .mobile-export-status { color: #a6c7b9; font-size: 11px; line-height: 1.4; }
 .mobile-export-status { margin: 0 0 10px; }
+.mobile-privacy-link { width: 100%; min-height: 44px; margin-bottom: 14px; border: 1px solid #45665f; border-radius: 10px; background: #203a3c; color: #c9e8d7; font-weight: 700; }
+.import-game-list { display: grid; gap: 7px; max-height: min(50dvh, 380px); overflow-y: auto; }
+.import-game-list button { min-height: 48px; border: 1px solid #4a7465; border-radius: 10px; padding: 9px 12px; background: #25453e; color: #e9f9ee; text-align: left; font-size: 12px; }
 .empty-moves { padding: 30px; border: 1px dashed #3d5968; border-radius: 13px; text-align: center; color: #a7bac5; font-size: 13px; }
 .back-to-game { margin-top: 18px; }
 .modal-backdrop { position: fixed; z-index: 30; inset: 0; display: flex; align-items: end; justify-content: center; background: #02080dcc; }
@@ -212,6 +218,10 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .sheet-handle { width: 36px; height: 4px; border-radius: 4px; background: #617989; margin: 0 auto 18px; }
 .setup-sheet h2, .promotion-sheet h2 { font: 700 26px system-ui, sans-serif; margin: 5px 0; }
 .setup-sheet p { color: #a2b5bf; font-size: 13px; }
+.privacy-sheet { line-height: 1.5; }
+.privacy-sheet h3 { margin: 18px 0 4px; color: #e5f5e8; font-size: 15px; }
+.privacy-sheet p { line-height: 1.5; }
+.privacy-sheet a { color: #9be2bf; overflow-wrap: anywhere; }
 .field-title { display: block; font-size: 12px; margin: 19px 0 9px; }
 .choice-row { display: flex; gap: 8px; }
 .choice-row button { flex: 1; height: 43px; border: 1px solid #466273; background: #233747; color: #d8e5eb; border-radius: 10px; font-weight: 700; }

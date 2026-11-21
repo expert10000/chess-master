@@ -1,5 +1,9 @@
 # Google Play release preparation
 
+## Play Console app details
+
+Use **Stockfish Coach** as the initial public name, **English** as the default language, **Game**, and **Free**. Set the public support and privacy contact to `dareks.inf@gmail.com`. Describe the product as an independent chess training app powered by Stockfish; do not imply endorsement by the Stockfish project. A separate domain is optional for app creation. The privacy policy draft is at [`privacy.html`](privacy.html); publish it as a public HTTPS page (for example, through GitHub Pages), verify the live URL, and use that exact URL in Play Console. The app also shows privacy text under **Moves → Privacy & open source**.
+
 The Android application ID is `com.expert10000.stockfishcoach`. Confirm that it matches the app created in Play Console before uploading. Changing it later creates a different app. The Android project targets API 36, the current requirement for a new phone app. The debug APK is for USB testing; Play requires an Android App Bundle (`.aab`).
 
 ## Build and sign
