@@ -83,6 +83,16 @@ def main():
             raise RuntimeError("Complete-source ZIP file inventory differs from its manifest")
         if len(manifest.get("files",[]))!=371:
             raise RuntimeError("Internal tracked-file list does not contain 371 entries")
+        # Recheck each source member, not just the overall ZIP digest declared
+        # by a copied report. A changed member cannot inherit the old baseline.
+        for record in manifest["files"]:
+            relative=record.get("path")
+            if not isinstance(relative,str) or not relative:
+                raise RuntimeError("Invalid tracked source filename in manifest")
+            expected=PREFIX+relative
+            content=check.read(expected)
+            if digest(content)!=record.get("sha256") or len(content)!=record.get("sizeBytes"):
+                raise RuntimeError("Manifest SHA-256 or byte-size mismatch: "+relative)
         for entry in entries:
             path=PurePosixPath(entry.filename)
             if (path.is_absolute() or ".." in path.parts or "\\" in entry.filename
