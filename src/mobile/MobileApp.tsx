@@ -445,6 +445,13 @@ export default function MobileApp() {
     }
   }
 
+  function saveCurrentGame(): void {
+    if (!game.history().length && !otherLines.length) return;
+    if (archiveCurrentGame()) {
+      setTip('Game saved to Moves > Saved games. You can continue playing.');
+    }
+  }
+
   function openArchivedGame(entry: ArchivedGame): void {
     const restored = new Chess();
     try { if (entry.pgn) restored.loadPgn(entry.pgn); }
@@ -768,6 +775,7 @@ export default function MobileApp() {
         {engineError && <div className="error-banner" role="alert">{engineError}</div>}
         <div className="game-actions">
           <button type="button" onClick={undo} disabled={!moves.length || viewPly !== null}><span>↶</span> Undo</button>
+          <button type="button" onClick={saveCurrentGame} disabled={(!moves.length && !otherLines.length) || viewPly !== null} aria-label="Save current game to saved games"><span>▣</span> Save</button>
           <button type="button" onClick={() => setFlipped((value) => !value)}><span>⟳</span> Flip</button>
           <button type="button" onClick={() => setShowPiecePicker(true)} aria-label="Choose piece style"><span>♗</span> Pieces</button>
           <button className="hint-button" type="button" onClick={() => void askForHint()} disabled={!ready || busy || viewPly !== null || game.turn() !== side || game.isGameOver()}><span>✦</span> Hint</button>
