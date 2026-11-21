@@ -6,6 +6,8 @@ First qualify the current clean Git commit with `android:source:verify`, `androi
 
 `npm run android:review-candidate:prepare` checks the pinned engine bytes, reproducible rebuild report, source archive, complete app source ZIP, artwork inventory, and matching Git commit. It deliberately permits a blank reviewer name/date and `binaryMatchesSourceVerified: false`. It stages the source archives and a manifest marked `REVIEW_CANDIDATE_ONLY` and `legalApproval: false`, then syncs Android assets.
 
+The staged Stockfish archive uses the `.tgz` extension. Android expands and renames `.gz` assets during packaging, which would change the reviewed bytes; `.tgz` preserves the exact gzip archive. The source ZIP and manifest retain its full SHA-256.
+
 With the private upload-key environment configured, run `android/gradlew.bat bundleRelease` and immediately copy the signed output to an ignored review-only artifact path. Remove `android/app/build/outputs/bundle/release/app-release.aab` after copying to avoid confusing it with an approved upload. Verify the candidate with:
 
 ```powershell

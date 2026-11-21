@@ -189,7 +189,9 @@ if (errors.length) {
   for (const error of errors) console.error(' - ' + error);
   process.exitCode = 1;
 } else {
-  const sourceTarget = at('mobile/public/engine/source/stockfish-corresponding-source.tar.gz');
+  // Android's asset packager transparently expands a .gz asset and strips its
+  // extension. Keep the exact reviewed gzip bytes by packaging them as .tgz.
+  const sourceTarget = at('mobile/public/engine/source/stockfish-corresponding-source.tgz');
   await mkdir(at('mobile/public/engine/source'), { recursive: true });
   await copyFile(at(source.archivePath), sourceTarget);
   await copyFile(at('release-sources/chess-coach-complete-source-candidate.zip'), at('mobile/public/engine/source/chess-coach-complete-source.zip'));
@@ -202,7 +204,7 @@ if (errors.length) {
     lockedStockfishIntegrity: pkg.integrity,
     bundledFiles: binaries,
     correspondingSource: {
-      path: 'engine/source/stockfish-corresponding-source.tar.gz',
+      path: 'engine/source/stockfish-corresponding-source.tgz',
       sha256: source.sha256,
       sizeBytes: source.sizeBytes,
       revision: source.attestation.sourceRevision,

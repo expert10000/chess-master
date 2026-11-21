@@ -31,7 +31,7 @@ with zipfile.ZipFile(bundle) as archive:
         "engine/Stockfish-GPL-3.0.txt",
         "engine/stockfish-19-lite-single.js",
         "engine/stockfish-19-lite-single.wasm",
-        "engine/source/stockfish-corresponding-source.tar.gz",
+        "engine/source/stockfish-corresponding-source.tgz",
         "engine/source/chess-coach-complete-source.zip",
         "engine/source/compliance-manifest.json",
     ]
@@ -40,6 +40,8 @@ with zipfile.ZipFile(bundle) as archive:
             failures.append("Missing AAB asset: " + path)
     if any("illustrated-sheet.png" in name for name in names):
         failures.append("Unlicensed Staunton illustrated sheet is still included in AAB")
+    if root + "engine/source/stockfish-corresponding-source.tar" in names:
+        failures.append("Android expanded the Stockfish gzip archive instead of preserving its reviewed bytes")
     if manifest_path in names:
         try:
             manifest = json.loads(archive.read(manifest_path))
