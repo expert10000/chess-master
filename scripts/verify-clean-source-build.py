@@ -210,7 +210,8 @@ if __name__=="__main__":
     try:
         main()
     except (OSError,ValueError,KeyError,subprocess.SubprocessError,RuntimeError,zipfile.BadZipFile) as e:
-        OUTPUT.parent.mkdir(parents=True,exist_ok=True)
-        OUTPUT.write_text(json.dumps({"status":"BLOCKED","error":str(e),"commands":RESULTS,"runStartedUtc":RUN_STARTED,
+        target = PREFLIGHT_OUTPUT if ARGS.preflight_only else OUTPUT
+        target.parent.mkdir(parents=True,exist_ok=True)
+        target.write_text(json.dumps({"status":"BLOCKED","error":str(e),"commands":RESULTS,"runStartedUtc":RUN_STARTED,
                                      "legalApproval":False,"signedReleaseAabAccepted":False},indent=2)+"\n",encoding="utf8")
-        sys.exit("CLEAN SOURCE REBUILD FAILED: "+str(e))
+        sys.exit("CLEAN SOURCE PREFLIGHT FAILED: "+str(e) if ARGS.preflight_only else "CLEAN SOURCE REBUILD FAILED: "+str(e))
