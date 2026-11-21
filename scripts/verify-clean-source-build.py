@@ -73,9 +73,8 @@ def main():
     if shutil.which("java") is None:
         raise RuntimeError("Java is not available on PATH; use Android Studio JBR (Java 21 where required)")
     sdk = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
-    local_props = ROOT / "android" / "local.properties"
-    if not sdk and not local_props.exists():
-        raise RuntimeError("Android SDK not configured: set ANDROID_HOME for the isolated build (existing local.properties is not bundled)")
+    if not sdk:
+        raise RuntimeError("Android SDK not configured: set ANDROID_HOME to your SDK folder. The isolated source ZIP does not include local.properties.")
     if sdk and not Path(sdk).is_dir():
         raise RuntimeError("Configured ANDROID_HOME/ANDROID_SDK_ROOT directory does not exist: "+sdk)
     if os.name=="nt":
