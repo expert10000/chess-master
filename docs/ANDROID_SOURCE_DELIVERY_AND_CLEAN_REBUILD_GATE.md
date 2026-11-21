@@ -15,7 +15,7 @@ npm exec -- cap sync android
 android/gradlew.bat assembleDebug
 ```
 
-It records a new **debug-only** Android APK SHA-256 in `artifacts/chess-coach-clean-source-build.json`. It does not need your Play signing key and does not publish anything. A pass indicates that the *archived source* is capable of a clean debug Android build in that environment; it does not establish signed AAB parity, legal license compatibility or user installation rights.
+It records a new **debug-only** Android APK SHA-256 in `artifacts/chess-coach-clean-source-build.json`, and saves the actual APK as `artifacts/chess-coach-clean-source-debug.apk`. It checks the debug APK contains Stockfish JS/WASM, the GPL text, license page and 36 inventoried SVGs, and rejects the excluded Staunton sheet. Run `npm run android:complete-source:rebuild:review` for a second independent ZIP/hash/report inspection, which writes `artifacts/chess-coach-clean-source-acceptance.json`. It does not need your Play signing key and does not publish anything. A pass indicates that the *archived source* is capable of a clean debug Android build in that environment; it does not establish signed AAB parity, legal license compatibility or user installation rights.
 
 Do not use `npm run android:release:prepare` here while legal approval remains unresolved.
 
@@ -57,3 +57,34 @@ Review `docs/ANDROID_GPL_LEGAL_REVIEW_RECORD.md`, `docs/ANDROID_COMPLETE_SOURCE_
 - GPL legal approval, signed release AAB, Play-installed test, commercial publication — **BLOCKED**.
 
 Primary references: [GPLv3 §6](https://www.gnu.org/licenses/gpl-3.0.html); [Google Play Developer Distribution Agreement](https://play.google/developer-distribution-agreement.html).
+
+## E. Exact Windows execution without modifying local `main` / A56 changes
+
+The original accepted 371-file source ZIP and report are ignored local files in the existing repository checkout. Do NOT switch the `main` working tree to PR #3 or regenerate the qualified ZIP on PR #3: that would change the baseline and invalidate the full-source identity.
+
+In PowerShell, from the *existing* Chess Coach repository checkout (even if `main` has uncommitted A56 work), set up a detached additional Git worktree:
+
+```powershell
+$repo = (git rev-parse --show-toplevel).Trim()
+$gate = Join-Path (Split-Path $repo -Parent) 'chess-coach-clean-rebuild-gate'
+git fetch origin release/source-delivery-clean-rebuild-gate
+if (Test-Path $gate) { throw "Worktree path already exists: $gate" }
+git worktree add --detach $gate origin/release/source-delivery-clean-rebuild-gate
+New-Item -ItemType Directory -Force -Path (Join-Path $gate 'release-sources'), (Join-Path $gate 'artifacts') | Out-Null
+Copy-Item -LiteralPath (Join-Path $repo 'release-sources/chess-coach-complete-source-candidate.zip') -Destination (Join-Path $gate 'release-sources/chess-coach-complete-source-candidate.zip')
+Copy-Item -LiteralPath (Join-Path $repo 'artifacts/chess-coach-complete-source-verification.json') -Destination (Join-Path $gate 'artifacts/chess-coach-complete-source-verification.json')
+Set-Location $gate
+python scripts/verify-clean-source-build.py
+python scripts/review-clean-source-build.py
+Get-Content .\artifacts\chess-coach-clean-source-acceptance.json
+```
+
+This worktree uses a **different directory**. It neither stashes nor resets the original `main` worktree. The copied ZIP retains the original `1d3d85d` source commit identity; the verifier requires exactly 371 tracked files and matching archive hashes. It does not regenerate or overwrite the ZIP.
+
+Expected successful states:
+
+- `artifacts/chess-coach-clean-source-build.json`: `CLEAN_SOURCE_DEBUG_BUILD_PASS_NOT_RELEASE_APPROVAL`.
+- `artifacts/chess-coach-clean-source-acceptance.json`: `CLEAN_SOURCE_DEBUG_ACCEPTED_GPL_PENDING` with `errors: []`.
+- Preserved `artifacts/chess-coach-clean-source-debug.apk` SHA-256 must match both reports. This is a **debug APK**, not a signed release AAB or Play artifact.
+
+**Failure policy:** an error in npm, Vite, Capacitor, Android SDK or Gradle must remain a blocker. Retain the failure report and do not mark technical source acceptance passed. Legal clearance, final source delivery, signing and distribution continue to be separate gates.
