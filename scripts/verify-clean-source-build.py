@@ -119,8 +119,16 @@ def main():
             if any(name.endswith("illustrated-sheet.png") for name in entries):
                 raise RuntimeError("Debug APK contains excluded Staunton sprite sheet")
             engine_hashes={}
+            expected_npm = {
+                "assets/public/engine/stockfish-19-lite-single.js": app/"node_modules/stockfish/bin/stockfish-19-lite-single.js",
+                "assets/public/engine/stockfish-19-lite-single.wasm": app/"node_modules/stockfish/bin/stockfish-19-lite-single.wasm",
+                "assets/public/engine/Stockfish-GPL-3.0.txt": app/"node_modules/stockfish/Copying.txt",
+            }
             for entry in REQUIRED_ASSETS[:4]:
                 engine_hashes[entry] = digest(zip_apk.read(entry))
+            for entry, package_file in expected_npm.items():
+                if zip_apk.read(entry)!=package_file.read_bytes():
+                    raise RuntimeError("APK Stockfish file differs from exact npm-installed package: "+entry)
         APK_COPY.parent.mkdir(parents=True,exist_ok=True)
         shutil.copyfile(apk,APK_COPY)
         if digest(APK_COPY.read_bytes())!=digest(apk.read_bytes()):
@@ -130,6 +138,7 @@ def main():
             "debugApkPath":str(APK_COPY.relative_to(ROOT)).replace("\\","/"),
             "packagedAssetSha256":engine_hashes,
             "requiredAssetCount":len(REQUIRED_ASSETS),
+            "engineMatchesInstalledNpmPackage":True,
             "qualifiedSourceZipSha256":digest(ZIP.read_bytes()),
             "baselineCommit":prior.get("gitCommit"),
             "debugApkSha256":digest(apk.read_bytes()),
