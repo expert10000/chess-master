@@ -30,6 +30,7 @@ PARSER.add_argument('--preflight-only', action='store_true', help='Validate sour
 ARGS = PARSER.parse_args()
 BASELINE = '1d3d85d6f3e889beda0a97c4f59e29f51902f9c2'
 APK_COPY = ROOT / 'artifacts/chess-coach-clean-source-debug.apk'
+PREFLIGHT_OUTPUT = ROOT / 'artifacts/chess-coach-clean-source-preflight.json'
 REQUIRED_ASSETS = [
     'assets/public/engine/stockfish-19-lite-single.js',
     'assets/public/engine/stockfish-19-lite-single.wasm',
@@ -104,7 +105,7 @@ def main():
     if sdk and not Path(sdk).is_dir():
         raise RuntimeError("Configured ANDROID_HOME/ANDROID_SDK_ROOT directory does not exist: "+sdk)
     if ARGS.preflight_only:
-        OUTPUT.parent.mkdir(parents=True,exist_ok=True)
+        PREFLIGHT_OUTPUT.parent.mkdir(parents=True,exist_ok=True)
         preflight={
             "status":"CLEAN_SOURCE_PREFLIGHT_PASS_BUILD_PENDING",
             "baselineCommit":BASELINE,
