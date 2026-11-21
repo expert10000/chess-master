@@ -6,6 +6,7 @@ working tree. Builds a debug Android APK, not a release AAB. External toolchains
 and npm/Gradle caches must be configured on the qualification machine.
 """
 import hashlib
+import datetime
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -21,6 +22,7 @@ VERIFICATION = ROOT / "artifacts/chess-coach-complete-source-verification.json"
 OUTPUT = ROOT / "artifacts/chess-coach-clean-source-build.json"
 PREFIX = "chess-coach-source/"
 RESULTS = []
+RUN_STARTED = datetime.datetime.now(datetime.timezone.utc).isoformat()
 BASELINE = '1d3d85d6f3e889beda0a97c4f59e29f51902f9c2'
 APK_COPY = ROOT / 'artifacts/chess-coach-clean-source-debug.apk'
 REQUIRED_ASSETS = [
@@ -65,6 +67,17 @@ def main():
             raise RuntimeError("ZIP internal manifest does not match qualified baseline")
         if manifest.get("stockfishSourceSha256")!=prior.get("stockfishSourceSha256"):
             raise RuntimeError("Nested Stockfish source identity differs from accepted verification")
+    # Reject unsupported host environments before doing a long npm/Gradle build.
+    if shutil.which("node") is None or shutil.which("npm.cmd" if os.name=="nt" else "npm") is None:
+        raise RuntimeError("Node.js and npm must be on PATH")
+    if shutil.which("java") is None:
+        raise RuntimeError("Java is not available on PATH; use Android Studio JBR (Java 21 where required)")
+    sdk = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
+    local_props = ROOT / "android" / "local.properties"
+    if not sdk and not local_props.exists():
+        raise RuntimeError("Android SDK not configured: set ANDROID_HOME for the isolated build (existing local.properties is not bundled)")
+    if sdk and not Path(sdk).is_dir():
+        raise RuntimeError("Configured ANDROID_HOME/ANDROID_SDK_ROOT directory does not exist: "+sdk)
     if os.name=="nt":
         npm="npm.cmd"
     else:
@@ -122,6 +135,10 @@ def main():
             "debugApkSha256":digest(apk.read_bytes()),
             "debugApkBytes":apk.stat().st_size,
             "commands":RESULTS,
+            "runStartedUtc":RUN_STARTED,
+            "runCompletedUtc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "javaHomeConfigured":bool(os.environ.get("JAVA_HOME")),
+            "androidSdkConfigured":bool(os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")),
             "legalApproval":False,
             "signedReleaseAabAccepted":False,
         }
@@ -134,6 +151,6 @@ if __name__=="__main__":
         main()
     except (OSError,ValueError,KeyError,subprocess.SubprocessError,RuntimeError,zipfile.BadZipFile) as e:
         OUTPUT.parent.mkdir(parents=True,exist_ok=True)
-        OUTPUT.write_text(json.dumps({"status":"BLOCKED","error":str(e),"commands":RESULTS,
+        OUTPUT.write_text(json.dumps({"status":"BLOCKED","error":str(e),"commands":RESULTS,"runStartedUtc":RUN_STARTED,
                                      "legalApproval":False,"signedReleaseAabAccepted":False},indent=2)+"\n",encoding="utf8")
         sys.exit("CLEAN SOURCE REBUILD FAILED: "+str(e))
