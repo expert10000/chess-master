@@ -41,6 +41,10 @@ try:
         errors.append("Source ZIP SHA-256 mismatch")
     if report.get("debugApkSha256")!=digest(apk) or report.get("debugApkBytes")!=len(apk):
         errors.append("Preserved APK SHA-256/size mismatch")
+    if report.get("engineMatchesInstalledNpmPackage") is not True:
+        errors.append("Build report does not confirm APK engine JS/WASM/GPL bytes match npm")
+    if report.get("requiredAssetCount") != len(REQUIRED):
+        errors.append("Build report required-asset count does not match expected inventory")
     if report.get("legalApproval") is not False or report.get("signedReleaseAabAccepted") is not False:
         errors.append("Debug evidence incorrectly claims licensing/release acceptance")
     commands=report.get("commands",[])
