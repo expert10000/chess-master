@@ -84,7 +84,7 @@ def main():
             raise RuntimeError("Internal tracked-file list does not contain 371 entries")
         for entry in entries:
             path=PurePosixPath(entry.filename)
-            if (path.is_absolute() or ".." in path.parts or "\\\\" in entry.filename
+            if (path.is_absolute() or ".." in path.parts or "\\" in entry.filename
                     or not entry.filename.startswith(PREFIX)):
                 raise RuntimeError("Unsafe ZIP path: "+entry.filename)
             if stat.S_IFMT(entry.external_attr >> 16)==stat.S_IFLNK:
