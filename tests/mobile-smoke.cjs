@@ -117,7 +117,7 @@ const root = join(__dirname, '..');
     const exportedPgn = readFileSync(await download.path(), 'utf8');
     const exportedGame = new Chess();
     exportedGame.loadPgn(exportedPgn);
-    if (exportedGame.header().Event !== 'Stockfish Coach mobile' || exportedGame.header().White !== 'You' || exportedGame.history().length !== 2) throw new Error(`Exported PGN has incorrect headers or moves: ${exportedPgn}`);
+    if (exportedGame.header().Event !== 'Play Chess mobile' || exportedGame.header().White !== 'You' || exportedGame.history().length !== 2) throw new Error(`Exported PGN has incorrect headers or moves: ${exportedPgn}`);
     if (exportedGame.header().CoachEngine !== 'Stockfish 19 lite single' || !exportedGame.header().CoachLevelAtExport || !exportedGame.header().CoachMoveTimeMsAtExport) throw new Error(`Exported PGN is missing engine settings: ${exportedPgn}`);
     await page.reload();
     await page.locator('.bottom-nav button').nth(2).tap();
