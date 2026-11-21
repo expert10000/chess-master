@@ -74,8 +74,14 @@ New-Item -ItemType Directory -Force -Path (Join-Path $gate 'release-sources'), (
 Copy-Item -LiteralPath (Join-Path $repo 'release-sources/chess-coach-complete-source-candidate.zip') -Destination (Join-Path $gate 'release-sources/chess-coach-complete-source-candidate.zip')
 Copy-Item -LiteralPath (Join-Path $repo 'artifacts/chess-coach-complete-source-verification.json') -Destination (Join-Path $gate 'artifacts/chess-coach-complete-source-verification.json')
 Set-Location $gate
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
+$env:ANDROID_HOME = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
+if (!(Test-Path "$env:JAVA_HOME\bin\java.exe")) { throw 'Java not found at JAVA_HOME' }
+if (!(Test-Path $env:ANDROID_HOME)) { throw 'Android SDK not found at ANDROID_HOME' }
 python scripts/verify-clean-source-build.py
+if ($LASTEXITCODE -ne 0) { throw 'Clean source debug build failed; inspect artifacts/chess-coach-clean-source-build.json' }
 python scripts/review-clean-source-build.py
+if ($LASTEXITCODE -ne 0) { throw 'Independent APK review failed; inspect acceptance report' }
 Get-Content .\artifacts\chess-coach-clean-source-acceptance.json
 ```
 
@@ -88,3 +94,7 @@ Expected successful states:
 - Preserved `artifacts/chess-coach-clean-source-debug.apk` SHA-256 must match both reports. This is a **debug APK**, not a signed release AAB or Play artifact.
 
 **Failure policy:** an error in npm, Vite, Capacitor, Android SDK or Gradle must remain a blocker. Retain the failure report and do not mark technical source acceptance passed. Legal clearance, final source delivery, signing and distribution continue to be separate gates.
+
+### Isolated build prerequisites
+
+The archived source intentionally contains no `android/local.properties`. For Windows acceptance, the detached worktree must supply `ANDROID_HOME` (usually `%LOCALAPPDATA%\Android\Sdk`) and `JAVA_HOME` (often Android Studio's bundled JBR), plus Node/npm, Python and the Android Gradle wrapper. The verifier fails early with a specific environment error if those are missing. Both reports record the execution status; a failed command is not technical acceptance.
