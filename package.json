@@ -41,7 +41,8 @@
     "android:complete-source:prepare": "python scripts/prepare-complete-source.py",
     "android:complete-source:verify": "python scripts/verify-complete-source.py",
     "android:complete-source:rebuild": "python scripts/verify-clean-source-build.py",
-    "android:source:delivery:verify": "node scripts/verify-source-delivery.mjs compliance/source-delivery-plan.local.json"
+    "android:source:delivery:verify": "node scripts/verify-source-delivery.mjs compliance/source-delivery-plan.local.json",
+    "android:complete-source:rebuild:review": "python scripts/review-clean-source-build.py"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.10",
