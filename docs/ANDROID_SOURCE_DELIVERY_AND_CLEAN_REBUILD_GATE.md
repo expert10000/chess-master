@@ -98,3 +98,27 @@ Expected successful states:
 ### Isolated build prerequisites
 
 The archived source intentionally contains no `android/local.properties`. For Windows acceptance, the detached worktree must supply `ANDROID_HOME` (usually `%LOCALAPPDATA%\Android\Sdk`) and `JAVA_HOME` (often Android Studio's bundled JBR), plus Node/npm, Python and the Android Gradle wrapper. The verifier fails early with a specific environment error if those are missing. Both reports record the execution status; a failed command is not technical acceptance.
+
+## F. Non-destructive preflight before the full Android build
+
+On PR #3's **separate worktree**, after copying the original 1d3d85d source ZIP and its verification JSON and configuring `JAVA_HOME` and `ANDROID_HOME`, run:
+
+```powershell
+python scripts/verify-clean-source-build.py --preflight-only
+if ($LASTEXITCODE -ne 0) { throw 'Clean source preflight failed' }
+Get-Content .\artifacts\chess-coach-clean-source-preflight.json
+```
+
+This checks exact baseline commit, source ZIP SHA-256, internal 371-file manifest coverage, nested Stockfish source tar hash, malicious ZIP entries, and host prerequisites. It exits before npm or Gradle and writes `CLEAN_SOURCE_PREFLIGHT_PASS_BUILD_PENDING` to a dedicated report. This status is **not debug APK acceptance**.
+
+If successful, run:
+
+```powershell
+npm run android:complete-source:rebuild
+if ($LASTEXITCODE -ne 0) { throw 'Isolated Android build failed' }
+npm run android:complete-source:rebuild:review
+if ($LASTEXITCODE -ne 0) { throw 'Independent debug APK review failed' }
+Get-Content .\artifacts\chess-coach-clean-source-acceptance.json
+```
+
+The preflight report does not overwrite the actual Android build report. The full clean build checks required PNG/SVG/licensing assets and compares Stockfish engine JS/WASM/license bytes directly to the installed `stockfish` npm package. Signed AAB and GPL legal acceptance remain separate.
