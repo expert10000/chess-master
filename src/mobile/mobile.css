@@ -76,8 +76,9 @@ h1 { font: 700 31px system-ui, sans-serif; letter-spacing: -.8px; margin: 3px 0 
 .hint-peek button { flex: none; min-height: 44px; padding: 0 10px; border: 1px solid #95e6b9; border-radius: 8px; background: #327559; color: #fff; font-size: 12px; font-weight: 800; }
 .turn-pill { margin-left: auto; text-align: right; color: #b4c4ce; font-size: 11px; font-weight: 700; }
 .turn-pill.active { color: #87e1b4; }
-.game-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 1.1fr; gap: 7px; margin: 12px 0; }
-.game-actions button { min-height: 44px; border: 1px solid #385067; border-radius: 11px; background: #1b2a3a; color: #d8e5eb; font-size: 13px; font-weight: 700; }
+.game-actions { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin: 12px 0; }
+.game-actions button { min-height: 44px; min-width: 0; padding: 4px 2px; border: 1px solid #385067; border-radius: 11px; background: #1b2a3a; color: #d8e5eb; font-size: 12px; font-weight: 700; }
+.game-actions button:disabled { opacity: 0.55; }
 .game-actions button span { font-size: 18px; vertical-align: -1px; margin-right: 3px; }
 .game-actions .hint-button { border-color: #53ad8d; background: linear-gradient(135deg, #368d70, #23624f); color: #fff; }
 .hint-mode-picker { display: grid; gap: 8px; margin: 2px 0 12px; }
