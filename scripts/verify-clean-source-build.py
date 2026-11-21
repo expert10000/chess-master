@@ -70,8 +70,9 @@ def main():
     # Reject unsupported host environments before doing a long npm/Gradle build.
     if shutil.which("node") is None or shutil.which("npm.cmd" if os.name=="nt" else "npm") is None:
         raise RuntimeError("Node.js and npm must be on PATH")
-    if shutil.which("java") is None:
-        raise RuntimeError("Java is not available on PATH; use Android Studio JBR (Java 21 where required)")
+    java_home = os.environ.get("JAVA_HOME")
+    if shutil.which("java") is None and not (java_home and (Path(java_home) / "bin" / ("java.exe" if os.name=="nt" else "java")).is_file()):
+        raise RuntimeError("Java missing: set JAVA_HOME to your installed JDK (Android Studio JBR is acceptable)")
     sdk = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
     if not sdk:
         raise RuntimeError("Android SDK not configured: set ANDROID_HOME to your SDK folder. The isolated source ZIP does not include local.properties.")
