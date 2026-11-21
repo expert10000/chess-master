@@ -1,6 +1,6 @@
 export function PrivacyNotice() {
   return <>
-    <p>Stockfish Coach is an independent chess training app, unaffiliated with the Stockfish or Lichess projects. It does not require an account. The bundled chess engine runs on your device.</p>
+    <p>Play Chess is an independent chess training app, unaffiliated with the Stockfish or Lichess projects. It does not require an account. The bundled chess engine runs on your device.</p>
     <h3>Data on your device</h3>
     <p>Games, imported PGN files, saved lines, puzzle progress, downloaded puzzles, and preferences are stored locally in the app. We do not operate a server that receives these records. They remain until you clear the app data or uninstall it. If Android backup is enabled, your device may include app data in your Google account backup; you can manage that in Android settings.</p>
     <h3>Optional network and sharing</h3>

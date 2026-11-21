@@ -30,19 +30,15 @@ const root = join(__dirname, '..');
     if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) throw new Error('Horizontal overflow on phone.');
     mkdirSync(join(root, 'artifacts'), { recursive: true });
     await page.screenshot({ path: join(root, 'artifacts', 'mobile-start.png') });
-    await page.locator('.mobile-board .piece-illustrated').first().waitFor();
-    if (!(await page.request.get('http://127.0.0.1:5174/pieces/illustrated-sheet.png')).ok()) throw new Error('Default Staunton piece sheet did not load.');
+    await page.locator('.mobile-board .piece-desktop').first().waitFor();
     const startingBoard = await page.locator('.mobile-board .square').evaluateAll(squares => squares.map(square => square.getAttribute('aria-label')));
-    for (const [style, id] of [['Staunton', 'illustrated'], ['Classic', 'chessnut'], ['Fantasy', 'fantasy'], ['Modern', 'spatial'], ['Desktop original', 'desktop']]) {
+    for (const [style, id] of [['Classic', 'chessnut'], ['Fantasy', 'fantasy'], ['Modern', 'spatial'], ['Desktop original', 'desktop']]) {
       await page.getByRole('button', { name: 'Choose piece style' }).tap();
       await page.getByRole('dialog', { name: 'Piece style' }).waitFor();
       if (style === 'Classic') await page.screenshot({ path: join(root, 'artifacts', 'mobile-piece-styles.png') });
       await page.locator('.piece-style-list button').filter({ hasText: style }).tap();
-      await page.locator(`.mobile-board .${id === 'desktop' ? 'piece-desktop' : id === 'illustrated' ? 'piece-illustrated' : `piece-style-${id}`}`).first().waitFor();
-      if (id === 'illustrated') {
-        if (!(await page.request.get('http://127.0.0.1:5174/pieces/illustrated-sheet.png')).ok()) throw new Error('Illustrated piece sheet did not load.');
-        await page.screenshot({ path: join(root, 'artifacts', 'mobile-illustrated.png') });
-      } else if (id !== 'desktop') {
+      await page.locator(`.mobile-board .${id === 'desktop' ? 'piece-desktop' : `piece-style-${id}`}`).first().waitFor();
+      if (id !== 'desktop') {
         await page.waitForFunction(() => [...document.querySelectorAll('.mobile-board .chess-piece')].every(image => image.complete && image.naturalWidth > 0));
       }
       deepStrictEqual(await page.locator('.mobile-board .square').evaluateAll(squares => squares.map(square => square.getAttribute('aria-label'))), startingBoard);
@@ -148,6 +144,7 @@ const root = join(__dirname, '..');
     await page.evaluate(() => localStorage.setItem('stockfish-coach.mobile.v1', JSON.stringify({ pgn: '1. e4 d5 2. Nc3 d4', side: 'w', difficulty: '1800', flipped: false })));
     await page.reload();
     await page.getByText('Ready', { exact: true }).waitFor();
+    await page.locator('.mobile-board .piece-desktop').first().waitFor();
     await page.getByRole('button', { name: 'Hint' }).tap();
     await page.locator('.tip-card').getByText(/Stockfish suggests/).waitFor();
     const retreatPositionTip = await page.locator('.tip-card').innerText();
@@ -176,6 +173,7 @@ const root = join(__dirname, '..');
       localStorage.setItem('stockfish-coach.mobile.piece-style.v3', 'illustrated');
     });
     await page.reload();
+    await page.locator('.mobile-board .piece-desktop').first().waitFor();
     await page.getByText('Ready', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Explain about 4 s' }).tap();
     await page.getByRole('button', { name: 'Hint' }).tap();
@@ -258,7 +256,7 @@ const root = join(__dirname, '..');
     await page.reload();
     await page.getByRole('gridcell', { name: 'd4 white p' }).waitFor();
     if (errors.length) throw new Error(errors.join('; '));
-    console.log(JSON.stringify({ pass: true, checks: ['64 squares', 'offline engine ready', 'phone width', 'Staunton default and five persistent piece styles', 'tap and touch drag moves', 'change level without resetting', 'visible portrait hint and position-specific coach', 'deep analysis and cancellation', 'book verification', 'landscape board and right-panel navigation', 'history opens at board, steps and replays', 'landscape replay controls', 'fork from move preserves original and survives reload', 'PGN export for desktop', 'PGN import validates and offers game selection, replay and fork', 'in-app privacy notice', 'new-game archive survives reload and restores moves', 'undo', '1800/2000/2100/Max levels', 'play as Black at Max'], screenshots: ['artifacts/mobile-start.png', 'artifacts/mobile-illustrated.png', 'artifacts/mobile-landscape-hint.png', 'artifacts/mobile-landscape-coach.png', 'artifacts/mobile-landscape-moves.png', 'artifacts/mobile-landscape-history.png', 'artifacts/mobile-piece-styles.png', 'artifacts/mobile-levels.png', 'artifacts/mobile-hint.png', 'artifacts/mobile-history.png'] }));
+    console.log(JSON.stringify({ pass: true, checks: ['64 squares', 'offline engine ready', 'phone width', 'four persistent piece styles and legacy style fallback', 'tap and touch drag moves', 'change level without resetting', 'visible portrait hint and position-specific coach', 'deep analysis and cancellation', 'book verification', 'landscape board and right-panel navigation', 'history opens at board, steps and replays', 'landscape replay controls', 'fork from move preserves original and survives reload', 'PGN export for desktop', 'PGN import validates and offers game selection, replay and fork', 'in-app privacy notice', 'new-game archive survives reload and restores moves', 'undo', '1800/2000/2100/Max levels', 'play as Black at Max'], screenshots: ['artifacts/mobile-start.png', 'artifacts/mobile-landscape-hint.png', 'artifacts/mobile-landscape-coach.png', 'artifacts/mobile-landscape-moves.png', 'artifacts/mobile-landscape-history.png', 'artifacts/mobile-piece-styles.png', 'artifacts/mobile-levels.png', 'artifacts/mobile-hint.png', 'artifacts/mobile-history.png'] }));
   } finally {
     await browser?.close();
     server.kill();

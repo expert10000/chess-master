@@ -8,7 +8,6 @@ import { hintTip, moveTip } from './tips';
 import { openingHint } from './openingHint';
 import { createMobileExplanation, HINT_MODES, type HintMode, type MobileExplanation } from './causalHints';
 import { PIECE_GLYPHS } from '../lib/pieceGlyphs';
-import { illustratedBounds } from './illustratedPieces';
 import { MobilePuzzles } from './MobilePuzzles';
 import { PrivacyNotice } from './PrivacyNotice';
 import { exposesMajorPieceToCapture } from './opponentSafety';
@@ -17,15 +16,14 @@ import { splitPgnCollection, type PgnCollectionEntry } from '../lib/gameImport';
 type Side = 'w' | 'b';
 type Tab = 'play' | 'coach' | 'moves' | 'puzzles';
 type Difficulty = '1800' | '2000' | '2100' | 'max';
-type PieceStyle = 'desktop' | 'spatial' | 'chessnut' | 'fantasy' | 'illustrated';
+type PieceStyle = 'desktop' | 'spatial' | 'chessnut' | 'fantasy';
 
 const STORAGE_KEY = 'stockfish-coach.mobile.v1';
 const HINT_MODE_KEY = 'stockfish-coach.mobile.hint-mode.v1';
 const PIECE_STYLE_KEY = 'stockfish-coach.mobile.piece-style.v3';
 const GAME_LIBRARY_KEY = 'stockfish-coach.mobile.game-library.v1';
 const PIECE_STYLES: { id: PieceStyle; name: string; description: string }[] = [
-  { id: 'illustrated', name: 'Staunton', description: 'Detailed light and dark pieces' },
-  { id: 'desktop', name: 'Desktop original', description: 'The familiar Stockfish Coach pieces' },
+  { id: 'desktop', name: 'Desktop original', description: 'The familiar desktop pieces' },
   { id: 'spatial', name: 'Modern', description: 'Clean shapes and strong contrast' },
   { id: 'chessnut', name: 'Classic', description: 'Traditional tournament pieces' },
   { id: 'fantasy', name: 'Fantasy', description: 'Detailed carved pieces' },
@@ -38,11 +36,6 @@ const LEVELS: Record<Difficulty, { label: string; description: string; elo: numb
 };
 function PieceIcon({ color, piece, style }: { color: Side; piece: PieceSymbol; style: PieceStyle }) {
   if (style === 'desktop') return <span className={`chess-piece piece-desktop piece-desktop-${color}`} aria-hidden="true">{PIECE_GLYPHS[color][piece]}</span>;
-  if (style === 'illustrated') {
-    const [x, y, width, height] = illustratedBounds(color, piece);
-    const size = 83.7;
-    return <svg className="chess-piece piece-illustrated" viewBox={`${x} ${y} ${width} ${height}`} style={{ width: `${size * width / height}%`, height: `${size}%` }} aria-hidden="true"><image href="./pieces/illustrated-sheet.png" width="1983" height="793" /></svg>;
-  }
   return <img className={`chess-piece ${color === 'w' ? 'piece-white' : 'piece-black'} piece-style-${style}`} src={`./pieces/${style}/${color}${piece.toUpperCase()}.svg`} alt="" draggable={false} aria-hidden="true" />;
 }
 
@@ -136,7 +129,7 @@ function loadHintMode(): HintMode {
 
 function loadPieceStyle(): PieceStyle {
   const saved = localStorage.getItem(PIECE_STYLE_KEY);
-  return PIECE_STYLES.some(({ id }) => id === saved) ? saved as PieceStyle : 'illustrated';
+  return PIECE_STYLES.some(({ id }) => id === saved) ? saved as PieceStyle : 'desktop';
 }
 
 function gameLabel(game: Chess, side: Side, busy: boolean): string {
@@ -603,7 +596,7 @@ export default function MobileApp() {
     const result = game.isCheckmate() ? game.turn() === 'w' ? '0-1' : '1-0' : game.isDraw() ? '1/2-1/2' : '*';
     const exported = new Chess();
     for (const move of game.history({ verbose: true })) exported.move({ from: move.from, to: move.to, promotion: move.promotion });
-    exported.header('Event', 'Stockfish Coach mobile', 'Date', date, 'White', white, 'Black', black, 'Result', result,
+    exported.header('Event', 'Play Chess mobile', 'Date', date, 'White', white, 'Black', black, 'Result', result,
       'CoachEngine', 'Stockfish 19 lite single', 'CoachLevelAtExport', difficulty === 'max' ? 'Max' : difficulty,
       'CoachMoveTimeMsAtExport', String(LEVELS[difficulty].movetimeMs));
     return `${exported.pgn()}\n`;
@@ -616,7 +609,7 @@ export default function MobileApp() {
     try {
       if (Capacitor.isNativePlatform()) {
         const file = await Filesystem.writeFile({ path: name, data: pgn, directory: Directory.Cache, encoding: Encoding.UTF8 });
-        await Share.share({ title: 'Stockfish Coach game', files: [file.uri], dialogTitle: 'Send PGN to desktop' });
+        await Share.share({ title: 'Play Chess game', files: [file.uri], dialogTitle: 'Send PGN to desktop' });
         setExportStatus('PGN ready to open on desktop: Import PGN / FEN → Load .pgn file.');
       } else {
         const url = URL.createObjectURL(new Blob([pgn], { type: 'application/x-chess-pgn' }));
@@ -690,7 +683,7 @@ export default function MobileApp() {
     <main className="mobile-app">
       <header className="app-header">
         <div className="brand-icon" aria-hidden="true">♞</div>
-        <div className="brand-copy"><strong>Stockfish Coach</strong><span>Play better, one move at a time</span></div>
+        <div className="brand-copy"><strong>Play Chess</strong><span>Play better, one move at a time</span></div>
         <div className="offline-badge"><i /> OFFLINE</div>
       </header>
 
@@ -908,6 +901,7 @@ export default function MobileApp() {
             <span className="piece-style-check" aria-hidden="true">{pieceStyle === id ? '✓' : ''}</span>
           </button>)}</div>
           <p className="piece-art-credit">Optional artwork: Maurizio Monge (Modern, Fantasy) and Alexis Luengas (Classic). License details are included with the app.</p>
+          <p className="piece-art-credit"><a href="./licenses.html" target="_blank" rel="noopener noreferrer">Open-source licenses and Stockfish source</a></p>
           <button className="cancel-button" type="button" onClick={() => setShowPiecePicker(false)}>Back to game</button>
         </section>
       </div>}
