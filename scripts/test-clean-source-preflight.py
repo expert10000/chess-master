@@ -48,7 +48,9 @@ class CleanSourcePreflightTests(unittest.TestCase):
             "gitCommit":BASELINE,
             "trackedFileCount":371,
             "stockfishSourceSha256":digest(self.nested),
-            "files":self.records,
+            "files":[{**record,"sha256":digest(self.members[PREFIX+record["path"]]),
+                      "sizeBytes":len(self.members[PREFIX+record["path"]])}
+                     for record in self.records],
         }
         entries[PREFIX+"SOURCE_MANIFEST.json"]=(json.dumps(manifest)+"\n").encode()
         if extra: entries.update(extra)
@@ -112,6 +114,14 @@ class CleanSourcePreflightTests(unittest.TestCase):
         info.create_system=3
         info.external_attr=(0o120777 <<16)
         self.write_fixture(zipinfo_extra=(info,b"/etc/passwd"))
+        self.assertNotEqual(self.execute(),0)
+
+    def test_modified_tracked_file_without_updated_manifest_blocks(self):
+        self.write_fixture(extra={PREFIX+"dummy/source_010.txt":b"tampered-source-file"})
+        self.assertNotEqual(self.execute(),0)
+
+    def test_bad_tracked_file_hash_blocks(self):
+        self.write_fixture(extra={PREFIX+"dummy/source_000.txt":b"different-source"})
         self.assertNotEqual(self.execute(),0)
 
     def test_tampered_nested_archive_blocks(self):
