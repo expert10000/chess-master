@@ -116,7 +116,7 @@ def main():
             "signedReleaseAabAccepted":False,
             "commands":[],
         }
-        PREFLIGHT_OUTPUT.write_text(json.dumps(preflight,indent=2)+"\\n",encoding="utf8")
+        PREFLIGHT_OUTPUT.write_text(json.dumps(preflight,indent=2)+"\n",encoding="utf8")
         print(json.dumps(preflight,indent=2))
         return
     if os.name=="nt":
