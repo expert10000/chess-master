@@ -9,6 +9,11 @@ import process from 'node:process';
 const root = process.cwd();
 const at = (path) => resolve(root, path);
 const errors = [];
+const reviewCandidate = process.argv.slice(2).length === 1 && process.argv[2] === '--review-candidate';
+if (process.argv.length > 2 && !reviewCandidate) {
+  console.error('Usage: node scripts/prepare-android-licenses.mjs [--review-candidate]');
+  process.exit(2);
+}
 const sha256 = (data) => createHash('sha256').update(data).digest('hex');
 const gitBlobSha = (data) => createHash('sha1').update(`blob ${data.length}\0`).update(data).digest('hex');
 const hasValue = (value) => typeof value === 'string' && value.trim().length > 0;
@@ -140,6 +145,10 @@ try {
         whole.stockfishSourceSha256 !== actualHash) {
       errors.push('Whole-application source ZIP verification failed or is stale');
     }
+    const head = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' });
+    if (head.status !== 0 || whole.gitCommit !== head.stdout.trim()) {
+      errors.push('Whole-application source ZIP does not match the current Git commit');
+    }
     source = { ...(source ?? {}), completeArchiveSha256: sha256(wholeBytes), completeArchiveSizeBytes: wholeBytes.length };
   } catch(e) {
     errors.push('Missing verified whole-app source package: run npm run android:complete-source:verify (' + e.message + ')');
@@ -161,14 +170,17 @@ try {
       if (a.liteNetworkSha256 !== sha256(net.stdout) || a.liteNetworkName !== 'nn-61e7af4bb97d.nnue') errors.push('Attested lite NNUE name or hash does not match source archive');
     }
   }
-  for (const field of ['packageVersion','sourceRevision','sourceUrl','buildInstructions','reviewedBy','reviewDate','archiveSha256']) {
+  const requiredFields = ['packageVersion','sourceRevision','sourceUrl','buildInstructions','archiveSha256'];
+  if (!reviewCandidate) requiredFields.push('reviewedBy', 'reviewDate');
+  for (const field of requiredFields) {
     if (!hasValue(a[field])) errors.push('Incomplete Stockfish source attestation field: ' + field);
   }
   if (a.packageVersion !== pkg?.version) errors.push('Attested Stockfish version does not equal locked npm version');
   if (a.sourceRevision !== '0d5dd7944f88c817c07a26bc4fb1905d5f9c46d6') errors.push('Attestation does not identify the pinned Stockfish.js 19.0.1 source commit');
   if (!/^[a-f0-9]{64}$/i.test(a.archiveSha256 ?? '') || a.archiveSha256 !== actualHash) errors.push('Corresponding source archive SHA-256 does not match attestation');
   if (Object.values(a).some((value) => typeof value === 'string' && /REPLACE_WITH|YYYY-MM-DD/.test(value))) errors.push('Stockfish attestation contains template placeholders');
-  if (!a.binaryMatchesSourceVerified) errors.push('Manual corresponding-source verification not attested');
+  if (!reviewCandidate && !a.binaryMatchesSourceVerified) errors.push('Manual corresponding-source verification not attested');
+  if (reviewCandidate && a.binaryMatchesSourceVerified !== false) errors.push('Review candidate requires a pending manual source attestation');
   source = { ...(source ?? {}), archivePath, sha256: actualHash, sizeBytes: archive.length, attestation: a };
 } catch(e) { errors.push('Missing/unreadable source archive or compliance/stockfish-source-attestation.json: ' + e.message); }
 
@@ -183,6 +195,8 @@ if (errors.length) {
   await copyFile(at('release-sources/chess-coach-complete-source-candidate.zip'), at('mobile/public/engine/source/chess-coach-complete-source.zip'));
   const manifest = {
     schemaVersion: 1,
+    releaseStatus: reviewCandidate ? 'REVIEW_CANDIDATE_ONLY' : 'LEGAL_ATTESTATION_RECORDED',
+    legalApproval: !reviewCandidate,
     generatedAt: new Date().toISOString(),
     lockedStockfishVersion: pkg.version,
     lockedStockfishIntegrity: pkg.integrity,
@@ -204,7 +218,9 @@ if (errors.length) {
     artworkNoticeFiles: noticeFiles
   };
   await writeFile(at('mobile/public/engine/source/compliance-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-  console.log('Android license release gate passed. Source archive and manifest staged for mobile build.');
+  console.log(reviewCandidate
+    ? 'Review-only source candidate staged. Legal approval is pending; do not upload this AAB to Play.'
+    : 'Android license release gate passed. Source archive and manifest staged for mobile build.');
   console.log('Artwork attribution/license documents indexed: ' + noticeFiles.length);
   console.log('Run npm run android:sync, then verify the archive and manifest inside the signed AAB.');
 }

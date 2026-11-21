@@ -12,6 +12,7 @@ import zipfile
 from pathlib import Path
 
 p = argparse.ArgumentParser()
+p.add_argument('--review-candidate', action='store_true', help='Accept only an explicitly unapproved review-only bundle')
 p.add_argument("aab", nargs="?", default="android/app/build/outputs/bundle/release/app-release.aab")
 args = p.parse_args()
 bundle = Path(args.aab)
@@ -42,6 +43,9 @@ with zipfile.ZipFile(bundle) as archive:
     if manifest_path in names:
         try:
             manifest = json.loads(archive.read(manifest_path))
+            expected_status = 'REVIEW_CANDIDATE_ONLY' if args.review_candidate else 'LEGAL_ATTESTATION_RECORDED'
+            if manifest.get('releaseStatus') != expected_status or manifest.get('legalApproval') is not (not args.review_candidate):
+                failures.append('AAB release status does not match the requested acceptance mode')
             entries = list(manifest.get("bundledFiles", [])) + list(manifest.get("assets", [])) + list(manifest.get("artworkNoticeFiles", []))
             source = manifest.get("correspondingSource", {})
             if source:
@@ -84,4 +88,6 @@ if failures:
         print("FAIL:", failure)
     sys.exit(1)
 print("PASS: AAB contains required Stockfish source, engine/license bytes and license page; recorded payload hashes match.")
+if args.review_candidate:
+    print("REVIEW CANDIDATE ONLY: legal approval is pending; do not upload this bundle to Play.")
 print("NOT VERIFIED: Google Play signing, GPL source completeness, copyright rights, or runtime functionality.")
