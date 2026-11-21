@@ -90,6 +90,18 @@ class CleanSourcePreflightTests(unittest.TestCase):
         self.assertEqual(result["commands"],[])
         self.assertFalse((self.root/"artifacts/chess-coach-clean-source-build.json").exists())
 
+    def test_failed_preflight_keeps_existing_build_report(self):
+        report=self.root/"artifacts/chess-coach-clean-source-build.json"
+        report.write_text('{"status":"prior-debug-build-evidence"}')
+        verify=self.root/"artifacts/chess-coach-complete-source-verification.json"
+        data=json.loads(verify.read_text())
+        data["archiveSha256"]="f"*64
+        verify.write_text(json.dumps(data))
+        self.assertNotEqual(self.execute(),0)
+        self.assertEqual(json.loads(report.read_text())["status"],"prior-debug-build-evidence")
+        blocked=json.loads((self.root/"artifacts/chess-coach-clean-source-preflight.json").read_text())
+        self.assertEqual(blocked["status"],"BLOCKED")
+
     def test_bad_archive_checksum_blocks(self):
         verify=self.root/"artifacts/chess-coach-complete-source-verification.json"
         report=json.loads(verify.read_text())
