@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/verify-clean-source-build.py'
       - 'scripts/test-clean-source-preflight.py'
+      - 'scripts/review-clean-source-build.py'
+      - 'scripts/test-clean-source-apk-review.py'
       - 'scripts/stockfish-source-archive.py'
       - 'scripts/test-stockfish-source-archive.py'
       - '.github/workflows/source-preflight-regression.yml'
@@ -25,8 +27,10 @@ jobs:
           python-version: '3.12'
       - name: Compile test scripts
         run: |
-          python -m py_compile scripts/verify-clean-source-build.py scripts/review-clean-source-build.py scripts/test-clean-source-preflight.py scripts/stockfish-source-archive.py scripts/test-stockfish-source-archive.py
+          python -m py_compile scripts/verify-clean-source-build.py scripts/review-clean-source-build.py scripts/test-clean-source-preflight.py scripts/review-clean-source-build.py scripts/test-clean-source-apk-review.py scripts/stockfish-source-archive.py scripts/test-stockfish-source-archive.py
       - name: Reject forged and unsafe ZIPs
         run: python scripts/test-clean-source-preflight.py -v
+      - name: Reject forged or corrupted debug APK acceptance evidence
+        run: python scripts/test-clean-source-apk-review.py -v
       - name: Validate symlink-safe Stockfish archive extraction
         run: python scripts/test-stockfish-source-archive.py -v
