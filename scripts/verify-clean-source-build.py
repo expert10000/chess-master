@@ -7,6 +7,8 @@ and npm/Gradle caches must be configured on the qualification machine.
 """
 import hashlib
 import datetime
+import argparse
+import stat
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -23,6 +25,9 @@ OUTPUT = ROOT / "artifacts/chess-coach-clean-source-build.json"
 PREFIX = "chess-coach-source/"
 RESULTS = []
 RUN_STARTED = datetime.datetime.now(datetime.timezone.utc).isoformat()
+PARSER = argparse.ArgumentParser(description='Build verified source ZIP into isolated Android debug APK')
+PARSER.add_argument('--preflight-only', action='store_true', help='Validate source ZIP and host prerequisites without invoking npm/Gradle')
+ARGS = PARSER.parse_args()
 BASELINE = '1d3d85d6f3e889beda0a97c4f59e29f51902f9c2'
 APK_COPY = ROOT / 'artifacts/chess-coach-clean-source-debug.apk'
 REQUIRED_ASSETS = [
@@ -67,6 +72,26 @@ def main():
             raise RuntimeError("ZIP internal manifest does not match qualified baseline")
         if manifest.get("stockfishSourceSha256")!=prior.get("stockfishSourceSha256"):
             raise RuntimeError("Nested Stockfish source identity differs from accepted verification")
+        entries=check.infolist()
+        if len(entries)!=len({entry.filename for entry in entries}):
+            raise RuntimeError("Duplicate ZIP member detected")
+        expected_files={"chess-coach-source/"+x["path"] for x in manifest.get("files",[])}
+        expected_files.update({PREFIX+"SOURCE_MANIFEST.json", PREFIX+"upstream/stockfish-corresponding-source.tar.gz"})
+        actual_files={x.filename for x in entries if not x.is_dir()}
+        if actual_files!=expected_files:
+            raise RuntimeError("Complete-source ZIP file inventory differs from its manifest")
+        if len(manifest.get("files",[]))!=371:
+            raise RuntimeError("Internal tracked-file list does not contain 371 entries")
+        for entry in entries:
+            path=PurePosixPath(entry.filename)
+            if (path.is_absolute() or ".." in path.parts or "\\\\" in entry.filename
+                    or not entry.filename.startswith(PREFIX)):
+                raise RuntimeError("Unsafe ZIP path: "+entry.filename)
+            if stat.S_IFMT(entry.external_attr >> 16)==stat.S_IFLNK:
+                raise RuntimeError("Unexpected ZIP symlink: "+entry.filename)
+        nested=check.read(PREFIX+"upstream/stockfish-corresponding-source.tar.gz")
+        if digest(nested)!=prior.get("stockfishSourceSha256"):
+            raise RuntimeError("Nested Stockfish tarball digest does not match qualified verification")
     # Reject unsupported host environments before doing a long npm/Gradle build.
     if shutil.which("node") is None or shutil.which("npm.cmd" if os.name=="nt" else "npm") is None:
         raise RuntimeError("Node.js and npm must be on PATH")
@@ -78,6 +103,21 @@ def main():
         raise RuntimeError("Android SDK not configured: set ANDROID_HOME to your SDK folder. The isolated source ZIP does not include local.properties.")
     if sdk and not Path(sdk).is_dir():
         raise RuntimeError("Configured ANDROID_HOME/ANDROID_SDK_ROOT directory does not exist: "+sdk)
+    if ARGS.preflight_only:
+        OUTPUT.parent.mkdir(parents=True,exist_ok=True)
+        preflight={
+            "status":"CLEAN_SOURCE_PREFLIGHT_PASS_BUILD_PENDING",
+            "baselineCommit":BASELINE,
+            "trackedFileCount":371,
+            "qualifiedSourceZipSha256":digest(ZIP.read_bytes()),
+            "environment":{"javaHome":str(java_home or ""),"androidSdk":str(sdk)},
+            "legalApproval":False,
+            "signedReleaseAabAccepted":False,
+            "commands":[],
+        }
+        OUTPUT.write_text(json.dumps(preflight,indent=2)+"\\n",encoding="utf8")
+        print(json.dumps(preflight,indent=2))
+        return
     if os.name=="nt":
         npm="npm.cmd"
     else:
