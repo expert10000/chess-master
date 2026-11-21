@@ -2,6 +2,21 @@
 
 **Branch:** `release/source-delivery-clean-rebuild-gate`, based on immutable qualified source baseline `1d3d85d6f3e889beda0a97c4f59e29f51902f9c2`.
 
+## Current Play Chess release branch
+
+The Play Chess branch includes newer PGN import, paid listing, branding, and release typecheck fixes. Its source ZIP must be regenerated from its own clean commit; the older 371-file archive cannot qualify it. The verifier retains the fixed old baseline as its default for regression fixtures. For a newly qualified commit, pass its full Git SHA with `--release-commit`; this checks that the checkout is clean, that the requested SHA is the current checkout, and that the ZIP and prior verification cover the same tracked-file count and hashes.
+
+After `android:source:verify`, `android:source:review`, `android:complete-source:prepare`, and `android:complete-source:verify` pass on that clean commit, run:
+
+```powershell
+$releaseCommit = (git rev-parse HEAD).Trim()
+python scripts/verify-clean-source-build.py --preflight-only --release-commit $releaseCommit
+python scripts/verify-clean-source-build.py --release-commit $releaseCommit
+python scripts/review-clean-source-build.py --release-commit $releaseCommit
+```
+
+These commands produce debug APK evidence only. They do not set GPL approval, accept a signed AAB, or authorize a Play upload.
+
 This is an **engineering-only follow-on proposal**. The source archive validated at `1d3d85d` remains unchanged; this branch modifies verification tooling and MUST trigger a fresh source-package qualification if its changes are included in a future distributable Android build.
 
 ## A. Clean rebuild from the actual complete-source candidate

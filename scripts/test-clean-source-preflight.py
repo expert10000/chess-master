@@ -69,9 +69,9 @@ class CleanSourcePreflightTests(unittest.TestCase):
         }
         (self.root/"artifacts/chess-coach-complete-source-verification.json").write_text(json.dumps(verification))
 
-    def execute(self):
+    def execute(self, extra_args=None):
         with (
-            patch.object(sys,"argv",[str(self.root/"scripts"/SCRIPT.name),"--preflight-only"]),
+            patch.object(sys,"argv",[str(self.root/"scripts"/SCRIPT.name),"--preflight-only",*(extra_args or [])]),
             patch.dict(os.environ,{"ANDROID_HOME":str(self.root/"android-sdk")}),
             patch("shutil.which",return_value="/mock/tool"),
             contextlib.redirect_stdout(io.StringIO()),
@@ -89,6 +89,19 @@ class CleanSourcePreflightTests(unittest.TestCase):
         self.assertEqual(result["trackedFileCount"],371)
         self.assertEqual(result["commands"],[])
         self.assertFalse((self.root/"artifacts/chess-coach-clean-source-build.json").exists())
+
+    def test_explicit_release_commit_checks_clean_git_snapshot(self):
+        def git_result(args, cwd):
+            if args[1] == 'rev-parse': return BASELINE.encode()
+            if args[1] == 'status': return b''
+            if args[1] == 'ls-files': return b'dummy\0' * 371
+            raise AssertionError(args)
+        with patch('subprocess.check_output', side_effect=git_result):
+            self.assertEqual(self.execute(['--release-commit', BASELINE]), 0)
+
+    def test_explicit_release_commit_rejects_other_checkout(self):
+        with patch('subprocess.check_output', return_value=b'0' * 40):
+            self.assertNotEqual(self.execute(['--release-commit', BASELINE]), 0)
 
     def test_failed_preflight_keeps_existing_build_report(self):
         report=self.root/"artifacts/chess-coach-clean-source-build.json"

@@ -8,6 +8,7 @@ and npm/Gradle caches must be configured on the qualification machine.
 import hashlib
 import datetime
 import argparse
+import re
 import stat
 import json
 import os
@@ -27,8 +28,9 @@ RESULTS = []
 RUN_STARTED = datetime.datetime.now(datetime.timezone.utc).isoformat()
 PARSER = argparse.ArgumentParser(description='Build verified source ZIP into isolated Android debug APK')
 PARSER.add_argument('--preflight-only', action='store_true', help='Validate source ZIP and host prerequisites without invoking npm/Gradle')
+PARSER.add_argument('--release-commit', help='Explicit current Git commit for a newly qualified release snapshot')
 ARGS = PARSER.parse_args()
-BASELINE = '1d3d85d6f3e889beda0a97c4f59e29f51902f9c2'
+BASELINE = ARGS.release_commit or '1d3d85d6f3e889beda0a97c4f59e29f51902f9c2'
 APK_COPY = ROOT / 'artifacts/chess-coach-clean-source-debug.apk'
 PREFLIGHT_OUTPUT = ROOT / 'artifacts/chess-coach-clean-source-preflight.json'
 REQUIRED_ASSETS = [
@@ -57,19 +59,30 @@ def run(args,cwd):
         raise RuntimeError(command+" failed with exit "+str(p.returncode))
 
 def main():
+    expected_count = 371
+    if ARGS.release_commit:
+        if not re.fullmatch(r'[0-9a-f]{40}', BASELINE):
+            raise RuntimeError('Release commit must be a full lowercase Git SHA-1')
+        current = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT).decode().strip()
+        if current != BASELINE:
+            raise RuntimeError('Requested release commit differs from current checkout')
+        if subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no'], cwd=ROOT).strip():
+            raise RuntimeError('Tracked checkout is not clean')
+        tracked = [p for p in subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).split(b'\0') if p]
+        expected_count = len(tracked)
     if not ZIP.is_file() or not VERIFICATION.is_file():
         raise RuntimeError("Missing complete source ZIP or formal ZIP verification")
     prior=json.loads(VERIFICATION.read_text(encoding="utf8"))
     if prior.get("status")!="COMPLETE_SOURCE_TECHNICAL_PASS_LEGAL_PENDING" or prior.get("errors") or prior.get("archiveSha256")!=digest(ZIP.read_bytes()):
         raise RuntimeError("Full-source ZIP verification is stale or failed")
-    if prior.get("gitCommit")!=BASELINE or prior.get("trackedFileCount")!=371:
-        raise RuntimeError("Source ZIP verification is not the qualified 1d3d85d / 371-file baseline")
+    if prior.get("gitCommit")!=BASELINE or prior.get("trackedFileCount")!=expected_count:
+        raise RuntimeError("Source ZIP verification does not match the selected Git release snapshot")
     with zipfile.ZipFile(ZIP) as check:
         manifest_name = PREFIX + "SOURCE_MANIFEST.json"
         if manifest_name not in check.namelist():
             raise RuntimeError("Complete-source ZIP lacks its own manifest")
         manifest=json.loads(check.read(manifest_name))
-        if manifest.get("gitCommit")!=BASELINE or manifest.get("trackedFileCount")!=371:
+        if manifest.get("gitCommit")!=BASELINE or manifest.get("trackedFileCount")!=expected_count:
             raise RuntimeError("ZIP internal manifest does not match qualified baseline")
         if manifest.get("stockfishSourceSha256")!=prior.get("stockfishSourceSha256"):
             raise RuntimeError("Nested Stockfish source identity differs from accepted verification")
@@ -81,8 +94,8 @@ def main():
         actual_files={x.filename for x in entries if not x.is_dir()}
         if actual_files!=expected_files:
             raise RuntimeError("Complete-source ZIP file inventory differs from its manifest")
-        if len(manifest.get("files",[]))!=371:
-            raise RuntimeError("Internal tracked-file list does not contain 371 entries")
+        if len(manifest.get("files",[]))!=expected_count:
+            raise RuntimeError("Internal tracked-file list does not match the selected Git snapshot")
         # Recheck each source member, not just the overall ZIP digest declared
         # by a copied report. A changed member cannot inherit the old baseline.
         for record in manifest["files"]:
@@ -119,7 +132,7 @@ def main():
         preflight={
             "status":"CLEAN_SOURCE_PREFLIGHT_PASS_BUILD_PENDING",
             "baselineCommit":BASELINE,
-            "trackedFileCount":371,
+            "trackedFileCount":expected_count,
             "qualifiedSourceZipSha256":digest(ZIP.read_bytes()),
             "environment":{"javaHome":str(java_home or ""),"androidSdk":str(sdk)},
             "legalApproval":False,
