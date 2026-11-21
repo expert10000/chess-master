@@ -4,7 +4,7 @@ import { assessPersonalPreMoveRisk } from '../src/lib/preMoveRisk';
 import type { GameLibraryEntry, GameLibraryMemory } from '../src/lib/gameLibrary';
 
 function entry(id: string, verdict: 'Good' | 'Mistake'): GameLibraryEntry {
-  return { id, fingerprint: id, source: 'played', createdAt: 1, updatedAt: 1, startFen: new Chess().fen(), movesUci: ['f2f4'], pgn: '', white: 'You', black: 'Opponent', result: '*', humanColor: 'w', reviewStatus: 'reviewed', humanMoveCount: 1, reviewedHumanMoves: 1, reviewedPlyCount: 1, issueCount: verdict === 'Mistake' ? 1 : 0, averageCpl: verdict === 'Mistake' ? 130 : 10, weaknesses: [], reviewsByPly: { '1': { verdict, centipawnLoss: verdict === 'Mistake' ? 130 : 10, bestMoveUci: 'e2e4', bestMoveSan: 'e4', title: 'Review', summary: 'Pawn push review', reasons: [], concepts: [], playedEvaluation: '0', bestEvaluation: '0' } } };
+  return { id, fingerprint: id, source: 'played', createdAt: 1, updatedAt: 1, startFen: new Chess().fen(), movesUci: ['f2f4'], pgn: '', white: 'You', black: 'Opponent', result: '*', humanColor: 'w', opening: null, reviewStatus: 'reviewed', humanMoveCount: 1, reviewedHumanMoves: 1, reviewedPlyCount: 1, issueCount: verdict === 'Mistake' ? 1 : 0, averageCpl: verdict === 'Mistake' ? 130 : 10, weaknesses: [], reviewsByPly: { '1': { verdict, centipawnLoss: verdict === 'Mistake' ? 130 : 10, bestMoveUci: 'e2e4', bestMoveSan: 'e4', title: 'Review', summary: 'Pawn push review', reasons: [], concepts: [], playedEvaluation: '0', bestEvaluation: '0' } } };
 }
 
 describe('v1.11.0 pre-move risk coach', () => {
