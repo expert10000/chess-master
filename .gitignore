@@ -14,3 +14,10 @@ Thumbs.db
 resources/stockfish/stockfish
 resources/stockfish/stockfish.exe
 resources/stockfish/stockfish-*
+
+# Release source archive is staged locally only after verified provenance.
+release-sources/
+compliance/stockfish-source-attestation.json
+
+# Unpublished release URL candidate / private listing disclosure draft
+compliance/source-delivery-plan.local.json

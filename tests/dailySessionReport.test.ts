@@ -70,6 +70,7 @@ function plan(): DailyStudyPlan {
     weeklyPriorityLabels: [],
     goalAdjusted: false,
     goalPriorityLabels: [],
+    optimizedBlocks: [],
     summary: 'test',
     items: [
       {

@@ -1,4 +1,4 @@
-# Stockfish Coach — Google Play listing draft
+# Play Chess — Google Play listing draft
 
 This folder contains copy and graphics for the **paid** Android app. It is a draft for Play Console entry, not evidence that a release is legally or technically approved.
 
@@ -6,14 +6,14 @@ This folder contains copy and graphics for the **paid** Android app. It is a dra
 
 | Field | Value |
 | --- | --- |
-| App name | Stockfish Coach |
+| App name | Play Chess |
 | Package | `com.expert10000.stockfishcoach` |
 | Default language | English |
 | Type and category | Game → Board |
 | Price model | Paid upfront; no ads, subscription, or in-app purchase |
 | US launch price | US$4.99; review PLN and other local prices in Console |
 | Support email | `dareks.inf@gmail.com` |
-| Privacy policy | Publish and verify `docs/privacy.html` as a public HTTPS page; live URL pending |
+| Privacy policy | `https://expert10000.github.io/chess-master/privacy.html` |
 
 ## Short description
 
@@ -21,7 +21,7 @@ Play offline chess, solve puzzles, and understand every move
 
 ## Full description
 
-Play a game, inspect a position, and learn the reason behind a move with Stockfish Coach.
+Play a game, inspect a position, and learn the reason behind a move with Play Chess.
 
 Choose an opponent level around 1800, 2000, or 2100 Elo, or play at maximum strength. Move pieces by tap or drag, review the move history, and return to any position on the board. The Elo levels are approximate.
 
@@ -33,7 +33,7 @@ Import a PGN game to replay it move by move or start playing from a chosen move.
 
 The chess engine and included puzzles work offline. No account, advertising, subscription, or in-app purchase is required. Game records and preferences are stored on your device.
 
-Stockfish Coach is an independent app powered by the open-source Stockfish engine. It is not affiliated with or endorsed by the Stockfish or Lichess projects.
+Play Chess is an independent app powered by the open-source Stockfish engine. It is not affiliated with or endorsed by the Stockfish or Lichess projects.
 
 ## Graphics to upload
 
@@ -41,7 +41,7 @@ Stockfish Coach is an independent app powered by the open-source Stockfish engin
 | --- | --- | --- |
 | App icon | `icon-512.png` | Mint chess rook on a dark teal chessboard background. |
 | Feature graphic | `feature-graphic-1024x500.png` | Chess rook and the words “Understand your next move” on a teal chessboard background. |
-| Phone screenshot 1 | `01-play.png` | Chess board with Staunton pieces and an offline engine opponent. |
+| Phone screenshot 1 | `01-play.png` | Chess board with desktop-style pieces and an offline engine opponent. |
 | Phone screenshot 2 | `02-hint.png` | Stockfish hint recommends Bb5 and explains its attack on a knight. |
 | Phone screenshot 3 | `03-puzzles.png` | Chess puzzle board with hint, retry, solution, and next controls. |
 | Phone screenshot 4 | `04-moves.png` | Move history with PGN import, export, and privacy controls. |
@@ -62,4 +62,4 @@ Internal testers can install a paid app without purchasing it. Closed testers or
 
 ## Release gate
 
-PR #3's 19/19 CI result uses synthetic source and APK fixtures. The exact 371-file qualified source ZIP and verification report are needed for the real clean-source debug build. The public source-delivery route, GPL review, signed AAB, Play-installed test, and production release remain separate tasks. Do not claim approval based on this listing pack.
+PR #3's 19/19 CI result uses synthetic source and APK fixtures. The older 371-file qualified source ZIP and verification report are unavailable here. This newer release branch needs a fresh source qualification tied to its own commit, source-delivery review, GPL review, signed AAB acceptance, and Play-installed test. Do not claim approval based on this listing pack or the local prototype AAB.

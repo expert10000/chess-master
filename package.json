@@ -29,7 +29,22 @@
     "test:puzzles": "node tests/puzzle-smoke.cjs",
     "build:mobile": "node scripts/copy-mobile-engine.mjs && vite build --config vite.mobile.config.ts",
     "dev:mobile": "node scripts/copy-mobile-engine.mjs && vite --config vite.mobile.config.ts",
-    "android:sync": "npm run build:mobile && cap sync android"
+    "android:sync": "npm run build:mobile && cap sync android",
+    "android:licenses:prepare": "node scripts/prepare-android-licenses.mjs",
+    "android:review-candidate:prepare": "npm run build:mobile && node scripts/prepare-android-licenses.mjs --review-candidate && npm run android:sync",
+    "android:release:prepare": "npm run build:mobile && npm run android:licenses:prepare && npm run android:sync",
+    "android:source:fetch": "node scripts/fetch-stockfish-source.mjs",
+    "android:aab:verify": "python scripts/verify-android-aab.py",
+    "android:source:verify": "node scripts/verify-stockfish-rebuild.mjs",
+    "android:source:test": "py -3 scripts/test-stockfish-source-archive.py",
+    "android:source:tools": "node scripts/stockfish-windows-tools.mjs",
+    "android:source:review": "python scripts/review-stockfish-source.py",
+    "android:complete-source:prepare": "python scripts/prepare-complete-source.py",
+    "android:complete-source:verify": "python scripts/verify-complete-source.py",
+    "android:complete-source:rebuild": "python scripts/verify-clean-source-build.py",
+    "android:source:delivery:verify": "node scripts/verify-source-delivery.mjs compliance/source-delivery-plan.local.json",
+    "android:complete-source:rebuild:review": "python scripts/review-clean-source-build.py",
+    "android:complete-source:preflight:test": "python scripts/test-clean-source-preflight.py -v"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.10",

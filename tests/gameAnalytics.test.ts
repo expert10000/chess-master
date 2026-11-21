@@ -5,7 +5,8 @@ import {
   classifyGamePhase,
   gameAnalyticsOpeningRows,
 } from '../src/lib/gameAnalytics';
-import type { GameLibraryMemory } from '../src/lib/gameLibrary';
+import type { GameLibraryEntry, GameLibraryMemory } from '../src/lib/gameLibrary';
+import type { Verdict } from '../src/lib/chessCoach';
 
 const baseReview = {
   title: 'Review',
@@ -23,7 +24,7 @@ const baseReview = {
   playedLineUci: ['e2e4'],
 };
 
-function entry(id: string, updatedAt: number, humanColor: 'w' | 'b', openingName: string, eco: string, reviewStatus: 'partial' | 'reviewed', avgCpl: number, issueCount: number, verdicts: string[]) {
+function entry(id: string, updatedAt: number, humanColor: 'w' | 'b', openingName: string, eco: string, reviewStatus: 'partial' | 'reviewed', avgCpl: number, issueCount: number, verdicts: Verdict[]): GameLibraryEntry {
   return {
     id,
     fingerprint: `fp-${id}`,
@@ -75,7 +76,7 @@ function entry(id: string, updatedAt: number, humanColor: 'w' | 'b', openingName
 
 
 
-function longMiddlegameEntry() {
+function longMiddlegameEntry(): GameLibraryEntry {
   const cycle = ['g1f3', 'g8f6', 'f3g1', 'f6g8'];
   const movesUci = Array.from({ length: 6 }, () => cycle).flat();
   return {

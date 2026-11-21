@@ -18,12 +18,12 @@ const out = join(root, 'play-listing');
     page.setDefaultTimeout(30000);
     await page.goto('http://127.0.0.1:5176/');
     await page.getByText('Ready', { exact: true }).waitFor();
-    await page.locator('.mobile-board .piece-illustrated').first().waitFor();
+    await page.locator('.mobile-board .piece-desktop').first().waitFor();
     await page.screenshot({ path: join(out, '01-play.png'), animations: 'disabled' });
 
     await page.evaluate(() => {
       localStorage.setItem('stockfish-coach.mobile.v1', JSON.stringify({ pgn: '1. e4 e5 2. Nf3 Nc6', side: 'w', difficulty: '1800', flipped: false }));
-      localStorage.setItem('stockfish-coach.mobile.piece-style.v3', 'illustrated');
+      localStorage.setItem('stockfish-coach.mobile.piece-style.v3', 'desktop');
     });
     await page.reload();
     await page.getByText('Ready', { exact: true }).waitFor();
